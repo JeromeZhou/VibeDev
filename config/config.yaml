@@ -50,13 +50,13 @@ cost:
 # 数据源配置
 sources:
   chiphell:
-    enabled: false  # 567 error, temporarily disabled
+    enabled: false  # 567 error, site blocking
     weight: 1.0
     interval_hours: 4
     url: "https://www.chiphell.com"
     sections: ["显卡", "硬件"]
   reddit:
-    enabled: false  # rate-limited at night, temporarily disabled
+    enabled: true
     weight: 0.9
     interval_hours: 4
     subreddits: ["nvidia", "amd", "hardware"]
