@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# 环境
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 数据（raw 数据需要保留，但不提交到 git）
+data/raw/
+data/processed/
+data/archive/
+
+# 输出
+outputs/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+playwright/.cache/

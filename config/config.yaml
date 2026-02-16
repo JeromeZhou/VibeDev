@@ -1,0 +1,102 @@
+# GPU-Insight 主配置文件
+
+project:
+  name: "GPU-Insight"
+  version: "1.0.0"
+  description: "显卡用户痛点智能分析系统"
+
+# 运行模式
+runtime:
+  cycle_interval_hours: 4
+  timezone: "Asia/Shanghai"
+
+# Agent Teams 配置
+agent_teams:
+  enabled: false  # Phase 1 先关闭，验证流程
+  features:
+    parallel_scraping: true
+    expert_council: true
+    dynamic_team: false
+  fallback:
+    mode: "serial"
+    serial:
+      simulate_roles: true
+      timeout: 7200
+
+# LLM 配置
+llm:
+  # 深度推理任务
+  reasoning:
+    provider: "anthropic"
+    model: "claude-sonnet-4-20250514"
+    max_tokens: 4096
+    temperature: 0.3
+  # 简单任务
+  simple:
+    provider: "openai"
+    model: "gpt-4o-mini"
+    max_tokens: 2048
+    temperature: 0.2
+
+# 成本控制
+cost:
+  monthly_budget_usd: 80
+  alert_thresholds:
+    warning: 0.8
+    downgrade: 0.9
+    pause: 0.95
+    stop: 1.0
+
+# 数据源配置
+sources:
+  chiphell:
+    enabled: true
+    weight: 1.0
+    interval_hours: 4
+    url: "https://www.chiphell.com"
+    sections: ["显卡", "硬件"]
+  reddit:
+    enabled: true
+    weight: 0.9
+    interval_hours: 4
+    subreddits: ["nvidia", "amd", "hardware"]
+  nga:
+    enabled: true
+    weight: 0.8
+    interval_hours: 4
+    url: "https://bbs.nga.cn"
+    sections: ["硬件区"]
+  tieba:
+    enabled: false  # Phase 2
+    weight: 0.6
+    interval_hours: 6
+  rog:
+    enabled: false  # Phase 2
+    weight: 0.7
+    interval_hours: 6
+  twitter:
+    enabled: false  # Phase 2
+    weight: 0.5
+    interval_hours: 8
+  guru3d:
+    enabled: false  # Phase 2
+    weight: 0.8
+    interval_hours: 6
+
+# PPHI 算法权重
+pphi:
+  weights:
+    frequency: 0.3
+    source_quality: 0.4
+    interaction: 0.2
+    time_decay: 0.1
+  decay_rate_per_day: 0.05
+
+# 数据路径
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  archive: "data/archive"
+  reports: "outputs/daily_reports"
+  rankings: "outputs/pphi_rankings"
+  logs: "logs"

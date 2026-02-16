@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU-Insight 痛点仪表盘</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', 'Roboto', sans-serif; background: #f5f5f5; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .intensity-high { color: #F44336; }
+        .intensity-mid { color: #FF9800; }
+        .intensity-low { color: #4CAF50; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="bg-blue-700 text-white py-4 px-6 shadow">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold">GPU-Insight 痛点仪表盘</h1>
+                <p class="text-blue-200 text-sm">最后更新：{{ updated_at }}</p>
+            </div>
+            <span class="material-icons text-3xl">insights</span>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto py-6 px-4">
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="card p-4">
+                <p class="text-gray-500 text-sm">痛点总数</p>
+                <p class="text-2xl font-bold text-blue-700">{{ data.total_pain_points }}</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-gray-500 text-sm">数据来源</p>
+                <p class="text-2xl font-bold text-blue-700">
+                    {% set ns = namespace(sources=[]) %}
+                    {% for r in rankings %}
+                        {% for s in r.get('sources', []) %}
+                            {% if s not in ns.sources %}{% set ns.sources = ns.sources + [s] %}{% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {{ ns.sources | length }} 个论坛
+                </p>
+            </div>
+            <div class="card p-4">
+                <p class="text-gray-500 text-sm">系统状态</p>
+                <p class="text-2xl font-bold text-green-600">运行中 ✅</p>
+            </div>
+        </div>
+
+        <!-- Top 10 排名 -->
+        <div class="card p-6">
+            <h2 class="text-lg font-bold mb-4">🔥 Top 10 痛点排名</h2>
+            {% if rankings %}
+            <div class="space-y-3">
+                {% for r in rankings %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl font-bold text-blue-700 w-8">#{{ r.rank }}</span>
+                        <div>
+                            <p class="font-medium">{{ r.pain_point }}</p>
+                            <p class="text-sm text-gray-500">
+                                💬 {{ r.get('mentions', 0) }} 条讨论 |
+                                📡 {{ r.get('sources', []) | join(', ') }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold">PPHI: {{ r.pphi_score }}</p>
+                        <p class="text-sm {% if r.get('trend') == 'accelerating' %}intensity-high{% elif r.get('trend') == 'new' %}text-blue-500{% else %}text-gray-400{% endif %}">
+                            {% if r.get('trend') == 'new' %}🆕 NEW
+                            {% elif r.get('trend') == 'accelerating' %}📈 上升
+                            {% elif r.get('trend') == 'declining' %}📉 下降
+                            {% else %}➡️ 稳定{% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-400 text-center py-8">尚未运行分析，等待首次数据采集...</p>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer class="text-center text-gray-400 text-sm py-4">
+        GPU-Insight — 显卡用户痛点智能分析系统
+    </footer>
+</body>
+</html>

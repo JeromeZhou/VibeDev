@@ -11,7 +11,9 @@
       "Bash(git config:*)",
       "WebFetch(domain:github.com)",
       "WebSearch",
-      "Bash(git clone:*)"
+      "Bash(git clone:*)",
+      "Bash(python -c:*)",
+      "Bash(where:*)"
     ]
   }
 }

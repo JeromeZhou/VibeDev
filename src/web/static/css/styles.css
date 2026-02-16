@@ -1,0 +1,9 @@
+/* GPU-Insight 样式 */
+:root {
+  --primary: #1976D2;
+  --intensity-high: #F44336;
+  --intensity-mid: #FF9800;
+  --intensity-low: #4CAF50;
+  --bg: #f5f5f5;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
