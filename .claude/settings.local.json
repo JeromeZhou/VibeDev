@@ -28,7 +28,9 @@
       "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" main.py)",
       "Bash(wmic process where \"commandline like ''%main.py%''\" get processid,commandline)",
       "Bash(tasklist:*)",
-      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -u main.py)"
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -u main.py)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -c \"import uvicorn; print\\(''uvicorn ok''\\)\")",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -m pip install uvicorn)"
     ]
   }
 }
