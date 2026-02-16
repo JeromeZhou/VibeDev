@@ -24,7 +24,8 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
     # 计算 PPHI
     rankings = []
     for pain_point, data in aggregated.items():
-        mention_count = data["count"]
+        # 用关联帖子数作为频率指标（比痛点文本匹配更准确）
+        mention_count = max(data["count"], len(data.get("source_urls", [])))
         sources = data["sources"]
         avg_source_score = sum(source_scores.get(s, 0.5) for s in sources) / max(len(sources), 1)
         interaction = data.get("avg_interaction", 0)
@@ -77,6 +78,9 @@ def _aggregate(insights: list[dict]) -> dict:
                 "category": item.get("category", ""),
                 "affected_users": item.get("affected_users", ""),
                 "evidence": item.get("evidence", ""),
+                "total_replies": 0,
+                "total_likes": 0,
+                "timestamps": [],
             }
 
         agg[pp]["count"] += 1
@@ -96,6 +100,15 @@ def _aggregate(insights: list[dict]) -> dict:
         for key in ("brands", "models", "series", "manufacturers"):
             agg[pp]["gpu_tags"][key].update(tags.get(key, []))
 
+        # 互动数据累加
+        agg[pp]["total_replies"] += item.get("total_replies", 0)
+        agg[pp]["total_likes"] += item.get("total_likes", 0)
+
+        # 时间戳收集
+        ts = item.get("earliest_timestamp", "")
+        if ts:
+            agg[pp]["timestamps"].append(ts)
+
         # 推理需求
         need = item.get("inferred_need")
         if need and need.get("hidden_need"):
@@ -103,11 +116,23 @@ def _aggregate(insights: list[dict]) -> dict:
             agg[pp]["confidences"].append(need.get("confidence", 0.5))
 
     # 后处理
+    now = datetime.now()
     for pp, data in agg.items():
         data["avg_confidence"] = sum(data["confidences"]) / max(len(data["confidences"]), 1) if data["confidences"] else 0
+        # 计算互动分 = replies + likes
+        data["avg_interaction"] = data["total_replies"] + data["total_likes"]
+        # 从最早时间戳计算 days_old
         data["days_old"] = 0
+        if data["timestamps"]:
+            try:
+                earliest = min(data["timestamps"])
+                earliest_dt = datetime.fromisoformat(earliest.replace("Z", "+00:00").replace("+00:00", ""))
+                data["days_old"] = max(0, (now - earliest_dt).days)
+            except (ValueError, TypeError):
+                data["days_old"] = 0
         data["gpu_tags"] = {k: sorted(v) for k, v in data["gpu_tags"].items()}
         del data["confidences"]
+        del data["timestamps"]
 
     return agg
 

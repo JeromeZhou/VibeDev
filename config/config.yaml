@@ -67,7 +67,7 @@ sources:
     url: "https://bbs.nga.cn"
     sections: ["硬件区"]
   tieba:
-    enabled: true  # 中文数据源，替代 Chiphell
+    enabled: false  # blocked at night, re-enable daytime
     weight: 0.6
     interval_hours: 6
   rog:

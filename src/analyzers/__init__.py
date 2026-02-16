@@ -13,6 +13,8 @@ def _extract_json(text: str) -> list[dict]:
     results = []
     text = re.sub(r'```json\s*', '', text)
     text = re.sub(r'```\s*', '', text)
+    # 修复 LLM 常见错误：["步骤1": "xxx"] → ["xxx"]
+    text = re.sub(r'"[^"]*步骤\d+":\s*', '', text)
     for match in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL):
         try:
             parsed = json.loads(match.group())
@@ -29,6 +31,90 @@ def _extract_json(text: str) -> list[dict]:
         except json.JSONDecodeError:
             pass
     return results
+
+
+def _merge_similar_points(points: list[dict], llm: LLMClient) -> list[dict]:
+    """用 LLM 识别相似痛点并合并，减少重复"""
+    if len(points) <= 2:
+        return points
+
+    # 构建痛点列表让 LLM 分组
+    listing = "\n".join(f"[{i}] {p['pain_point']} ({p.get('category', '')})" for i, p in enumerate(points))
+    prompt = f"""以下是 {len(points)} 个显卡痛点，请找出含义相似或重复的痛点并分组。
+每组输出一个 JSON：{{"group": [序号], "merged_name": "合并后的痛点名"}}
+不相似的痛点单独一组。只输出 JSON 数组。
+
+{listing}"""
+
+    try:
+        response = llm.call_simple(prompt, "你是文本去重专家。找出语义相似的条目并分组。只输出JSON数组。")
+        groups = []
+        for parsed in _extract_json(response):
+            if "group" in parsed and "merged_name" in parsed:
+                groups.append(parsed)
+
+        if not groups:
+            # 尝试解析为数组
+            text = re.sub(r'```json\s*', '', response)
+            text = re.sub(r'```\s*', '', text)
+            try:
+                arr = json.loads(text.strip())
+                if isinstance(arr, list):
+                    groups = [g for g in arr if isinstance(g, dict) and "group" in g]
+            except json.JSONDecodeError:
+                pass
+
+        if not groups:
+            return points
+
+        # 按分组合并
+        used = set()
+        merged = []
+        for g in groups:
+            indices = g.get("group", [])
+            if not isinstance(indices, list) or not indices:
+                continue
+            valid = [i for i in indices if isinstance(i, int) and 0 <= i < len(points) and i not in used]
+            if not valid:
+                continue
+            used.update(valid)
+
+            # 以第一个为基础，合并其余
+            base = dict(points[valid[0]])
+            base["pain_point"] = g.get("merged_name", base["pain_point"])
+            for idx in valid[1:]:
+                other = points[idx]
+                base["source_post_ids"] = base.get("source_post_ids", []) + other.get("source_post_ids", [])
+                base["source_urls"] = base.get("source_urls", []) + [u for u in other.get("source_urls", []) if u not in base.get("source_urls", [])]
+                base["total_replies"] = base.get("total_replies", 0) + other.get("total_replies", 0)
+                base["total_likes"] = base.get("total_likes", 0) + other.get("total_likes", 0)
+                # 合并 GPU 标签
+                for key in ("brands", "models", "series", "manufacturers"):
+                    existing = set(base.get("gpu_tags", {}).get(key, []))
+                    existing.update(other.get("gpu_tags", {}).get(key, []))
+                    base.setdefault("gpu_tags", {})[key] = sorted(existing)
+                # 取更高情绪强度
+                base["emotion_intensity"] = max(base.get("emotion_intensity", 0), other.get("emotion_intensity", 0))
+                # 取更早时间戳
+                ts1 = base.get("earliest_timestamp", "")
+                ts2 = other.get("earliest_timestamp", "")
+                if ts1 and ts2:
+                    base["earliest_timestamp"] = min(ts1, ts2)
+                elif ts2:
+                    base["earliest_timestamp"] = ts2
+            merged.append(base)
+
+        # 加入未被分组的
+        for i, p in enumerate(points):
+            if i not in used:
+                merged.append(p)
+
+        print(f"  语义去重: {len(points)} → {len(merged)} 个痛点")
+        return merged
+
+    except Exception as e:
+        print(f"  [!] 语义去重失败: {e}")
+        return points
 
 
 def analyze_pain_points(posts: list[dict], config: dict, llm: LLMClient) -> list[dict]:
@@ -83,9 +169,21 @@ related_post_indices 是该痛点来源的帖子序号（从0开始）。
                     parsed["source_post_ids"] = source_post_ids
                     parsed["source_urls"] = [u for u in source_urls if u]
                     parsed["gpu_tags"] = {k: sorted(v) for k, v in gpu_tags_merged.items()}
+                    # 传递互动数据和时间
+                    total_replies = sum(batch[idx].get("replies", 0) for idx in indices if 0 <= idx < len(batch))
+                    total_likes = sum(batch[idx].get("likes", 0) for idx in indices if 0 <= idx < len(batch))
+                    parsed["total_replies"] = total_replies
+                    parsed["total_likes"] = total_likes
+                    # 最早帖子时间
+                    timestamps = [batch[idx].get("timestamp", "") for idx in indices if 0 <= idx < len(batch)]
+                    parsed["earliest_timestamp"] = min(timestamps) if timestamps else ""
                     results.append(parsed)
         except Exception as e:
             print(f"  [!] 痛点提取失败: {e}")
+
+    # 语义去重：合并相似痛点
+    if len(results) > 1:
+        results = _merge_similar_points(results, llm)
 
     _save_results(results, config, "pain_points")
     return results
@@ -98,15 +196,16 @@ def infer_hidden_needs(pain_points: list[dict], config: dict, llm: LLMClient) ->
 
     system_prompt = """你是 GPU-Insight 隐藏需求推导专家。
 从表面痛点推导用户未明确表达的深层需求。
-必须输出完整推理链（至少 3 步），输出 JSON 格式：
+输出 JSON 格式（注意 reasoning_chain 是字符串数组）：
 {
   "pain_point": "原始痛点",
-  "reasoning_chain": ["步骤1", "步骤2", "步骤3"],
+  "reasoning_chain": ["散热不好导致降频", "降频影响游戏体验", "用户真正需要静音高效散热"],
   "hidden_need": "一句话描述隐藏需求",
-  "confidence": 0.0-1.0,
-  "category": "功能需求|情感需求|社会需求"
+  "confidence": 0.8,
+  "category": "功能需求"
 }
-只输出 JSON，不要其他内容。"""
+category 只能是：功能需求、情感需求、社会需求。
+只输出一个 JSON 对象，不要其他内容。"""
 
     results = []
     for pp in pain_points:
@@ -154,6 +253,9 @@ def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> li
             "gpu_tags": pp.get("gpu_tags", {}),
             "source_post_ids": pp.get("source_post_ids", []),
             "source_urls": pp.get("source_urls", []),
+            "total_replies": pp.get("total_replies", 0),
+            "total_likes": pp.get("total_likes", 0),
+            "earliest_timestamp": pp.get("earliest_timestamp", ""),
             "inferred_need": need_map.get(pain_text),  # None if no need inferred
         }
         insights.append(insight)
