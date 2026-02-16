@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU-Insight 趋势分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', 'Roboto', sans-serif; background: #f5f5f5; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <header class="bg-blue-700 text-white py-4 px-6 shadow">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold">GPU-Insight 趋势分析</h1>
+                <p class="text-blue-200 text-sm"><a href="/" class="hover:underline">← 返回仪表盘</a></p>
+            </div>
+            <span class="material-icons text-3xl">trending_up</span>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto py-6 px-4">
+        <!-- 时间筛选 -->
+        <div class="card p-4 mb-6 flex gap-3">
+            <button class="px-4 py-1 bg-blue-700 text-white rounded-full text-sm">7 天</button>
+            <button class="px-4 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">30 天</button>
+            <button class="px-4 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">90 天</button>
+        </div>
+
+        <!-- PPHI 趋势图 -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-lg font-bold mb-4">Top 5 痛点 PPHI 趋势</h2>
+            <canvas id="trendChart" height="100"></canvas>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- 论坛活跃度 -->
+            <div class="card p-6">
+                <h2 class="text-lg font-bold mb-4">各论坛讨论量分布</h2>
+                <canvas id="sourceChart" height="150"></canvas>
+            </div>
+
+            <!-- 新兴痛点 -->
+            <div class="card p-6">
+                <h2 class="text-lg font-bold mb-4">新兴痛点</h2>
+                <div class="space-y-2">
+                    {% for r in rankings %}
+                    {% if r.get('trend') == 'new' %}
+                    <div class="flex justify-between items-center p-2 bg-blue-50 rounded">
+                        <span class="text-sm">🆕 {{ r.pain_point }}</span>
+                        <span class="text-sm font-bold text-blue-700">PPHI: {{ r.pphi_score }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% if not rankings %}
+                    <p class="text-gray-400 text-sm">等待数据采集...</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    // PPHI 趋势图（示例数据，后续从 API 获取）
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+            datasets: [
+                { label: '显存容量不足', data: [35, 38, 40, 39, 42, 41, 40], borderColor: '#F44336', tension: 0.3, fill: false },
+                { label: '显卡价格过高', data: [30, 32, 31, 35, 33, 36, 38], borderColor: '#FF9800', tension: 0.3, fill: false },
+                { label: '驱动稳定性差', data: [25, 28, 30, 29, 31, 33, 36], borderColor: '#1976D2', tension: 0.3, fill: false },
+            ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // 论坛分布图
+    const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+    new Chart(sourceCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Chiphell', 'Reddit', 'NGA', '贴吧', 'Guru3D'],
+            datasets: [{ data: [35, 28, 20, 12, 5], backgroundColor: ['#1976D2', '#FF5722', '#4CAF50', '#FF9800', '#9C27B0'] }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+    </script>
+</body>
+</html>

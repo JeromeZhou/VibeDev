@@ -6,14 +6,11 @@ from src.utils.config import get_enabled_sources
 def scrape_all_forums(config: dict) -> list[dict]:
     """串行抓取所有已启用的论坛"""
     from .chiphell_scraper import ChiphellScraper
-    # Phase 2 时添加更多爬虫
-    # from .reddit_scraper import RedditScraper
-    # from .nga_scraper import NGAScraper
+    from .reddit_scraper import RedditScraper
 
     scraper_map = {
         "chiphell": ChiphellScraper,
-        # "reddit": RedditScraper,
-        # "nga": NGAScraper,
+        "reddit": RedditScraper,
     }
 
     enabled = get_enabled_sources(config)

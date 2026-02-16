@@ -1,4 +1,4 @@
-"""GPU-Insight Web 界面 — FastAPI 后端"""
+"""GPU-Insight Web 界面 — FastAPI 后端 — UI Designer + Fullstack 协作"""
 
 import json
 from pathlib import Path
@@ -33,6 +33,29 @@ async def dashboard(request: Request):
         "data": data,
         "rankings": data.get("rankings", [])[:10],
         "updated_at": data.get("timestamp", "尚未运行"),
+    })
+
+
+@app.get("/trends")
+async def trends(request: Request):
+    """趋势分析页"""
+    data = _load_rankings()
+    return templates.TemplateResponse("trends.html", {
+        "request": request,
+        "rankings": data.get("rankings", []),
+    })
+
+
+@app.get("/pain-point/{rank}")
+async def pain_point_detail(request: Request, rank: int):
+    """痛点详情页"""
+    data = _load_rankings()
+    rankings = data.get("rankings", [])
+    pain_point = next((r for r in rankings if r.get("rank") == rank), {})
+    return templates.TemplateResponse("details.html", {
+        "request": request,
+        "pain_point": pain_point,
+        "posts": [],  # TODO: 从 data/processed 加载关联讨论
     })
 
 

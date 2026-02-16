@@ -7,6 +7,12 @@ GPU-Insight 主入口
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv(Path(__file__).parent / ".env")
+
 from src.utils.config import load_config
 from src.utils.llm_client import LLMClient
 from src.utils.cost_tracker import CostTracker
