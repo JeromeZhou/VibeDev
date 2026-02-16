@@ -14,11 +14,23 @@ def clean_data(posts: list[dict], config: dict) -> list[dict]:
     # 1. 编码统一（Python 默认 UTF-8）
     # 2. 繁简转换
     posts = _convert_traditional(posts)
-    # 3. 去重
+    # 3. 内存去重（同批次内）
     posts = _deduplicate(posts)
-    # 4. 截断长文本
+    # 4. 持久化去重（跨运行，SQLite）
+    try:
+        from src.utils.db import filter_new_posts, save_posts
+        before = len(posts)
+        posts = filter_new_posts(posts)
+        skipped = before - len(posts)
+        if skipped > 0:
+            print(f"  持久化去重: 跳过 {skipped} 条已处理帖子")
+        # 新帖入库
+        save_posts(posts)
+    except Exception as e:
+        print(f"  [!] 持久化去重失败(继续运行): {e}")
+    # 5. 截断长文本
     posts = _truncate(posts, max_chars=2000)
-    # 5. 保存清洗结果
+    # 6. 保存清洗结果
     _save_cleaned(posts, config)
 
     return posts

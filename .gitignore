@@ -23,6 +23,7 @@ env/
 data/raw/
 data/processed/
 data/archive/
+*.db
 
 # 输出
 outputs/

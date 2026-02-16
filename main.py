@@ -105,6 +105,16 @@ def run_pipeline(config: dict):
     print("[8] PPHI 排名计算...")
     rankings = calculate_pphi(insights, config)
     print(f"  生成 {len(rankings)} 个排名")
+
+    # 持久化：保存排名和痛点到 SQLite
+    try:
+        from src.utils.db import save_rankings, save_pain_points, get_post_count
+        save_rankings(rankings)
+        save_pain_points(insights)
+        stats = get_post_count()
+        print(f"  [DB] 累计帖子: {stats['total']} | 来源: {stats['by_source']}")
+    except Exception as e:
+        print(f"  [!] DB 保存失败(不影响运行): {e}")
     print()
 
     # 9. 生成报告

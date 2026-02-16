@@ -8,11 +8,13 @@ def scrape_all_forums(config: dict) -> list[dict]:
     from .chiphell_scraper import ChiphellScraper
     from .reddit_scraper import RedditScraper
     from .tieba_scraper import TiebaScraper
+    from .nga_scraper import NGAScraper
 
     scraper_map = {
         "chiphell": ChiphellScraper,
         "reddit": RedditScraper,
         "tieba": TiebaScraper,
+        "nga": NGAScraper,
     }
 
     enabled = get_enabled_sources(config)
