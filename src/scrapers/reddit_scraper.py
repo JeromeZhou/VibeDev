@@ -59,7 +59,7 @@ class RedditScraper(BaseScraper):
             resp.raise_for_status()
             return self._parse_listing(resp.json(), subreddit)
         except Exception as e:
-            print(f"    ⚠️ r/{subreddit}/{endpoint} 失败: {e}")
+            print(f"    [!] r/{subreddit}/{endpoint} 失败: {e}")
             return []
 
     def _fetch_search(self, subreddit: str, query: str, limit: int = 10) -> list[dict]:
@@ -84,6 +84,12 @@ class RedditScraper(BaseScraper):
             title = pd.get("title", "")
             content = pd.get("selftext", "")[:2000]
 
+            # 时间过滤：跳过 MIN_DATE 之前的帖子
+            created_utc = pd.get("created_utc", 0)
+            post_time = datetime.fromtimestamp(created_utc)
+            if post_time < self.MIN_DATE:
+                continue
+
             posts.append({
                 "id": f"reddit_{post_id}",
                 "source": "reddit",
@@ -97,9 +103,7 @@ class RedditScraper(BaseScraper):
                 "likes": pd.get("score", 0),
                 "upvote_ratio": pd.get("upvote_ratio", 0.5),
                 "language": "en",
-                "timestamp": datetime.fromtimestamp(
-                    pd.get("created_utc", 0)
-                ).isoformat(),
+                "timestamp": post_time.isoformat(),
             })
             # L0 本地 GPU 产品标签
             tag_post(posts[-1])

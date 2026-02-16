@@ -12,6 +12,9 @@ from pathlib import Path
 class BaseScraper(ABC):
     """所有爬虫的基类"""
 
+    # 只抓 2025-01-01 之后的帖子
+    MIN_DATE = datetime(2025, 1, 1)
+
     def __init__(self, source_name: str, config: dict):
         self.source_name = source_name
         self.config = config
@@ -37,7 +40,7 @@ class BaseScraper(ABC):
                     self._save_last_id(newest_id)
             return posts
         except Exception as e:
-            print(f"  ⚠️ {self.source_name} 抓取失败: {e}")
+            print(f"  [!] {self.source_name} 抓取失败: {e}")
             return []
 
     def _save_raw(self, posts: list[dict]):

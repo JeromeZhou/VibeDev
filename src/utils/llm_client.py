@@ -87,6 +87,7 @@ class LLMClient:
             client = OpenAI(
                 api_key=os.getenv("SILICONFLOW_API_KEY", os.getenv("ZHIPU_API_KEY", "")),
                 base_url="https://api.siliconflow.cn/v1",
+                timeout=90.0,
             )
             messages = []
             if system:

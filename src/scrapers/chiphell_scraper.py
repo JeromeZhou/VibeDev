@@ -49,11 +49,11 @@ class ChiphellScraper(BaseScraper):
                             continue
 
                 except httpx.HTTPError as e:
-                    print(f"    ⚠️ 请求失败 {forum_url}: {e}")
+                    print(f"    [!] 请求失败 {forum_url}: {e}")
                     continue
 
         except ImportError as e:
-            print(f"  ⚠️ 缺少依赖: {e}")
+            print(f"  [!] 缺少依赖: {e}")
             print("     请运行: pip install httpx beautifulsoup4 lxml")
 
         return posts

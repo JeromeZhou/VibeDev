@@ -85,7 +85,7 @@ related_post_indices 是该痛点来源的帖子序号（从0开始）。
                     parsed["gpu_tags"] = {k: sorted(v) for k, v in gpu_tags_merged.items()}
                     results.append(parsed)
         except Exception as e:
-            print(f"  ⚠️ 痛点提取失败: {e}")
+            print(f"  [!] 痛点提取失败: {e}")
 
     _save_results(results, config, "pain_points")
     return results
@@ -118,7 +118,7 @@ def infer_hidden_needs(pain_points: list[dict], config: dict, llm: LLMClient) ->
                     results.append(parsed)
                     break
         except Exception as e:
-            print(f"  ⚠️ 隐藏需求推导失败: {e}")
+            print(f"  [!] 隐藏需求推导失败: {e}")
 
     _save_results(results, config, "hidden_needs")
     return results
@@ -196,7 +196,7 @@ def council_review(insights: list[dict], config: dict, llm: LLMClient) -> list[d
                 reviewed.append(insight)
                 break
         except Exception as e:
-            print(f"  ⚠️ Council 评审失败: {e}")
+            print(f"  [!] Council 评审失败: {e}")
             reviewed.append(insight)
 
     _save_results(reviewed, config, "reviewed")

@@ -57,7 +57,7 @@ def l1_local_filter(posts: list[dict]) -> list[dict]:
     return posts
 
 
-def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 50) -> list[dict]:
+def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 30) -> list[dict]:
     """L2: LLM 批量标题分类（极低 token 消耗）
 
     对每条帖子标记 0/1/2:
@@ -65,6 +65,8 @@ def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 50) -
       1 = 可能相关
       2 = 明确是痛点
     """
+    import time
+
     system = """你是显卡用户痛点分类器。对每条帖子标题判断是否包含显卡用户痛点。
 输出格式：每行一个数字，对应每条标题。
 0 = 明确无关（晒单、新闻、购买建议、无关话题）
@@ -72,24 +74,39 @@ def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 50) -
 2 = 明确是痛点（抱怨、吐槽、报错、质量问题）
 只输出数字，每行一个，不要其他内容。"""
 
-    # 分批处理
+    total_batches = (len(posts) + batch_size - 1) // batch_size
     for i in range(0, len(posts), batch_size):
         batch = posts[i:i + batch_size]
+        batch_num = i // batch_size + 1
         titles = "\n".join(f"{j+1}. {p.get('title', '')[:80]}" for j, p in enumerate(batch))
 
-        try:
-            response = llm.call_simple(f"请分类以下 {len(batch)} 条标题:\n{titles}", system)
-            # 解析数字
-            numbers = re.findall(r'[012]', response)
-            for j, post in enumerate(batch):
-                if j < len(numbers):
-                    post["_l2_class"] = int(numbers[j])
-                else:
-                    post["_l2_class"] = 1  # 默认可能相关
-        except Exception as e:
-            print(f"  ⚠️ L2 分类失败: {e}")
+        success = False
+        for attempt in range(2):  # 最多重试 1 次
+            try:
+                print(f"  L2 批次 {batch_num}/{total_batches}（{len(batch)} 条）...", end=" ")
+                response = llm.call_simple(f"请分类以下 {len(batch)} 条标题:\n{titles}", system)
+                numbers = re.findall(r'[012]', response)
+                for j, post in enumerate(batch):
+                    if j < len(numbers):
+                        post["_l2_class"] = int(numbers[j])
+                    else:
+                        post["_l2_class"] = 1
+                c2 = sum(1 for p in batch if p.get("_l2_class") == 2)
+                c1 = sum(1 for p in batch if p.get("_l2_class") == 1)
+                c0 = sum(1 for p in batch if p.get("_l2_class") == 0)
+                print(f"完成 (2:{c2} 1:{c1} 0:{c0})")
+                success = True
+                break
+            except Exception as e:
+                print(f"失败: {e}")
+                if attempt == 0:
+                    print(f"  重试中...")
+                    time.sleep(3)
+
+        if not success:
+            print(f"  L2 批次 {batch_num} 跳过，默认标记为 1")
             for post in batch:
-                post["_l2_class"] = 1  # 失败时默认保留
+                post["_l2_class"] = 1
 
     return posts
 

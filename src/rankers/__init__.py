@@ -1,15 +1,14 @@
-"""GPU-Insight PPHI 排名计算模块"""
+"""GPU-Insight PPHI 排名计算模块 — v2 支持 PainInsight 结构"""
 
 import json
-import math
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from src.utils.config import get_pphi_weights
 
 
-def calculate_pphi(reviewed: list[dict], config: dict) -> list[dict]:
-    """计算 PPHI 指数并生成排名"""
-    if not reviewed:
+def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
+    """计算 PPHI 指数并生成排名（支持 PainInsight 结构）"""
+    if not insights:
         return []
 
     weights = get_pphi_weights(config)
@@ -20,7 +19,7 @@ def calculate_pphi(reviewed: list[dict], config: dict) -> list[dict]:
     }
 
     # 聚合同类痛点
-    aggregated = _aggregate_pain_points(reviewed)
+    aggregated = _aggregate(insights)
 
     # 计算 PPHI
     rankings = []
@@ -44,38 +43,70 @@ def calculate_pphi(reviewed: list[dict], config: dict) -> list[dict]:
             "pphi_score": pphi,
             "mentions": mention_count,
             "sources": list(sources),
+            "source_urls": data.get("source_urls", []),
+            "gpu_tags": data.get("gpu_tags", {}),
             "hidden_need": data.get("hidden_need", ""),
             "confidence": data.get("avg_confidence", 0),
+            "category": data.get("category", ""),
+            "affected_users": data.get("affected_users", ""),
+            "evidence": data.get("evidence", ""),
             "trend": _detect_trend(pain_point, pphi),
         })
 
-    # 排序
     rankings.sort(key=lambda x: x["pphi_score"], reverse=True)
     for i, r in enumerate(rankings):
         r["rank"] = i + 1
 
-    # 保存
     _save_rankings(rankings, config)
     return rankings
 
 
-def _aggregate_pain_points(reviewed: list[dict]) -> dict:
-    """聚合同类痛点"""
+def _aggregate(insights: list[dict]) -> dict:
+    """聚合同类痛点，合并 GPU 标签和 URL"""
     agg = {}
-    for item in reviewed:
-        pp = item.get("pain_point", item.get("hidden_need", "未知"))
+    for item in insights:
+        pp = item.get("pain_point", "未知")
         if pp not in agg:
-            agg[pp] = {"count": 0, "sources": set(), "confidences": [], "hidden_need": ""}
-        agg[pp]["count"] += 1
-        source = item.get("_source", "unknown")
-        agg[pp]["sources"].add(source)
-        agg[pp]["confidences"].append(item.get("adjusted_confidence", item.get("confidence", 0.5)))
-        if item.get("hidden_need"):
-            agg[pp]["hidden_need"] = item["hidden_need"]
+            agg[pp] = {
+                "count": 0,
+                "sources": set(),
+                "source_urls": [],
+                "gpu_tags": {"brands": set(), "models": set(), "series": set(), "manufacturers": set()},
+                "confidences": [],
+                "hidden_need": "",
+                "category": item.get("category", ""),
+                "affected_users": item.get("affected_users", ""),
+                "evidence": item.get("evidence", ""),
+            }
 
+        agg[pp]["count"] += 1
+
+        # 来源
+        for pid in item.get("source_post_ids", []):
+            src = pid.split("_")[0] if "_" in pid else "unknown"
+            agg[pp]["sources"].add(src)
+
+        # URL
+        for url in item.get("source_urls", []):
+            if url and url not in agg[pp]["source_urls"]:
+                agg[pp]["source_urls"].append(url)
+
+        # GPU 标签合并
+        tags = item.get("gpu_tags", {})
+        for key in ("brands", "models", "series", "manufacturers"):
+            agg[pp]["gpu_tags"][key].update(tags.get(key, []))
+
+        # 推理需求
+        need = item.get("inferred_need")
+        if need and need.get("hidden_need"):
+            agg[pp]["hidden_need"] = need["hidden_need"]
+            agg[pp]["confidences"].append(need.get("confidence", 0.5))
+
+    # 后处理
     for pp, data in agg.items():
-        data["avg_confidence"] = sum(data["confidences"]) / max(len(data["confidences"]), 1)
-        data["days_old"] = 0  # TODO: 从首次发现时间计算
+        data["avg_confidence"] = sum(data["confidences"]) / max(len(data["confidences"]), 1) if data["confidences"] else 0
+        data["days_old"] = 0
+        data["gpu_tags"] = {k: sorted(v) for k, v in data["gpu_tags"].items()}
         del data["confidences"]
 
     return agg
@@ -83,7 +114,6 @@ def _aggregate_pain_points(reviewed: list[dict]) -> dict:
 
 def _detect_trend(pain_point: str, current_score: float) -> str:
     """检测趋势（简化版：首次运行都是 new）"""
-    # TODO: 对比历史数据
     return "new"
 
 
@@ -92,17 +122,15 @@ def _save_rankings(rankings: list[dict], config: dict):
     output_dir = Path(config.get("paths", {}).get("rankings", "outputs/pphi_rankings"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 保存 latest.json
     output = {
         "timestamp": datetime.now().isoformat(),
         "total_pain_points": len(rankings),
-        "rankings": rankings[:20],  # Top 20
+        "rankings": rankings[:20],
     }
     latest_file = output_dir / "latest.json"
     with open(latest_file, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
-    # 保存历史
     date_str = datetime.now().strftime("%Y-%m-%d_%H%M")
     history_file = output_dir / f"rankings_{date_str}.json"
     with open(history_file, "w", encoding="utf-8") as f:

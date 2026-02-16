@@ -24,7 +24,11 @@
       "Bash(PYTHONIOENCODING=utf-8 python:*)",
       "WebFetch(domain:docs.siliconflow.cn)",
       "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" tests/test_gpu_tagger.py)",
-      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest tests/test_unit.py -v)"
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest tests/test_unit.py -v)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" main.py)",
+      "Bash(wmic process where \"commandline like ''%main.py%''\" get processid,commandline)",
+      "Bash(tasklist:*)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -u main.py)"
     ]
   }
 }

@@ -60,12 +60,12 @@ class TiebaScraper(BaseScraper):
                     print(f"    {bar}吧: {len([p for p in posts if p.get('_bar') == bar])} 条")
 
                 except Exception as e:
-                    print(f"    ⚠️ {bar}吧失败: {e}")
+                    print(f"    [!] {bar}吧失败: {e}")
                     # 尝试 PC 端
                     posts.extend(self._fetch_pc(bar, last_id, seen_ids))
 
         except ImportError:
-            print("  ⚠️ 需要安装 httpx: pip install httpx")
+            print("  [!] 需要安装 httpx: pip install httpx")
 
         return posts
 
@@ -122,6 +122,6 @@ class TiebaScraper(BaseScraper):
             print(f"    {bar}吧(PC): {len(posts)} 条")
 
         except Exception as e:
-            print(f"    ⚠️ {bar}吧(PC)失败: {e}")
+            print(f"    [!] {bar}吧(PC)失败: {e}")
 
         return posts
