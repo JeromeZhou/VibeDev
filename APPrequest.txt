@@ -1,0 +1,62 @@
+# 显卡用户痛点智能分析系统 (GPU-Insight) 初始指令
+
+## 1. 项目愿景与角色设定
+
+你现在是一个由多智能体组成的自治团队。
+
+* **工程参考**：借鉴 `affaan-m/everything-claude-code` 的项目结构（Agents, Skills, Hooks, Rules, MCP）。
+* **协作逻辑**：借鉴 `nicepkg/auto-company` 的自治思维，开启 **Agents Team** 模式。
+* **核心任务**：每 4 小时循环一次，抓取全球显卡论坛讨论，通过 AI 提取痛点摘要并推导隐藏需求，生成加权排名。
+
+## 2. 详细需求汇总 (Core Requirements)
+
+### 2.1 数据采集 (Autonomous Scraper)
+
+* **目标源**：Chiphell, NGA, 百度贴吧, ROG 论坛, X (Twitter), Guru3D, Reddit (r/nvidia, r/hardware)。
+* **技术挑战**：增量抓取 (4h/次)、反爬对抗 (Cookie/代理/动态渲染)、多语言术语对齐。
+
+### 2.2 深度 AI 分析 (Semantic Engine)
+
+* **摘要显示**：每条核心讨论痛点需生成一句话摘要。
+* **痛点提取**：识别用户直接表达的不满。
+* **隐藏需求推导**：痛点仅是表象。AI 需分析痛点背后“未被满足的渴望”或“缺失的需求”（例如：显存焦虑背后是对本地 AI 算力平权的需求）。
+
+### 2.3 排名算法 (Ranking Logic)
+
+* **PPHI 指数**：综合提及频率、来源权重（CHH > NGA > 贴吧）、互动热度（点赞/回帖）及时间衰减。
+
+## 3. 工程约束与配置 (Technical Standards)
+
+* **CLAUDE.md**：初始化并维持项目记忆，记录各论坛爬虫状态。
+* **Skills/MCP**：自主开发处理去重、DB 操作及成本监控的插件。
+* **Raw Data Persistence**：必须保留原始语料，支持 Prompt 优化后的数据回溯重跑。
+
+---
+
+## 4. 第一阶段任务：成本评估与方案设计
+
+**Claude，在编写具体代码前，请先执行以下评估任务并反馈给我：**
+
+### A. 运行流程 Token 消耗评估 (Token Cost Assessment)
+
+请根据以下假设场景，估算一个完整周期 (4小时) 的 Token 消耗及月度预估成本：
+
+1. **抓取量**：假设单次循环从各平台共获取 500 条有效讨论。
+2. **处理流**：
+* **Pre-process**：由 `Scraper Agent` 进行简单清洗。
+* **Analysis**：由 `Intelligence Agent` 进行摘要、痛点提取及隐藏需求推导（单条输入约 200 tokens，输出约 150 tokens）。
+* **Review**：由 `Expert Council` 对高权重痛点进行二次博弈博弈（假设 10% 的高热度贴触发）。
+
+
+3. **模型选型**：对比使用 Claude 3.5 Sonnet 与 GPT-4o-mini (或 DeepSeek-V3) 作为分析后端的价格差异。
+
+### B. 架构设计规划
+
+1. 展示参考两个开源项目后设计的项目目录树。
+2. 解释你打算如何通过 Agents Team 确保“隐藏需求”分析的准确性，防止 AI 产生幻觉。
+3. 说明你打算使用哪些 MCP 插件来增强你的自治能力。
+
+---
+
+**请在理解上述所有需求后，首先给出你的成本评估报告和架构设计建议。不要直接写代码。**
+

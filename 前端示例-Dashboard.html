@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU-Insight 痛点仪表盘</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            /* 颜色系统 */
+            --primary: #1976D2;
+            --primary-dark: #1565C0;
+            --primary-light: #BBDEFB;
+            --intensity-high: #F44336;
+            --intensity-medium: #FF9800;
+            --intensity-low: #4CAF50;
+            --trend-up: #E91E63;
+            --trend-down: #9E9E9E;
+            --trend-new: #FF5722;
+            --background: #FAFAFA;
+            --surface: #FFFFFF;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+            --divider: #BDBDBD;
+
+            /* 字体 */
+            --font-zh: 'Noto Sans SC', sans-serif;
+            --font-en: 'Roboto', sans-serif;
+
+            /* 间距 */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+
+            /* 阴影 */
+            --shadow-1: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-2: 0 2px 8px rgba(0,0,0,0.15);
+            --shadow-hover: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-zh), var(--font-en);
+            background: var(--background);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-lg);
+        }
+
+        /* Header */
+        .header {
+            background: var(--surface);
+            box-shadow: var(--shadow-1);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            border-radius: 8px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .header .meta {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+            text-align: center;
+            box-shadow: var(--shadow-2);
+        }
+
+        .stat-card .icon {
+            font-size: 48px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-card .label {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .stat-card .change {
+            font-size: 14px;
+            margin-top: var(--spacing-xs);
+            opacity: 0.8;
+        }
+
+        /* Pain Point Cards */
+        .pain-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .pain-card {
+            background: var(--surface);
+            border-radius: 8px;
+            box-shadow: var(--shadow-2);
+            padding: var(--spacing-lg);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .pain-card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .pain-card-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .pain-card .rank {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            min-width: 40px;
+        }
+
+        .pain-card .title {
+            flex: 1;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .pain-card .pphi {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--intensity-high);
+            background: rgba(244, 67, 54, 0.1);
+            padding: 4px 12px;
+            border-radius: 16px;
+        }
+
+        .pain-card-body {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .metrics {
+            display: flex;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .trend-up { color: var(--trend-up); }
+        .trend-new { color: var(--trend-new); }
+
+        .sources {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .source-tag {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .pain-card-footer {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-detail {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .btn-detail:hover {
+            background: var(--primary-dark);
+        }
+
+        /* Chart Section */
+        .chart-section {
+            background: var(--surface);
+            border-radius: 8px;
+            box-shadow: var(--shadow-2);
+            padding: var(--spacing-lg);
+        }
+
+        .chart-section h2 {
+            font-size: 24px;
+            margin-bottom: var(--spacing-lg);
+            color: var(--text-primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--spacing-md);
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pain-card-header {
+                flex-wrap: wrap;
+            }
+
+            .metrics {
+                flex-direction: column;
+                gap: var(--spacing-sm);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎮 GPU-Insight 痛点仪表盘</h1>
+            <div class="meta">
+                <span class="material-icons" style="font-size: 14px; vertical-align: middle;">schedule</span>
+                最后更新：2026-02-16 19:00 | 数据来源：7个论坛，共 3,500 条讨论
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">📊</div>
+                <div class="value">12</div>
+                <div class="label">本周新增痛点</div>
+                <div class="change">+3 vs 上周</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="icon">💬</div>
+                <div class="value">3,500</div>
+                <div class="label">总讨论量</div>
+                <div class="change">+12% vs 上周</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="icon">🔥</div>
+                <div class="value">0.72</div>
+                <div class="label">平均情绪强度</div>
+                <div class="change">中高焦虑</div>
+            </div>
+        </div>
+
+        <!-- Top 10 Pain Points -->
+        <h2 style="font-size: 24px; margin-bottom: var(--spacing-lg); color: var(--text-primary);">
+            🔥 Top 10 痛点排名
+        </h2>
+        <div class="pain-list">
+            <!-- Pain Point #1 -->
+            <div class="pain-card" onclick="location.href='/detail/1'">
+                <div class="pain-card-header">
+                    <span class="rank">#1</span>
+                    <span class="title">显存容量焦虑</span>
+                    <span class="pphi">PPHI: 8.9</span>
+                </div>
+                <div class="pain-card-body">
+                    <div class="metrics">
+                        <span class="metric trend-up">
+                            <span class="material-icons" style="font-size: 16px;">trending_up</span>
+                            +15%
+                        </span>
+                        <span class="metric">
+                            <span class="material-icons" style="font-size: 16px;">chat_bubble</span>
+                            105条讨论
+                        </span>
+                        <span class="metric">
+                            🔥🔥🔥 高强度
+                        </span>
+                    </div>
+                    <div class="sources">
+                        <span class="source-tag">Chiphell 45%</span>
+                        <span class="source-tag">Reddit 30%</span>
+                        <span class="source-tag">NGA 15%</span>
+                    </div>
+                </div>
+                <div class="pain-card-footer">
+                    <button class="btn-detail">查看详情</button>
+                </div>
+            </div>
+
+            <!-- Pain Point #2 -->
+            <div class="pain-card" onclick="location.href='/detail/2'">
+                <div class="pain-card-header">
+                    <span class="rank">#2</span>
+                    <span class="title">功耗墙困境</span>
+                    <span class="pphi">PPHI: 7.5</span>
+                </div>
+                <div class="pain-card-body">
+                    <div class="metrics">
+                        <span class="metric trend-new">
+                            <span class="material-icons" style="font-size: 16px;">fiber_new</span>
+                            NEW
+                        </span>
+                        <span class="metric">
+                            <span class="material-icons" style="font-size: 16px;">chat_bubble</span>
+                            67条讨论
+                        </span>
+                        <span class="metric">
+                            🔥🔥 中高强度
+                        </span>
+                    </div>
+                    <div class="sources">
+                        <span class="source-tag">NGA 40%</span>
+                        <span class="source-tag">Chiphell 35%</span>
+                        <span class="source-tag">贴吧 15%</span>
+                    </div>
+                </div>
+                <div class="pain-card-footer">
+                    <button class="btn-detail">查看详情</button>
+                </div>
+            </div>
+
+            <!-- Pain Point #3 -->
+            <div class="pain-card" onclick="location.href='/detail/3'">
+                <div class="pain-card-header">
+                    <span class="rank">#3</span>
+                    <span class="title">矿卡翻新担忧</span>
+                    <span class="pphi" style="background: rgba(255, 152, 0, 0.1); color: var(--intensity-medium);">PPHI: 6.8</span>
+                </div>
+                <div class="pain-card-body">
+                    <div class="metrics">
+                        <span class="metric" style="color: var(--trend-down);">
+                            <span class="material-icons" style="font-size: 16px;">trending_down</span>
+                            -8%
+                        </span>
+                        <span class="metric">
+                            <span class="material-icons" style="font-size: 16px;">chat_bubble</span>
+                            52条讨论
+                        </span>
+                        <span class="metric">
+                            🔥🔥 中强度
+                        </span>
+                    </div>
+                    <div class="sources">
+                        <span class="source-tag">贴吧 50%</span>
+                        <span class="source-tag">NGA 30%</span>
+                        <span class="source-tag">Chiphell 20%</span>
+                    </div>
+                </div>
+                <div class="pain-card-footer">
+                    <button class="btn-detail">查看详情</button>
+                </div>
+            </div>
+
+            <!-- 更多痛点... -->
+            <div style="text-align: center; padding: var(--spacing-lg); color: var(--text-secondary);">
+                <span class="material-icons" style="font-size: 48px; opacity: 0.3;">more_horiz</span>
+                <p>还有 7 个痛点...</p>
+            </div>
+        </div>
+
+        <!-- Trend Chart -->
+        <div class="chart-section">
+            <h2>📈 7天趋势分析</h2>
+            <canvas id="trendChart" style="max-height: 400px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        // 趋势图
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+                datasets: [
+                    {
+                        label: '显存容量焦虑',
+                        data: [5.2, 5.8, 6.3, 7.1, 7.8, 8.5, 8.9],
+                        borderColor: '#F44336',
+                        backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: '功耗墙困境',
+                        data: [0, 0, 0, 0, 3.2, 5.8, 7.5],
+                        borderColor: '#FF5722',
+                        backgroundColor: 'rgba(255, 87, 34, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: '矿卡翻新担忧',
+                        data: [8.5, 8.2, 7.9, 7.5, 7.2, 6.9, 6.8],
+                        borderColor: '#9E9E9E',
+                        backgroundColor: 'rgba(158, 158, 158, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { family: "'Noto Sans SC', sans-serif" }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        titleFont: { family: "'Noto Sans SC', sans-serif" },
+                        bodyFont: { family: "'Noto Sans SC', sans-serif" }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 10,
+                        title: {
+                            display: true,
+                            text: 'PPHI 指数',
+                            font: { family: "'Noto Sans SC', sans-serif" }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '时间',
+                            font: { family: "'Noto Sans SC', sans-serif" }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

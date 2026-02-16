@@ -6,7 +6,12 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git branch:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git config:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(git clone:*)"
     ]
   }
 }
