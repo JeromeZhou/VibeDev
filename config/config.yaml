@@ -28,13 +28,13 @@ llm:
   # 深度推理任务
   reasoning:
     provider: "zhipu"
-    model: "Pro/zai-org/GLM-5"
+    model: "THUDM/glm-4-9b-chat"
     max_tokens: 4096
     temperature: 0.3
   # 简单任务
   simple:
     provider: "zhipu"
-    model: "Pro/zai-org/GLM-5"
+    model: "THUDM/glm-4-9b-chat"
     max_tokens: 2048
     temperature: 0.2
 
@@ -50,13 +50,13 @@ cost:
 # 数据源配置
 sources:
   chiphell:
-    enabled: true
+    enabled: false  # 567 error, temporarily disabled
     weight: 1.0
     interval_hours: 4
     url: "https://www.chiphell.com"
     sections: ["显卡", "硬件"]
   reddit:
-    enabled: true
+    enabled: false  # rate-limited at night, temporarily disabled
     weight: 0.9
     interval_hours: 4
     subreddits: ["nvidia", "amd", "hardware"]

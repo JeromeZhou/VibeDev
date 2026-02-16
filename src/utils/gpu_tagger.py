@@ -25,13 +25,33 @@ def _build_model_patterns(products: dict) -> list[tuple[str, str, str, re.Patter
         for series in brand_info.get("series", []):
             series_name = series["name"]
             for model in series.get("models", []):
-                # 构建灵活正则：RTX 5070 Ti → RTX\s*5070\s*Ti
+                # 完整型号：RTX 5070 Ti → RTX\s*5070\s*Ti
                 escaped = re.escape(model)
-                # 允许空格可选、大小写不敏感
                 flex = escaped.replace(r"\ ", r"\s*")
-                pat = re.compile(flex, re.IGNORECASE)
+                pat = re.compile(r'(?<![a-zA-Z0-9])' + flex + r'(?![a-zA-Z0-9])', re.IGNORECASE)
                 patterns.append((brand_name, series_name, model, pat))
-    # 长型号优先匹配（避免 "5070 Ti" 被 "5070" 先匹配）
+
+                # 纯数字简写（如 "5090" → "RTX 5090"）
+                parts = model.split()
+                if len(parts) >= 2:
+                    num = parts[1]  # e.g. "5090", "1660"
+                    # 前后不能是数字或字母（避免误匹配）
+                    short_pat = re.compile(r'(?<![a-zA-Z0-9])' + re.escape(num) + r'(?![0-9])', re.IGNORECASE)
+                    patterns.append((brand_name, series_name, model, short_pat))
+                    # "1660s" = "1660 Super"
+                    if len(parts) == 3 and parts[2].lower() == "super":
+                        s_pat = re.compile(r'(?<![a-zA-Z0-9])' + re.escape(num) + r's(?![a-zA-Z0-9])', re.IGNORECASE)
+                        patterns.append((brand_name, series_name, model, s_pat))
+                    # "4070ti" = "RTX 4070 Ti"
+                    if len(parts) == 3 and parts[2].lower() == "ti":
+                        ti_pat = re.compile(r'(?<![a-zA-Z0-9])' + re.escape(num) + r'\s*ti(?![a-zA-Z])', re.IGNORECASE)
+                        patterns.append((brand_name, series_name, model, ti_pat))
+                    # "7900xt" / "9070xt" = "RX 7900 XT"
+                    if len(parts) == 3 and parts[2].lower() == "xt":
+                        xt_pat = re.compile(r'(?<![a-zA-Z0-9])' + re.escape(num) + r'\s*xt(?![a-zA-Z])', re.IGNORECASE)
+                        patterns.append((brand_name, series_name, model, xt_pat))
+
+    # 长型号优先匹配
     patterns.sort(key=lambda x: len(x[2]), reverse=True)
     return patterns
 

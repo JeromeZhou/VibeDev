@@ -81,26 +81,45 @@ class LLMClient:
             raise ImportError("请安装 openai: pip install openai")
 
     def _call_zhipu(self, model, prompt, system, max_tokens, temperature) -> str:
-        """调用智谱 GLM API（通过硅基流动，兼容 OpenAI 格式）"""
+        """调用智谱 GLM API（通过硅基流动，兼容 OpenAI 格式）
+
+        自动降级：GLM-5 超时(20s) → glm-4-9b-chat → Qwen2.5-7B
+        """
         try:
             from openai import OpenAI
-            client = OpenAI(
-                api_key=os.getenv("SILICONFLOW_API_KEY", os.getenv("ZHIPU_API_KEY", "")),
-                base_url="https://api.siliconflow.cn/v1",
-                timeout=90.0,
-            )
+            api_key = os.getenv("SILICONFLOW_API_KEY", os.getenv("ZHIPU_API_KEY", ""))
+            base_url = "https://api.siliconflow.cn/v1"
+
             messages = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
-            response = client.chat.completions.create(
-                model=model, messages=messages,
-                max_tokens=max_tokens, temperature=temperature,
-            )
-            text = response.choices[0].message.content
-            usage = response.usage
-            self._log_usage(model, usage.prompt_tokens, usage.completion_tokens)
-            return text
+
+            # 主模型短超时，fallback 长超时
+            fallback_chain = [
+                (model, 20.0),
+                ("THUDM/glm-4-9b-chat", 60.0),
+                ("Qwen/Qwen2.5-7B-Instruct", 60.0),
+            ]
+
+            for i, (m, timeout) in enumerate(fallback_chain):
+                try:
+                    client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
+                    response = client.chat.completions.create(
+                        model=m, messages=messages,
+                        max_tokens=max_tokens, temperature=temperature,
+                    )
+                    text = response.choices[0].message.content
+                    usage = response.usage
+                    self._log_usage(m, usage.prompt_tokens, usage.completion_tokens)
+                    if i > 0:
+                        print(f"[fallback -> {m}]", end=" ")
+                    return text
+                except Exception:
+                    if i < len(fallback_chain) - 1:
+                        continue
+                    raise
+
         except ImportError:
             raise ImportError("请安装 openai: pip install openai")
 

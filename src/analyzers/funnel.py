@@ -57,7 +57,7 @@ def l1_local_filter(posts: list[dict]) -> list[dict]:
     return posts
 
 
-def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 30) -> list[dict]:
+def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 15) -> list[dict]:
     """L2: LLM 批量标题分类（极低 token 消耗）
 
     对每条帖子标记 0/1/2:
@@ -81,7 +81,7 @@ def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 30) -
         titles = "\n".join(f"{j+1}. {p.get('title', '')[:80]}" for j, p in enumerate(batch))
 
         success = False
-        for attempt in range(2):  # 最多重试 1 次
+        for attempt in range(3):  # 最多重试 2 次
             try:
                 print(f"  L2 批次 {batch_num}/{total_batches}（{len(batch)} 条）...", end=" ")
                 response = llm.call_simple(f"请分类以下 {len(batch)} 条标题:\n{titles}", system)
@@ -99,9 +99,9 @@ def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 30) -
                 break
             except Exception as e:
                 print(f"失败: {e}")
-                if attempt == 0:
+                if attempt < 2:
                     print(f"  重试中...")
-                    time.sleep(3)
+                    time.sleep(5)
 
         if not success:
             print(f"  L2 批次 {batch_num} 跳过，默认标记为 1")
