@@ -36,8 +36,13 @@ class PainPoint:
     category: str  # 性能|价格|散热|驱动|生态|显存|功耗|其他
     emotion_intensity: float  # 0.0-1.0
     summary: str = ""
+    affected_users: str = ""  # 广泛|中等|小众
+    evidence: str = ""
     _source: str = ""
     _post_id: str = ""
+    source_post_ids: list[str] = field(default_factory=list)
+    source_urls: list[str] = field(default_factory=list)
+    gpu_tags: dict = field(default_factory=dict)  # {"brands":[], "models":[], "series":[], "manufacturers":[]}
     evidence_count: int = 0
     first_seen: str = ""
     trend: str = "new"  # new|rising|stable|declining
@@ -55,6 +60,28 @@ class HiddenNeed:
     confidence: float = 0.0
     category: str = "功能需求"  # 功能需求|情感需求|社会需求
     evidence: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class PainInsight:
+    """痛点 + 推理需求 合并结构（团队共识 v2）"""
+    pain_point: str
+    category: str
+    emotion_intensity: float
+    affected_users: str = ""
+    evidence: str = ""
+    gpu_tags: dict = field(default_factory=dict)
+    source_post_ids: list[str] = field(default_factory=list)
+    source_urls: list[str] = field(default_factory=list)
+    # 推理需求（仅 L2 class=2 的痛点才有）
+    inferred_need: Optional[dict] = None  # {"hidden_need":str, "reasoning_chain":[], "confidence":float, "category":str}
+    # 元数据
+    count: int = 1
+    first_seen: str = ""
+    trend: str = "new"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -83,6 +110,8 @@ class PPHIRanking:
     pphi_score: float
     mentions: int = 0
     sources: list[str] = field(default_factory=list)
+    source_urls: list[str] = field(default_factory=list)
+    gpu_tags: dict = field(default_factory=dict)
     hidden_need: str = ""
     confidence: float = 0.0
     trend: str = "new"

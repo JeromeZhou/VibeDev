@@ -1,26 +1,24 @@
-"""GPU-Insight 分析模块"""
+"""GPU-Insight 分析模块 — v2 支持产品标签 + URL 追溯 + PainInsight 合并"""
 
 import json
 import re
 from datetime import datetime
 from pathlib import Path
 from src.utils.llm_client import LLMClient
+from src.utils.gpu_tagger import tag_gpu_products
 
 
 def _extract_json(text: str) -> list[dict]:
     """从 LLM 响应中提取 JSON 对象（处理 markdown 代码块、多行 JSON 等）"""
     results = []
-    # 去掉 markdown 代码块标记
     text = re.sub(r'```json\s*', '', text)
     text = re.sub(r'```\s*', '', text)
-    # 尝试用正则匹配所有 JSON 对象
     for match in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL):
         try:
             parsed = json.loads(match.group())
             results.append(parsed)
         except json.JSONDecodeError:
             continue
-    # 如果正则没匹配到，尝试整体解析
     if not results:
         try:
             parsed = json.loads(text.strip())
@@ -34,7 +32,7 @@ def _extract_json(text: str) -> list[dict]:
 
 
 def analyze_pain_points(posts: list[dict], config: dict, llm: LLMClient) -> list[dict]:
-    """从清洗后的讨论中提取痛点"""
+    """从清洗后的讨论中提取痛点，关联原帖 URL 和 GPU 标签"""
     if not posts:
         return []
 
@@ -44,30 +42,51 @@ def analyze_pain_points(posts: list[dict], config: dict, llm: LLMClient) -> list
   "pain_point": "一句话描述痛点",
   "category": "性能|价格|散热|驱动|生态|显存|功耗|其他",
   "emotion_intensity": 0.0-1.0,
-  "summary": "一句话摘要"
+  "affected_users": "广泛|中等|小众",
+  "evidence": "原文关键句",
+  "related_post_indices": [0, 2]
 }
-只输出 JSON，不要其他内容。如果讨论不包含显卡痛点，输出 {"pain_point": null}。"""
+related_post_indices 是该痛点来源的帖子序号（从0开始）。
+同类痛点请合并。只输出 JSON，不要其他内容。如果讨论不包含显卡痛点，输出 {"pain_point": null}。"""
 
     results = []
-    # 批处理：每 10 条一批
     batch_size = 10
     for i in range(0, len(posts), batch_size):
         batch = posts[i:i + batch_size]
         batch_text = "\n---\n".join(
-            f"[{p.get('_source', '未知')}] {p.get('title', '')}\n{p.get('content', '')}"
-            for p in batch
+            f"[{j}] [{p.get('_source', '未知')}] {p.get('title', '')}\n{p.get('content', '')[:300]}"
+            for j, p in enumerate(batch)
         )
-        prompt = f"请从以下 {len(batch)} 条讨论中提取显卡痛点，每条讨论用 --- 分隔。对每条讨论输出一行 JSON。\n\n{batch_text}"
+        prompt = f"请从以下 {len(batch)} 条讨论中提取显卡痛点，每条讨论前有序号。\n\n{batch_text}"
 
         try:
             response = llm.call_simple(prompt, system_prompt)
             for parsed in _extract_json(response):
                 if parsed.get("pain_point"):
+                    # 关联原帖 URL 和 ID
+                    indices = parsed.pop("related_post_indices", [])
+                    if not indices:
+                        indices = list(range(len(batch)))
+                    source_post_ids = []
+                    source_urls = []
+                    gpu_tags_merged = {"brands": set(), "models": set(), "series": set(), "manufacturers": set()}
+                    for idx in indices:
+                        if 0 <= idx < len(batch):
+                            p = batch[idx]
+                            source_post_ids.append(p.get("id", ""))
+                            source_urls.append(p.get("url", ""))
+                            # 合并 GPU 标签
+                            tags = p.get("_gpu_tags", {})
+                            for key in gpu_tags_merged:
+                                gpu_tags_merged[key].update(tags.get(key, []))
+
+                    parsed["source_post_ids"] = source_post_ids
+                    parsed["source_urls"] = [u for u in source_urls if u]
+                    parsed["gpu_tags"] = {k: sorted(v) for k, v in gpu_tags_merged.items()}
                     results.append(parsed)
         except Exception as e:
             print(f"  ⚠️ 痛点提取失败: {e}")
 
-    # 保存结果
     _save_results(results, config, "pain_points")
     return results
 
@@ -105,6 +124,43 @@ def infer_hidden_needs(pain_points: list[dict], config: dict, llm: LLMClient) ->
     return results
 
 
+def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> list[dict]:
+    """合并痛点和推理需求为 PainInsight 结构
+
+    pain_points: analyze_pain_points 的输出
+    hidden_needs: infer_hidden_needs 的输出（可能只有部分痛点有）
+    """
+    # 建立痛点→需求的映射
+    need_map = {}
+    for hn in hidden_needs:
+        key = hn.get("pain_point", "")
+        if key:
+            need_map[key] = {
+                "hidden_need": hn["hidden_need"],
+                "reasoning_chain": hn.get("reasoning_chain", []),
+                "confidence": hn.get("confidence", 0.0),
+                "category": hn.get("category", "功能需求"),
+            }
+
+    insights = []
+    for pp in pain_points:
+        pain_text = pp.get("pain_point", "")
+        insight = {
+            "pain_point": pain_text,
+            "category": pp.get("category", "其他"),
+            "emotion_intensity": pp.get("emotion_intensity", 0.0),
+            "affected_users": pp.get("affected_users", ""),
+            "evidence": pp.get("evidence", ""),
+            "gpu_tags": pp.get("gpu_tags", {}),
+            "source_post_ids": pp.get("source_post_ids", []),
+            "source_urls": pp.get("source_urls", []),
+            "inferred_need": need_map.get(pain_text),  # None if no need inferred
+        }
+        insights.append(insight)
+
+    return insights
+
+
 def council_review(insights: list[dict], config: dict, llm: LLMClient) -> list[dict]:
     """Expert Council 多视角评审"""
     if not insights:
@@ -128,18 +184,23 @@ def council_review(insights: list[dict], config: dict, llm: LLMClient) -> list[d
 
     reviewed = []
     for insight in insights:
-        prompt = f"隐藏需求：{insight['hidden_need']}\n推理链：{json.dumps(insight.get('reasoning_chain', []), ensure_ascii=False)}\n置信度：{insight.get('confidence', 0.5)}\n\n请进行三视角评审。"
+        need = insight.get("inferred_need")
+        if not need:
+            reviewed.append(insight)
+            continue
+        prompt = f"隐藏需求：{need['hidden_need']}\n推理链：{json.dumps(need.get('reasoning_chain', []), ensure_ascii=False)}\n置信度：{need.get('confidence', 0.5)}\n\n请进行三视角评审。"
         try:
             response = llm.call_reasoning(prompt, system_prompt)
             for parsed in _extract_json(response):
-                insight.update(parsed)
+                insight["council_review"] = parsed
                 reviewed.append(insight)
                 break
         except Exception as e:
             print(f"  ⚠️ Council 评审失败: {e}")
+            reviewed.append(insight)
 
     _save_results(reviewed, config, "reviewed")
-    return [r for r in reviewed if r.get("approved", False)]
+    return reviewed
 
 
 def _save_results(results: list[dict], config: dict, prefix: str):
@@ -150,4 +211,4 @@ def _save_results(results: list[dict], config: dict, prefix: str):
     output_file = output_dir / f"{prefix}_{date_str}.jsonl"
     with open(output_file, "a", encoding="utf-8") as f:
         for r in results:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+            f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")

@@ -1,0 +1,65 @@
+# GPU-Insight 产品词典 — 用于本地正则识别
+# Data Engineer 维护，定期更新
+
+brands:
+  nvidia:
+    aliases: ["nvidia", "geforce", "nv", "老黄", "英伟达", "N卡"]
+    series:
+      - name: "RTX 50"
+        models: ["RTX 5090", "RTX 5080", "RTX 5070 Ti", "RTX 5070", "RTX 5060 Ti", "RTX 5060"]
+      - name: "RTX 40"
+        models: ["RTX 4090", "RTX 4080 Super", "RTX 4080", "RTX 4070 Ti Super", "RTX 4070 Ti", "RTX 4070 Super", "RTX 4070", "RTX 4060 Ti", "RTX 4060"]
+      - name: "RTX 30"
+        models: ["RTX 3090 Ti", "RTX 3090", "RTX 3080 Ti", "RTX 3080", "RTX 3070 Ti", "RTX 3070", "RTX 3060 Ti", "RTX 3060", "RTX 3050"]
+      - name: "GTX 16"
+        models: ["GTX 1660 Super", "GTX 1660 Ti", "GTX 1660", "GTX 1650 Super", "GTX 1650"]
+
+  amd:
+    aliases: ["amd", "radeon", "苏妈", "AMD", "A卡"]
+    series:
+      - name: "RX 9000"
+        models: ["RX 9070 XT", "RX 9070"]
+      - name: "RX 7000"
+        models: ["RX 7900 XTX", "RX 7900 XT", "RX 7900 GRE", "RX 7800 XT", "RX 7700 XT", "RX 7600 XT", "RX 7600"]
+      - name: "RX 6000"
+        models: ["RX 6950 XT", "RX 6900 XT", "RX 6800 XT", "RX 6800", "RX 6750 XT", "RX 6700 XT", "RX 6650 XT", "RX 6600 XT", "RX 6600", "RX 6500 XT"]
+
+  intel:
+    aliases: ["intel", "arc", "英特尔", "I卡"]
+    series:
+      - name: "Arc B"
+        models: ["Arc B580", "Arc B570"]
+      - name: "Arc A"
+        models: ["Arc A770", "Arc A750", "Arc A580", "Arc A380"]
+
+manufacturers:
+  - name: "ASUS"
+    aliases: ["asus", "华硕", "rog", "tuf", "strix", "dual"]
+  - name: "MSI"
+    aliases: ["msi", "微星", "gaming x", "suprim", "ventus"]
+  - name: "Gigabyte"
+    aliases: ["gigabyte", "技嘉", "aorus", "eagle", "gaming oc"]
+  - name: "EVGA"
+    aliases: ["evga"]
+  - name: "Sapphire"
+    aliases: ["sapphire", "蓝宝石", "nitro", "pulse"]
+  - name: "PowerColor"
+    aliases: ["powercolor", "撼讯", "red devil", "hellhound", "fighter"]
+  - name: "XFX"
+    aliases: ["xfx", "讯景", "speedster", "merc"]
+  - name: "Zotac"
+    aliases: ["zotac", "索泰", "amp", "trinity"]
+  - name: "PNY"
+    aliases: ["pny"]
+  - name: "Colorful"
+    aliases: ["colorful", "七彩虹", "igame", "战斧", "ultra"]
+  - name: "Galax"
+    aliases: ["galax", "影驰", "hof", "gamer"]
+  - name: "Inno3D"
+    aliases: ["inno3d", "映众", "冰龙"]
+  - name: "Palit"
+    aliases: ["palit", "同德", "gamerock", "jetstream"]
+  - name: "Gainward"
+    aliases: ["gainward", "耕升", "phantom"]
+  - name: "Maxsun"
+    aliases: ["maxsun", "铭瑄", "电竞之心"]

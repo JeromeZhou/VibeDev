@@ -22,7 +22,9 @@
       "Bash(pip install:*)",
       "Bash(python tests/test_pipeline_offline.py:*)",
       "Bash(PYTHONIOENCODING=utf-8 python:*)",
-      "WebFetch(domain:docs.siliconflow.cn)"
+      "WebFetch(domain:docs.siliconflow.cn)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" tests/test_gpu_tagger.py)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest tests/test_unit.py -v)"
     ]
   }
 }

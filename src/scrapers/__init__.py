@@ -7,10 +7,12 @@ def scrape_all_forums(config: dict) -> list[dict]:
     """串行抓取所有已启用的论坛"""
     from .chiphell_scraper import ChiphellScraper
     from .reddit_scraper import RedditScraper
+    from .tieba_scraper import TiebaScraper
 
     scraper_map = {
         "chiphell": ChiphellScraper,
         "reddit": RedditScraper,
+        "tieba": TiebaScraper,
     }
 
     enabled = get_enabled_sources(config)
