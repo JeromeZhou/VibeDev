@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 class LLMClient:
-    """统一的 LLM API 调用客户端，支持 Anthropic 和 OpenAI"""
+    """统一的 LLM API 调用客户端，支持 Anthropic、OpenAI、智谱 GLM"""
 
     def __init__(self, config: dict):
         self.config = config
@@ -37,6 +37,8 @@ class LLMClient:
             return self._call_anthropic(model, prompt, system, max_tokens, temperature)
         elif provider == "openai":
             return self._call_openai(model, prompt, system, max_tokens, temperature)
+        elif provider == "zhipu":
+            return self._call_zhipu(model, prompt, system, max_tokens, temperature)
         else:
             raise ValueError(f"不支持的 LLM 提供商: {provider}")
 
@@ -78,6 +80,29 @@ class LLMClient:
         except ImportError:
             raise ImportError("请安装 openai: pip install openai")
 
+    def _call_zhipu(self, model, prompt, system, max_tokens, temperature) -> str:
+        """调用智谱 GLM API（通过硅基流动，兼容 OpenAI 格式）"""
+        try:
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=os.getenv("SILICONFLOW_API_KEY", os.getenv("ZHIPU_API_KEY", "")),
+                base_url="https://api.siliconflow.cn/v1",
+            )
+            messages = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            messages.append({"role": "user", "content": prompt})
+            response = client.chat.completions.create(
+                model=model, messages=messages,
+                max_tokens=max_tokens, temperature=temperature,
+            )
+            text = response.choices[0].message.content
+            usage = response.usage
+            self._log_usage(model, usage.prompt_tokens, usage.completion_tokens)
+            return text
+        except ImportError:
+            raise ImportError("请安装 openai: pip install openai")
+
     def _log_usage(self, model: str, input_tokens: int, output_tokens: int):
         """记录 token 消耗"""
         self.total_tokens += input_tokens + output_tokens
@@ -101,6 +126,8 @@ class LLMClient:
         prices = {
             "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
             "gpt-4o-mini": {"input": 0.15, "output": 0.6},
+            "glm-5-plus": {"input": 0.5, "output": 0.5},
+            "glm-5": {"input": 0.5, "output": 0.5},
         }
         p = prices.get(model, {"input": 3.0, "output": 15.0})
         return (input_tokens * p["input"] + output_tokens * p["output"]) / 1_000_000

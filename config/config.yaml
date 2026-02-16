@@ -27,14 +27,14 @@ agent_teams:
 llm:
   # 深度推理任务
   reasoning:
-    provider: "anthropic"
-    model: "claude-sonnet-4-20250514"
+    provider: "zhipu"
+    model: "Pro/zai-org/GLM-5"
     max_tokens: 4096
     temperature: 0.3
   # 简单任务
   simple:
-    provider: "openai"
-    model: "gpt-4o-mini"
+    provider: "zhipu"
+    model: "Pro/zai-org/GLM-5"
     max_tokens: 2048
     temperature: 0.2
 

@@ -13,7 +13,16 @@
       "WebSearch",
       "Bash(git clone:*)",
       "Bash(python -c:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(py:*)",
+      "Bash(conda --version:*)",
+      "Bash(winget list:*)",
+      "Bash(winget install:*)",
+      "Bash(export PATH:*)",
+      "Bash(pip install:*)",
+      "Bash(python tests/test_pipeline_offline.py:*)",
+      "Bash(PYTHONIOENCODING=utf-8 python:*)",
+      "WebFetch(domain:docs.siliconflow.cn)"
     ]
   }
 }

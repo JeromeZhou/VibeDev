@@ -1,9 +1,36 @@
 """GPU-Insight 分析模块"""
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from src.utils.llm_client import LLMClient
+
+
+def _extract_json(text: str) -> list[dict]:
+    """从 LLM 响应中提取 JSON 对象（处理 markdown 代码块、多行 JSON 等）"""
+    results = []
+    # 去掉 markdown 代码块标记
+    text = re.sub(r'```json\s*', '', text)
+    text = re.sub(r'```\s*', '', text)
+    # 尝试用正则匹配所有 JSON 对象
+    for match in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL):
+        try:
+            parsed = json.loads(match.group())
+            results.append(parsed)
+        except json.JSONDecodeError:
+            continue
+    # 如果正则没匹配到，尝试整体解析
+    if not results:
+        try:
+            parsed = json.loads(text.strip())
+            if isinstance(parsed, dict):
+                results.append(parsed)
+            elif isinstance(parsed, list):
+                results.extend(parsed)
+        except json.JSONDecodeError:
+            pass
+    return results
 
 
 def analyze_pain_points(posts: list[dict], config: dict, llm: LLMClient) -> list[dict]:
@@ -34,12 +61,9 @@ def analyze_pain_points(posts: list[dict], config: dict, llm: LLMClient) -> list
 
         try:
             response = llm.call_simple(prompt, system_prompt)
-            for line in response.strip().split("\n"):
-                line = line.strip()
-                if line.startswith("{"):
-                    parsed = json.loads(line)
-                    if parsed.get("pain_point"):
-                        results.append(parsed)
+            for parsed in _extract_json(response):
+                if parsed.get("pain_point"):
+                    results.append(parsed)
         except Exception as e:
             print(f"  ⚠️ 痛点提取失败: {e}")
 
@@ -70,12 +94,9 @@ def infer_hidden_needs(pain_points: list[dict], config: dict, llm: LLMClient) ->
         prompt = f"痛点：{pp['pain_point']}\n类别：{pp.get('category', '未知')}\n情绪强度：{pp.get('emotion_intensity', 0.5)}\n\n请推导隐藏需求。"
         try:
             response = llm.call_reasoning(prompt, system_prompt)
-            for line in response.strip().split("\n"):
-                line = line.strip()
-                if line.startswith("{"):
-                    parsed = json.loads(line)
-                    if parsed.get("hidden_need"):
-                        results.append(parsed)
+            for parsed in _extract_json(response):
+                if parsed.get("hidden_need"):
+                    results.append(parsed)
                     break
         except Exception as e:
             print(f"  ⚠️ 隐藏需求推导失败: {e}")
@@ -110,13 +131,10 @@ def council_review(insights: list[dict], config: dict, llm: LLMClient) -> list[d
         prompt = f"隐藏需求：{insight['hidden_need']}\n推理链：{json.dumps(insight.get('reasoning_chain', []), ensure_ascii=False)}\n置信度：{insight.get('confidence', 0.5)}\n\n请进行三视角评审。"
         try:
             response = llm.call_reasoning(prompt, system_prompt)
-            for line in response.strip().split("\n"):
-                line = line.strip()
-                if line.startswith("{"):
-                    parsed = json.loads(line)
-                    insight.update(parsed)
-                    reviewed.append(insight)
-                    break
+            for parsed in _extract_json(response):
+                insight.update(parsed)
+                reviewed.append(insight)
+                break
         except Exception as e:
             print(f"  ⚠️ Council 评审失败: {e}")
 
