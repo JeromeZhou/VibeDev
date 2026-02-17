@@ -26,20 +26,15 @@ class TechPowerUpScraper(BaseScraper):
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """抓取 TechPowerUp GPU 新闻"""
-        import httpx
-
         posts = []
         seen = set()
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
-        }
 
         try:
-            self.random_delay(1.5, 3.0)
-            resp = httpx.get("https://www.techpowerup.com/", headers=headers,
-                             cookies=self.cookies, timeout=15, follow_redirects=True)
-            if resp.status_code != 200:
-                print(f"    [!] TechPowerUp: {resp.status_code}")
+            resp = self.safe_request("https://www.techpowerup.com/",
+                                     referer="https://www.techpowerup.com/",
+                                     delay=(2.0, 4.0))
+            if not resp or resp.status_code != 200:
+                print(f"    [!] TechPowerUp: 请求失败")
                 return []
 
             html = resp.text

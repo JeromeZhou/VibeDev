@@ -16,56 +16,51 @@ class TiebaScraper(BaseScraper):
         posts = []
         seen_ids = set()
 
-        try:
-            import httpx
+        for bar in self.bars:
+            try:
+                # 贴吧移动端 API（不需要登录）
+                url = f"https://tieba.baidu.com/mo/q/m?word={bar}&lp=5024&lm=&partation_id=&footer_topic_id=&cid=0&has_url_param=0&_client_type=2"
+                resp = self.safe_request(url,
+                                         referer="https://tieba.baidu.com/",
+                                         delay=(2.0, 4.0),
+                                         extra_headers={
+                                             "User-Agent": "Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+                                         })
 
-            for bar in self.bars:
-                try:
-                    self.random_delay(1.5, 3.0)
-                    # 贴吧移动端 API（不需要登录）
-                    url = f"https://tieba.baidu.com/mo/q/m?word={bar}&lp=5024&lm=&partation_id=&footer_topic_id=&cid=0&has_url_param=0&_client_type=2"
-                    headers = {
-                        "User-Agent": "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Mobile Safari/537.36",
-                    }
-                    resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
-
-                    if resp.status_code != 200:
-                        # 备用：PC 端页面
-                        posts.extend(self._fetch_pc(bar, last_id, seen_ids))
-                        continue
-
-                    data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-                    # 解析移动端 JSON
-                    for thread in data.get("data", {}).get("thread_list", []):
-                        tid = str(thread.get("id", ""))
-                        if tid in seen_ids or (last_id and tid <= last_id):
-                            continue
-                        seen_ids.add(tid)
-
-                        posts.append({
-                            "id": f"tieba_{tid}",
-                            "source": "tieba",
-                            "_source": "tieba",
-                            "_bar": bar,
-                            "title": thread.get("title", ""),
-                            "content": thread.get("abstract", [{}])[0].get("text", "") if thread.get("abstract") else thread.get("title", ""),
-                            "url": f"https://tieba.baidu.com/p/{tid}",
-                            "author_hash": self.hash_author(str(thread.get("author", {}).get("id", "anon"))),
-                            "replies": thread.get("reply_num", 0),
-                            "likes": thread.get("agree", {}).get("agree_num", 0) if isinstance(thread.get("agree"), dict) else 0,
-                            "language": "zh-CN",
-                            "timestamp": datetime.now().isoformat(),
-                        })
-
-                    print(f"    {bar}吧: {len([p for p in posts if p.get('_bar') == bar])} 条")
-
-                except Exception as e:
-                    print(f"    [!] {bar}吧失败: {e}")
-                    # 尝试 PC 端
+                if not resp or resp.status_code != 200:
+                    # 备用：PC 端页面
                     posts.extend(self._fetch_pc(bar, last_id, seen_ids))
+                    continue
 
-        except ImportError:
-            print("  [!] 需要安装 httpx: pip install httpx")
+                data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+                # 解析移动端 JSON
+                for thread in data.get("data", {}).get("thread_list", []):
+                    tid = str(thread.get("id", ""))
+                    if tid in seen_ids or (last_id and tid <= last_id):
+                        continue
+                    seen_ids.add(tid)
+
+                    posts.append({
+                        "id": f"tieba_{tid}",
+                        "source": "tieba",
+                        "_source": "tieba",
+                        "_bar": bar,
+                        "title": thread.get("title", ""),
+                        "content": thread.get("abstract", [{}])[0].get("text", "") if thread.get("abstract") else thread.get("title", ""),
+                        "url": f"https://tieba.baidu.com/p/{tid}",
+                        "author_hash": self.hash_author(str(thread.get("author", {}).get("id", "anon"))),
+                        "replies": thread.get("reply_num", 0),
+                        "likes": thread.get("agree", {}).get("agree_num", 0) if isinstance(thread.get("agree"), dict) else 0,
+                        "language": "zh-CN",
+                        "timestamp": datetime.now().isoformat(),
+                    })
+
+                print(f"    {bar}吧: {len([p for p in posts if p.get('_bar') == bar])} 条")
+
+            except Exception as e:
+                print(f"    [!] {bar}吧失败: {e}")
+                # 尝试 PC 端
+                posts.extend(self._fetch_pc(bar, last_id, seen_ids))
 
         return posts
 
@@ -73,15 +68,14 @@ class TiebaScraper(BaseScraper):
         """PC 端页面抓取（备用方案）"""
         posts = []
         try:
-            import httpx
             from bs4 import BeautifulSoup
 
-            self.random_delay(1.5, 3.0)
             url = f"https://tieba.baidu.com/f?kw={bar}&ie=utf-8"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            }
-            resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
+            resp = self.safe_request(url,
+                                     referer="https://tieba.baidu.com/",
+                                     delay=(2.0, 4.0))
+            if not resp:
+                return []
             soup = BeautifulSoup(resp.text, "html.parser")
 
             for thread in soup.select("li.j_thread_list"):

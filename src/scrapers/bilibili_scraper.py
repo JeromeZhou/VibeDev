@@ -20,37 +20,32 @@ class BilibiliScraper(BaseScraper):
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """搜索 Bilibili 显卡相关视频"""
-        import httpx
-
         posts = []
         seen_ids = set()
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
-            "Referer": "https://www.bilibili.com",
-        }
 
         for keyword in self.SEARCH_KEYWORDS:
             try:
-                self.random_delay(2.0, 4.0)
                 url = "https://api.bilibili.com/x/web-interface/search/type"
                 params = {
                     "search_type": "video",
                     "keyword": keyword,
-                    "order": "pubdate",  # 按发布时间排序
+                    "order": "pubdate",
                     "duration": 0,
                     "page": 1,
                     "pagesize": 20,
                 }
-                resp = httpx.get(url, params=params, headers=headers,
-                                 timeout=15, follow_redirects=True)
-
-                if resp.status_code != 200:
+                # 手动拼 URL 以便 safe_request 使用
+                qs = "&".join(f"{k}={v}" for k, v in params.items())
+                full_url = f"{url}?{qs}"
+                resp = self.safe_request(full_url, referer="https://www.bilibili.com",
+                                         delay=(2.5, 4.5))
+                if not resp or resp.status_code != 200:
                     continue
 
                 data = resp.json()
                 if data.get("code") != 0:
                     if data.get("code") == -412:
-                        print(f"    [!] Bilibili 被限流，停止搜索")
+                        print(f"    [!] Bilibili 被限流(-412)，停止搜索")
                         break
                     continue
 

@@ -26,28 +26,23 @@ class MyDriversScraper(BaseScraper):
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """抓取快科技显卡相关新闻"""
-        import httpx
-
         posts = []
         seen = set()
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
-            "Accept-Language": "zh-CN,zh;q=0.9",
-        }
 
-        # 快科技显卡频道
+        # 快科技显卡频道（多个备用 URL）
         urls_to_try = [
-            "https://news.mydrivers.com/blog/20.htm",  # 显卡频道
+            "https://news.mydrivers.com/1/list.htm",  # 新闻列表
             "https://www.mydrivers.com/",  # 首页
         ]
 
         for page_url in urls_to_try:
             try:
-                self.random_delay(1.5, 3.0)
-                resp = httpx.get(page_url, headers=headers, cookies=self.cookies,
-                                 timeout=15, follow_redirects=True)
-                if resp.status_code != 200:
-                    print(f"    [!] 快科技: {resp.status_code}")
+                resp = self.safe_request(page_url,
+                                         referer="https://www.mydrivers.com/",
+                                         delay=(2.0, 4.0),
+                                         extra_headers={"Accept-Language": "zh-CN,zh;q=0.9"})
+                if not resp or resp.status_code != 200:
+                    print(f"    [!] 快科技: 请求失败 {page_url}")
                     continue
 
                 # 提取新闻链接和标题

@@ -1,4 +1,4 @@
-"""GPU-Insight V2EX 爬虫 — 官方 API，零反爬"""
+"""GPU-Insight V2EX 爬虫 — 官方 API"""
 
 import re
 from datetime import datetime
@@ -9,8 +9,8 @@ from src.utils.gpu_tagger import tag_post
 class V2EXScraper(BaseScraper):
     """V2EX 爬虫 — 通过官方 API 抓取硬件相关话题"""
 
-    # GPU/硬件相关节点
-    NODES = ["hardware", "gpu", "computer", "apple", "gamer"]
+    # GPU/硬件相关节点（gpu 节点不存在，已移除）
+    NODES = ["hardware", "computer", "apple", "gamer"]
     # 搜索关键词（补充节点外的显卡讨论）
     SEARCH_KEYWORDS = ["显卡", "GPU", "RTX", "RX", "NVIDIA", "AMD"]
 
@@ -23,54 +23,44 @@ class V2EXScraper(BaseScraper):
 
         posts = []
         seen_ids = set()
-        headers = {
-            "User-Agent": "GPU-Insight/1.0 (research bot)",
-            "Accept": "application/json",
-        }
 
         # 1. 按节点抓取
         for node in self.NODES:
             try:
-                self.random_delay(1.0, 2.0)
-                url = f"https://www.v2ex.com/api/v2/nodes/{node}/topics?p=1"
-                # V2EX API v2 需要 token（可选），v1 免费
-                resp = httpx.get(
-                    f"https://www.v2ex.com/api/topics/show.json?node_name={node}",
-                    headers=headers, timeout=15, follow_redirects=True,
-                )
-                if resp.status_code == 200:
+                url = f"https://www.v2ex.com/api/topics/show.json?node_name={node}"
+                resp = self.safe_request(url, referer="https://www.v2ex.com/",
+                                         delay=(1.5, 3.0),
+                                         extra_headers={"Accept": "application/json"})
+                if resp and resp.status_code == 200:
                     for item in resp.json():
                         post = self._parse_topic(item)
                         if post and post["id"] not in seen_ids:
                             seen_ids.add(post["id"])
                             posts.append(post)
-                elif resp.status_code == 403:
-                    print(f"    [!] V2EX 节点 {node} 被限流，跳过")
-                    break  # 限流了就别继续了
+                elif resp and resp.status_code == 403:
+                    print(f"    [!] V2EX 被限流(403)，跳过后续节点")
+                    break  # 403 限流才跳过
             except Exception as e:
                 print(f"    [!] V2EX 节点 {node} 失败: {e}")
 
-        # 2. 搜索 SOV2EX（第三方搜索，V2EX 官方无搜索 API）
-        # 用 Google site search 替代
-        for keyword in self.SEARCH_KEYWORDS[:3]:  # 限制请求数
-            try:
-                self.random_delay(2.0, 4.0)
-                url = f"https://www.v2ex.com/api/topics/hot.json"
-                resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
-                if resp.status_code == 200:
-                    for item in resp.json():
-                        title = item.get("title", "")
-                        content = item.get("content", "")
-                        text = f"{title} {content}".lower()
-                        if keyword.lower() in text:
-                            post = self._parse_topic(item)
-                            if post and post["id"] not in seen_ids:
-                                seen_ids.add(post["id"])
-                                posts.append(post)
-                break  # hot.json 只需调一次
-            except Exception as e:
-                print(f"    [!] V2EX 热门搜索失败: {e}")
-                break
+        # 2. 热门话题中筛选显卡相关
+        try:
+            url = "https://www.v2ex.com/api/topics/hot.json"
+            resp = self.safe_request(url, referer="https://www.v2ex.com/",
+                                     delay=(2.0, 4.0),
+                                     extra_headers={"Accept": "application/json"})
+            if resp and resp.status_code == 200:
+                for item in resp.json():
+                    title = item.get("title", "")
+                    content = item.get("content", "")
+                    text = f"{title} {content}".lower()
+                    if any(kw.lower() in text for kw in self.SEARCH_KEYWORDS):
+                        post = self._parse_topic(item)
+                        if post and post["id"] not in seen_ids:
+                            seen_ids.add(post["id"])
+                            posts.append(post)
+        except Exception as e:
+            print(f"    [!] V2EX 热门搜索失败: {e}")
 
         # GPU 标签
         for p in posts:

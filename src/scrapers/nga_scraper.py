@@ -70,28 +70,18 @@ class NGAScraper(BaseScraper):
 
     def _fetch_forum(self, fid: int, pages: int = 2) -> list[dict]:
         """抓取指定板块的帖子列表"""
-        import httpx
-
         posts = []
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "https://bbs.nga.cn/",
-            "Accept": "application/json, text/plain, */*",
-        }
 
         for page in range(1, pages + 1):
-            self.random_delay(2.0, 4.0)
             try:
-                # NGA API 格式
                 url = f"https://bbs.nga.cn/thread.php?fid={fid}&page={page}&__output=11"
-                resp = httpx.get(
-                    url,
-                    headers=headers,
-                    cookies=self.cookies,
-                    timeout=30,
-                    follow_redirects=True,
-                )
-
+                resp = self.safe_request(url,
+                                         referer="https://bbs.nga.cn/",
+                                         delay=(2.0, 4.0),
+                                         extra_headers={"Accept": "application/json, text/plain, */*"},
+                                         cookies=self.cookies)
+                if not resp:
+                    continue
                 # NGA 返回的可能是 JSONP 或纯 JSON
                 text = resp.text.strip()
                 # 去掉 JSONP 包装
@@ -171,16 +161,14 @@ class NGAScraper(BaseScraper):
 
     def _fetch_thread_content(self, tid: str) -> str | None:
         """抓取帖子首楼正文 + Top 回复"""
-        import httpx
-
-        self.random_delay(1.0, 2.0)
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-            "Referer": f"https://bbs.nga.cn/read.php?tid={tid}",
-        }
         try:
             url = f"https://bbs.nga.cn/read.php?tid={tid}&page=1&__output=11"
-            resp = httpx.get(url, headers=headers, cookies=self.cookies, timeout=15, follow_redirects=True)
+            resp = self.safe_request(url,
+                                     referer=f"https://bbs.nga.cn/read.php?tid={tid}",
+                                     delay=(1.0, 2.5),
+                                     cookies=self.cookies)
+            if not resp:
+                return None
             text = resp.text.strip()
             if text.startswith("window.script_muti_get_var_store"):
                 text = re.sub(r'^window\.script_muti_get_var_store\s*=\s*', '', text)

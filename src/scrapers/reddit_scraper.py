@@ -1,9 +1,17 @@
-"""GPU-Insight Reddit 爬虫 v2 — 三端点并行 + 信号分数 + GPU 产品标签"""
+"""GPU-Insight Reddit 爬虫 v3 — 三端点并行 + 信号分数 + GPU 产品标签 + 403 容错"""
 
 import os
+import random
 from datetime import datetime
 from .base_scraper import BaseScraper
 from src.utils.gpu_tagger import tag_post
+
+# 真实浏览器 UA 池，避免被 Reddit 403
+_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15",
+]
 
 
 class RedditScraper(BaseScraper):
@@ -12,6 +20,7 @@ class RedditScraper(BaseScraper):
     def __init__(self, config: dict):
         super().__init__("reddit", config)
         self.subreddits = self.source_config.get("subreddits", ["nvidia", "amd", "hardware"])
+        self._ua = random.choice(_USER_AGENTS)
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """三端点并行抓取 + 热帖评论"""
@@ -61,63 +70,92 @@ class RedditScraper(BaseScraper):
         return posts
 
     def _fetch_endpoint(self, subreddit: str, endpoint: str, limit: int = 25) -> list[dict]:
-        """抓取指定端点 — 带 SSL 容错和重试"""
+        """抓取指定端点 — 三级降级：www → old.reddit → verify=False"""
         import httpx
         import ssl
 
-        url = f"https://www.reddit.com/r/{subreddit}/{endpoint}.json?limit={limit}"
-        headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
+        headers = {
+            "User-Agent": self._ua,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
 
-        # 尝试 1: 标准 HTTPS
-        try:
-            self.random_delay(1.5, 3.0)
-            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
-            resp.raise_for_status()
-            return self._parse_listing(resp.json(), subreddit)
-        except (httpx.ReadError, ssl.SSLError) as e:
-            print(f"    [!] r/{subreddit}/{endpoint} SSL 错误，尝试降级重试: {e}")
-        except Exception as e:
-            print(f"    [!] r/{subreddit}/{endpoint} 失败: {e}")
-            return []
+        # 尝试的 URL 列表：www.reddit.com → old.reddit.com
+        urls = [
+            f"https://www.reddit.com/r/{subreddit}/{endpoint}.json?limit={limit}",
+            f"https://old.reddit.com/r/{subreddit}/{endpoint}.json?limit={limit}",
+        ]
 
-        # 尝试 2: 禁用 SSL 验证（仅作为降级方案）
-        try:
-            self.random_delay(2.0, 4.0)
-            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True, verify=False)
-            resp.raise_for_status()
-            print(f"    [√] r/{subreddit}/{endpoint} SSL 降级成功")
-            return self._parse_listing(resp.json(), subreddit)
-        except Exception as e:
-            print(f"    [!] r/{subreddit}/{endpoint} 降级后仍失败: {e}")
-            return []
+        for i, url in enumerate(urls):
+            domain = "old.reddit" if "old.reddit" in url else "www.reddit"
+            # 尝试标准 HTTPS
+            try:
+                self.random_delay(2.0, 4.5)
+                resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
+                resp.raise_for_status()
+                if i > 0:
+                    print(f"    [√] r/{subreddit}/{endpoint} via {domain}")
+                return self._parse_listing(resp.json(), subreddit)
+            except (httpx.ReadError, ssl.SSLError):
+                # SSL 错误 → 同域 verify=False 重试
+                try:
+                    self.random_delay(2.0, 4.0)
+                    resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True, verify=False)
+                    resp.raise_for_status()
+                    print(f"    [√] r/{subreddit}/{endpoint} via {domain} (no-ssl)")
+                    return self._parse_listing(resp.json(), subreddit)
+                except Exception:
+                    pass
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 403 and i < len(urls) - 1:
+                    continue  # 403 → 尝试下一个域名
+                if e.response.status_code == 429:
+                    print(f"    [!] r/{subreddit}/{endpoint} 限流(429)，跳过")
+                    return []
+            except Exception:
+                if i < len(urls) - 1:
+                    continue
+
+        print(f"    [!] r/{subreddit}/{endpoint} 全部失败")
+        return []
 
     def _fetch_search(self, subreddit: str, query: str, limit: int = 10) -> list[dict]:
-        """搜索端点 — 带 SSL 容错"""
+        """搜索端点 — 带域名降级 + SSL 容错"""
         import httpx
         import ssl
 
-        url = f"https://www.reddit.com/r/{subreddit}/search.json?q={query}&restrict_sr=on&sort=relevance&t=week&limit={limit}"
-        headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
+        headers = {
+            "User-Agent": self._ua,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        qs = f"search.json?q={query}&restrict_sr=on&sort=relevance&t=week&limit={limit}"
+        urls = [
+            f"https://www.reddit.com/r/{subreddit}/{qs}",
+            f"https://old.reddit.com/r/{subreddit}/{qs}",
+        ]
 
-        # 尝试 1: 标准 HTTPS
-        try:
-            self.random_delay(1.5, 3.0)
-            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
-            resp.raise_for_status()
-            return self._parse_listing(resp.json(), subreddit)
-        except (httpx.ReadError, ssl.SSLError):
-            pass  # 静默降级
-        except Exception:
-            return []
-
-        # 尝试 2: 禁用 SSL 验证
-        try:
-            self.random_delay(2.0, 4.0)
-            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True, verify=False)
-            resp.raise_for_status()
-            return self._parse_listing(resp.json(), subreddit)
-        except Exception:
-            return []
+        for i, url in enumerate(urls):
+            try:
+                self.random_delay(1.5, 3.5)
+                resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
+                resp.raise_for_status()
+                return self._parse_listing(resp.json(), subreddit)
+            except (httpx.ReadError, ssl.SSLError):
+                try:
+                    self.random_delay(2.0, 4.0)
+                    resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True, verify=False)
+                    resp.raise_for_status()
+                    return self._parse_listing(resp.json(), subreddit)
+                except Exception:
+                    pass
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 403 and i < len(urls) - 1:
+                    continue
+            except Exception:
+                if i < len(urls) - 1:
+                    continue
+        return []
 
     def _fetch_top_comments(self, post: dict, max_comments: int = 5) -> str | None:
         """抓取帖子 Top N 评论（按 score 排序）"""
@@ -125,13 +163,15 @@ class RedditScraper(BaseScraper):
 
         post_id = post["id"].replace("reddit_", "")
         url = f"https://www.reddit.com/comments/{post_id}.json?sort=top&limit={max_comments}"
-        headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
+        headers = self.get_headers(referer=f"https://www.reddit.com/")
 
         try:
-            self.random_delay(1.0, 2.0)
+            self.random_delay(1.0, 2.5)
             resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
             if resp.status_code != 200:
-                resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True, verify=False)
+                # 降级到 old.reddit
+                url2 = f"https://old.reddit.com/comments/{post_id}.json?sort=top&limit={max_comments}"
+                resp = httpx.get(url2, headers=headers, timeout=15, follow_redirects=True, verify=False)
             resp.raise_for_status()
             data = resp.json()
 
