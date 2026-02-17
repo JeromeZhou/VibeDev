@@ -67,7 +67,7 @@ sources:
     url: "https://bbs.nga.cn"
     sections: ["硬件区"]
   tieba:
-    enabled: true  # daytime OK
+    enabled: false  # API blocked (403/110001), needs cookie auth
     weight: 0.6
     interval_hours: 6
   rog:
