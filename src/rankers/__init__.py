@@ -1,6 +1,7 @@
 """GPU-Insight PPHI 排名计算模块 — v2 支持 PainInsight 结构"""
 
 import json
+import math
 from datetime import datetime
 from pathlib import Path
 from src.utils.config import get_pphi_weights
@@ -23,7 +24,7 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
     # 聚合同类痛点
     aggregated = _aggregate(all_insights)
 
-    # 计算 PPHI
+    # 计算 PPHI（改进版：增强区分度）
     rankings = []
     for pain_point, data in aggregated.items():
         # 用关联帖子数作为频率指标（比痛点文本匹配更准确）
@@ -33,11 +34,28 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
         interaction = data.get("avg_interaction", 0)
         days_old = min(data.get("days_old", 0), 30)  # 封顶30天，避免过度衰减
 
+        # 1. Frequency 对数缩放（1条=20, 2条=40, 4条=60, 8条=80）
+        frequency_score = math.log2(mention_count + 1) * 20
+
+        # 2. Source Quality 降权改为加成（避免基础分趋同）
+        source_quality_score = avg_source_score * 50
+
+        # 3. Interaction 对数缩放（避免大部分为0时无区分度）
+        interaction_score = math.log2(interaction + 1) * 15
+
+        # 4. Cross-Platform 跨平台加成（多论坛出现更重要）
+        cross_platform_score = min(len(sources), 4) / 4 * 100
+
+        # 5. Freshness 新鲜度加成（7天内有额外分数，替代 time_decay）
+        freshness_score = max(0, (7 - days_old) / 7) * 100
+
+        # 新权重：frequency 0.35, source_quality 0.20, interaction 0.15, cross_platform 0.15, freshness 0.15
         pphi = (
-            weights.get("frequency", 0.3) * min(mention_count / 10, 10) * 10
-            + weights.get("source_quality", 0.4) * avg_source_score * 100
-            + weights.get("interaction", 0.2) * min(interaction / 100, 1) * 100
-            - weights.get("time_decay", 0.1) * days_old * decay_rate * 100
+            0.35 * frequency_score
+            + 0.20 * source_quality_score
+            + 0.15 * interaction_score
+            + 0.15 * cross_platform_score
+            + 0.15 * freshness_score
         )
         pphi = max(0, round(pphi, 1))
 
@@ -56,7 +74,8 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
             "trend": _detect_trend(pain_point, pphi),
         })
 
-    rankings.sort(key=lambda x: x["pphi_score"], reverse=True)
+    # 排序：PPHI 降序，相同分数时按 mentions 降序（二级排序）
+    rankings.sort(key=lambda x: (x["pphi_score"], x["mentions"]), reverse=True)
     for i, r in enumerate(rankings):
         r["rank"] = i + 1
 
@@ -121,13 +140,45 @@ def _load_historical_insights() -> list[dict]:
         return []
 
 
+def _normalize_pain_point(pain_point: str) -> tuple[str, str]:
+    """规范化痛点名称，返回 (规范化名称, 原始名称)
+
+    规则：
+    1. 去掉括号内的分类标签，如 "(散热)"、"(驱动)"、"(生态)"
+    2. 去掉 "显卡" 前缀（如果去掉后仍有意义，即剩余长度 >= 2）
+    3. 统一为最短有意义的名称
+    """
+    import re
+
+    normalized = pain_point.strip()
+
+    # 1. 去掉括号内容（包括中英文括号）
+    normalized = re.sub(r'[（(][^）)]*[）)]', '', normalized).strip()
+
+    # 2. 去掉 "显卡" 前缀（如果剩余长度 >= 2）
+    if normalized.startswith("显卡") and len(normalized) > 3:
+        normalized = normalized[2:]
+
+    # 3. 去掉多余空格
+    normalized = re.sub(r'\s+', '', normalized)
+
+    return normalized, pain_point
+
+
 def _aggregate(insights: list[dict]) -> dict:
-    """聚合同类痛点，合并 GPU 标签和 URL"""
+    """聚合同类痛点，合并 GPU 标签和 URL（支持语义去重）"""
     agg = {}
+    name_mapping = {}  # 规范化名称 -> 最佳展示名称
+
     for item in insights:
         pp = item.get("pain_point", "未知")
-        if pp not in agg:
-            agg[pp] = {
+        normalized_pp, original_pp = _normalize_pain_point(pp)
+
+        # 使用规范化名称作为聚合 key
+        if normalized_pp not in agg:
+            # 选择最具描述性的名称作为展示名（优先选择带"显卡"前缀的完整名称）
+            name_mapping[normalized_pp] = original_pp
+            agg[normalized_pp] = {
                 "count": 0,
                 "sources": set(),
                 "source_urls": [],
@@ -141,42 +192,49 @@ def _aggregate(insights: list[dict]) -> dict:
                 "total_likes": 0,
                 "timestamps": [],
             }
+        else:
+            # 如果新名称更具描述性（更长或带"显卡"前缀），则更新展示名
+            current_display = name_mapping[normalized_pp]
+            if len(original_pp) > len(current_display) or (original_pp.startswith("显卡") and not current_display.startswith("显卡")):
+                name_mapping[normalized_pp] = original_pp
 
-        agg[pp]["count"] += 1
+        agg[normalized_pp]["count"] += 1
 
         # 来源
         for pid in item.get("source_post_ids", []):
             src = pid.split("_")[0] if "_" in pid else "unknown"
-            agg[pp]["sources"].add(src)
+            agg[normalized_pp]["sources"].add(src)
 
         # URL
         for url in item.get("source_urls", []):
-            if url and url not in agg[pp]["source_urls"]:
-                agg[pp]["source_urls"].append(url)
+            if url and url not in agg[normalized_pp]["source_urls"]:
+                agg[normalized_pp]["source_urls"].append(url)
 
         # GPU 标签合并
         tags = item.get("gpu_tags", {})
         for key in ("brands", "models", "series", "manufacturers"):
-            agg[pp]["gpu_tags"][key].update(tags.get(key, []))
+            agg[normalized_pp]["gpu_tags"][key].update(tags.get(key, []))
 
         # 互动数据累加
-        agg[pp]["total_replies"] += item.get("total_replies", 0)
-        agg[pp]["total_likes"] += item.get("total_likes", 0)
+        agg[normalized_pp]["total_replies"] += item.get("total_replies", 0)
+        agg[normalized_pp]["total_likes"] += item.get("total_likes", 0)
 
         # 时间戳收集
         ts = item.get("earliest_timestamp", "")
         if ts:
-            agg[pp]["timestamps"].append(ts)
+            agg[normalized_pp]["timestamps"].append(ts)
 
         # 推理需求
         need = item.get("inferred_need")
         if need and need.get("hidden_need"):
-            agg[pp]["hidden_need"] = need["hidden_need"]
-            agg[pp]["confidences"].append(need.get("confidence", 0.5))
+            agg[normalized_pp]["hidden_need"] = need["hidden_need"]
+            agg[normalized_pp]["confidences"].append(need.get("confidence", 0.5))
 
-    # 后处理
+    # 后处理：用最佳展示名替换规范化名称
+    final_agg = {}
     now = datetime.now()
-    for pp, data in agg.items():
+    for normalized_pp, data in agg.items():
+        display_name = name_mapping[normalized_pp]
         data["avg_confidence"] = sum(data["confidences"]) / max(len(data["confidences"]), 1) if data["confidences"] else 0
         # 计算互动分 = replies + likes
         data["avg_interaction"] = data["total_replies"] + data["total_likes"]
@@ -193,7 +251,10 @@ def _aggregate(insights: list[dict]) -> dict:
         del data["confidences"]
         del data["timestamps"]
 
-    return agg
+        # 使用展示名作为最终 key
+        final_agg[display_name] = data
+
+    return final_agg
 
 
 def _detect_trend(pain_point: str, current_score: float) -> str:
