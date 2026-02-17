@@ -50,3 +50,25 @@ class CostTracker:
             "usage_ratio": round(ratio, 4),
             "status": status,
         }
+
+    def enforce_budget(self, llm_client) -> str:
+        """执行预算控制策略
+
+        Returns:
+            "normal" | "warning" | "downgrade" | "pause" | "stop"
+        """
+        budget = self.check_budget()
+        status = budget["status"]
+        ratio = budget["usage_ratio"]
+
+        if status == "warning":
+            print(f"[预算警告] 已使用 {ratio*100:.1f}% (${budget['monthly_cost']:.2f}/${budget['budget']})")
+        elif status == "downgrade":
+            print(f"[预算降级] 已使用 {ratio*100:.1f}%，切换到低成本模型")
+            llm_client.downgrade_model()
+        elif status == "pause":
+            print(f"[预算暂停] 已使用 {ratio*100:.1f}%，跳过非关键步骤（隐藏需求推导）")
+        elif status == "stop":
+            print(f"[预算停止] 已使用 {ratio*100:.1f}%，停止运行")
+
+        return status

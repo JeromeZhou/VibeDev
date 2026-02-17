@@ -212,7 +212,81 @@
         </div>
 
         <!-- AI 推理需求 -->
-        {% if pain_point.get('hidden_need') %}
+        {% set inferred = pain_point.get('inferred_need') %}
+        {% if inferred and inferred.get('hidden_need') %}
+        <div class="card need-card p-6 mb-4 animate-in" style="animation-delay: 0.1s">
+            <h3 class="font-medium mb-3 flex items-center gap-2" style="color: var(--text-primary);">
+                <span class="material-icons" style="color: var(--accent-purple);">psychology</span> AI 推理需求
+                {% if inferred.get('confidence', 0) < 0.6 %}
+                <span class="text-xs px-2 py-0.5 rounded-full ml-auto" style="background: rgba(212,160,74,0.10); color: var(--accent-amber); border: 1px solid rgba(212,160,74,0.18);">待验证</span>
+                {% endif %}
+                {% if inferred.get('munger_rejected') %}
+                <span class="text-xs px-2 py-0.5 rounded-full ml-auto" style="background: rgba(229,83,75,0.10); color: var(--accent-red); border: 1px solid rgba(229,83,75,0.18);">❌ Munger 否决</span>
+                {% endif %}
+            </h3>
+            <p class="text-base leading-relaxed mb-4" style="color: var(--accent-purple);">{{ inferred.hidden_need }}</p>
+
+            <!-- 推理链 -->
+            {% if inferred.get('reasoning_chain') %}
+            <div class="mt-4 p-4 rounded-lg" style="background: var(--bg-elevated); border-left: 2px solid var(--accent-purple);">
+                <p class="text-xs mb-2 flex items-center gap-1 font-medium" style="color: var(--text-tertiary);">
+                    <span class="material-icons text-xs">account_tree</span> 推理链
+                </p>
+                <ol class="space-y-2">
+                    {% for step in inferred.reasoning_chain %}
+                    <li class="text-sm flex gap-2" style="color: var(--text-secondary);">
+                        <span class="text-xs mono shrink-0" style="color: var(--accent-purple);">{{ loop.index }}.</span>
+                        <span>{{ step }}</span>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+            {% endif %}
+
+            <!-- Munger 审查结果 -->
+            {% set munger = inferred.get('munger_review') %}
+            {% if munger %}
+            <div class="mt-4 p-4 rounded-lg" style="background: var(--bg-elevated); border-left: 2px solid {% if munger.get('approved') %}var(--accent-green){% else %}var(--accent-red){% endif %};">
+                <p class="text-xs mb-2 flex items-center gap-1 font-medium" style="color: var(--text-tertiary);">
+                    <span class="material-icons text-xs">gavel</span> Devil's Advocate 审查 (Munger)
+                </p>
+                <div class="flex items-center gap-2 mb-2">
+                    {% if munger.get('approved') %}
+                    <span class="text-sm font-medium" style="color: var(--accent-green);">✅ 通过</span>
+                    {% else %}
+                    <span class="text-sm font-medium" style="color: var(--accent-red);">❌ 未通过</span>
+                    {% endif %}
+                    {% if munger.get('adjusted_confidence') %}
+                    <span class="text-xs mono" style="color: var(--text-tertiary);">
+                        调整后置信度: {{ (munger.adjusted_confidence * 100) | int }}%
+                    </span>
+                    {% endif %}
+                </div>
+                {% if munger.get('rejection_reason') %}
+                <p class="text-sm mb-2" style="color: var(--accent-red);">
+                    <strong>否决原因:</strong> {{ munger.rejection_reason }}
+                </p>
+                {% endif %}
+                {% if munger.get('comment') %}
+                <p class="text-sm italic" style="color: var(--text-secondary);">
+                    "{{ munger.comment }}"
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="mt-3 flex items-center gap-4">
+                <span class="text-xs mono" style="color: var(--text-tertiary);">置信度: {{ (inferred.get('confidence', 0) * 100) | int }}%</span>
+                <div class="flex-1 h-1 rounded-full" style="background: var(--bg-elevated);">
+                    <div class="h-1 rounded-full
+                        {% if inferred.get('confidence', 0) >= 0.8 %}" style="background: var(--accent-green); width: {{ (inferred.get('confidence', 0) * 100) | int }}%
+                        {% elif inferred.get('confidence', 0) >= 0.6 %}" style="background: var(--accent-purple); width: {{ (inferred.get('confidence', 0) * 100) | int }}%
+                        {% else %}" style="background: var(--accent-amber); width: {{ (inferred.get('confidence', 0) * 100) | int }}%{% endif %}"></div>
+                </div>
+            </div>
+        </div>
+        {% elif pain_point.get('hidden_need') %}
+        <!-- 兼容旧格式 -->
         <div class="card need-card p-6 mb-4 animate-in" style="animation-delay: 0.1s">
             <h3 class="font-medium mb-3 flex items-center gap-2" style="color: var(--text-primary);">
                 <span class="material-icons" style="color: var(--accent-purple);">psychology</span> AI 推理需求

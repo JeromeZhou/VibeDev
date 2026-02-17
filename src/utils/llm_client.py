@@ -15,16 +15,36 @@ class LLMClient:
         self.total_cost = 0.0
         self.log_path = Path(config.get("paths", {}).get("logs", "logs"))
         self.log_path.mkdir(parents=True, exist_ok=True)
+        self._downgraded = False
 
     def call_reasoning(self, prompt: str, system: str = "") -> str:
         """调用推理模型（Claude Sonnet）— 用于深度分析"""
         cfg = self.config.get("llm", {}).get("reasoning", {})
+        if self._downgraded:
+            cfg = self._get_cheapest_config()
         return self._call(cfg, prompt, system)
 
     def call_simple(self, prompt: str, system: str = "") -> str:
         """调用简单模型（GPT-4o-mini）— 用于清洗、提取"""
         cfg = self.config.get("llm", {}).get("simple", {})
+        if self._downgraded:
+            cfg = self._get_cheapest_config()
         return self._call(cfg, prompt, system)
+
+    def downgrade_model(self):
+        """降级到最便宜的模型（Qwen2.5-7B）"""
+        if not self._downgraded:
+            self._downgraded = True
+            print("[LLM] 已切换到低成本模型: Qwen2.5-7B-Instruct")
+
+    def _get_cheapest_config(self) -> dict:
+        """返回最便宜的模型配置"""
+        return {
+            "provider": "zhipu",
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "max_tokens": 2048,
+            "temperature": 0.3,
+        }
 
     def _call(self, cfg: dict, prompt: str, system: str) -> str:
         """实际 API 调用"""

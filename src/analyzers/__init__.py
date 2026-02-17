@@ -246,6 +246,101 @@ category 只能是：功能需求、情感需求、社会需求。
     return filtered
 
 
+def devils_advocate_review(hidden_needs: list[dict], llm: LLMClient) -> list[dict]:
+    """Devil's Advocate (Munger) 审查 — 防幻觉第二层验证
+
+    对高置信度推导进行反向论证，找出逻辑漏洞
+    """
+    if not hidden_needs:
+        return []
+
+    system_prompt = """你是 Charlie Munger，以逆向思维和质疑精神著称。
+你的任务是对 AI 推导的"隐藏需求"进行反向论证，找出逻辑漏洞、过度推理、或缺乏证据支撑的结论。
+
+输出 JSON 格式：
+{
+  "approved": true/false,
+  "rejection_reason": "如果不通过，说明原因",
+  "adjusted_confidence": 0.0-1.0,
+  "munger_comment": "你的评价"
+}
+
+判断标准：
+- 推理链是否有逻辑跳跃？
+- 是否过度解读用户意图？
+- 证据是否充分支撑结论？
+- 是否存在其他更合理的解释？
+
+只输出 JSON，不要其他内容。"""
+
+    reviewed = []
+    review_count = 0
+
+    for hn in hidden_needs:
+        confidence = hn.get("confidence", 0.0)
+
+        # 只审查高置信度推导（成本控制）
+        if confidence <= 0.6:
+            reviewed.append(hn)
+            continue
+
+        review_count += 1
+        pain_point = hn.get("pain_point", "")
+        hidden_need = hn.get("hidden_need", "")
+        reasoning_chain = hn.get("reasoning_chain", [])
+
+        prompt = f"""请审查以下推导：
+
+痛点：{pain_point}
+推导需求：{hidden_need}
+推理链：{json.dumps(reasoning_chain, ensure_ascii=False)}
+置信度：{confidence}
+
+请进行反向论证，判断推导是否合理。"""
+
+        try:
+            response = llm.call_reasoning(prompt, system_prompt)
+            parsed_list = _extract_json(response)
+
+            if parsed_list:
+                review = parsed_list[0]
+                approved = review.get("approved", False)
+                adjusted_conf = review.get("adjusted_confidence", confidence)
+
+                # 记录 Munger 审查结果
+                hn["munger_review"] = {
+                    "approved": approved,
+                    "rejection_reason": review.get("rejection_reason", ""),
+                    "adjusted_confidence": adjusted_conf,
+                    "comment": review.get("munger_comment", ""),
+                }
+
+                # 被否决的需求降低置信度并标记
+                if not approved:
+                    hn["confidence"] = 0.2
+                    hn["munger_rejected"] = True
+                    print(f"    [Munger 否决] {pain_point[:40]}... → {hidden_need[:40]}...")
+                else:
+                    # 通过的需求可能微调置信度
+                    hn["confidence"] = adjusted_conf
+                    if abs(adjusted_conf - confidence) > 0.1:
+                        print(f"    [Munger 调整] {pain_point[:40]}... 置信度 {confidence:.2f} → {adjusted_conf:.2f}")
+            else:
+                # 解析失败，保持原样
+                print(f"    [!] Munger 审查响应解析失败")
+
+        except Exception as e:
+            print(f"    [!] Munger 审查失败: {e}")
+
+        reviewed.append(hn)
+
+    if review_count > 0:
+        rejected_count = sum(1 for hn in reviewed if hn.get("munger_rejected", False))
+        print(f"  Munger 审查: {review_count} 个高置信度推导 | 否决: {rejected_count} 个")
+
+    return reviewed
+
+
 def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> list[dict]:
     """合并痛点和推理需求为 PainInsight 结构
 
@@ -262,6 +357,8 @@ def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> li
                 "reasoning_chain": hn.get("reasoning_chain", []),
                 "confidence": hn.get("confidence", 0.0),
                 "category": hn.get("category", "功能需求"),
+                "munger_review": hn.get("munger_review"),  # 传递 Munger 审查结果
+                "munger_rejected": hn.get("munger_rejected", False),
             }
 
     insights = []

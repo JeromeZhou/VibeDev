@@ -80,6 +80,10 @@ def run_pipeline(config: dict):
     # 5. 痛点提取（对 deep + light 分别处理）
     from src.analyzers import analyze_pain_points, infer_hidden_needs, merge_pain_insights
     print(f"[5] 痛点提取（深度 {len(deep_posts)} + 轻度 {len(light_posts)} 条）...")
+    status = cost_tracker.enforce_budget(llm)
+    if status in ("stop", "pause"):
+        print("  预算不足，跳过后续步骤")
+        return
     all_posts_for_analysis = deep_posts + light_posts
     pain_points = analyze_pain_points(all_posts_for_analysis, config, llm)
     print(f"  提取 {len(pain_points)} 个痛点")
@@ -90,9 +94,31 @@ def run_pipeline(config: dict):
     deep_pains = [pp for pp in pain_points
                   if any(pid in deep_ids for pid in pp.get("source_post_ids", []))]
     print(f"[6] 隐藏需求推导（{len(deep_pains)} 个深度痛点）...")
-    hidden_needs = infer_hidden_needs(deep_pains, config, llm)
-    print(f"  推导 {len(hidden_needs)} 个隐藏需求")
+    status = cost_tracker.enforce_budget(llm)
+    if status == "pause":
+        print("  预算不足，跳过隐藏需求推导")
+        hidden_needs = []
+    elif status == "stop":
+        print("  预算不足，停止运行")
+        return
+    else:
+        hidden_needs = infer_hidden_needs(deep_pains, config, llm)
+        print(f"  推导 {len(hidden_needs)} 个隐藏需求")
     print()
+
+    # 6.5 Devil's Advocate 审查（防幻觉机制）
+    from src.analyzers import devils_advocate_review
+    if hidden_needs:
+        print("[6.5] Devil's Advocate 审查（Munger 反向论证）...")
+        status = cost_tracker.enforce_budget(llm)
+        if status == "pause":
+            print("  预算不足，跳过 Devil's Advocate 审查")
+        elif status == "stop":
+            print("  预算不足，停止运行")
+            return
+        else:
+            hidden_needs = devils_advocate_review(hidden_needs, llm)
+        print()
 
     # 7. 合并为 PainInsight
     print("[7] 合并 PainInsight...")
@@ -124,7 +150,19 @@ def run_pipeline(config: dict):
     print(f"  报告：{report_path}")
     print()
 
-    # 10. 输出 Top 10
+    # 10. 更新共识
+    from src.reporters import update_consensus
+    print("[10] 更新共识...")
+    cost_info = {
+        "round_cost": llm.total_cost,
+        "round_tokens": llm.total_tokens,
+        "monthly_cost": cost_tracker.get_monthly_cost(),
+        "budget": cost_tracker.budget,
+    }
+    update_consensus(rankings, cost_info, config)
+    print()
+
+    # 11. 输出 Top 10
     trend_icons = {"rising": "↑", "falling": "↓", "stable": "→", "new": "★"}
     print("=" * 70)
     print("  GPU-Insight Top 10 痛点排名")

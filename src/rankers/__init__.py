@@ -72,6 +72,7 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
             "affected_users": data.get("affected_users", ""),
             "evidence": data.get("evidence", ""),
             "trend": _detect_trend(pain_point, pphi),
+            "inferred_need": data.get("inferred_need_obj"),  # 完整的推理对象
         })
 
     # 排序：PPHI 降序，相同分数时按 mentions 降序（二级排序）
@@ -119,6 +120,8 @@ def _load_historical_insights() -> list[dict]:
                 hidden_need_obj = {
                     "hidden_need": r["hidden_need"],
                     "confidence": r["confidence"] or 0.5,
+                    "reasoning_chain": [],  # 历史数据没有推理链
+                    "munger_review": None,  # 历史数据没有 Munger 审查
                 }
 
             insights.append({
@@ -185,6 +188,7 @@ def _aggregate(insights: list[dict]) -> dict:
                 "gpu_tags": {"brands": set(), "models": set(), "series": set(), "manufacturers": set()},
                 "confidences": [],
                 "hidden_need": "",
+                "inferred_need_obj": None,  # 完整的推理对象
                 "category": item.get("category", ""),
                 "affected_users": item.get("affected_users", ""),
                 "evidence": item.get("evidence", ""),
@@ -229,6 +233,8 @@ def _aggregate(insights: list[dict]) -> dict:
         if need and need.get("hidden_need"):
             agg[normalized_pp]["hidden_need"] = need["hidden_need"]
             agg[normalized_pp]["confidences"].append(need.get("confidence", 0.5))
+            # 保存完整的推理对象（包含 reasoning_chain 和 munger_review）
+            agg[normalized_pp]["inferred_need_obj"] = need
 
     # 后处理：用最佳展示名替换规范化名称
     final_agg = {}
