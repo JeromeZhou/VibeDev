@@ -137,13 +137,19 @@ def analyze_pain_points(posts: list[dict], config: dict, llm: LLMClient) -> list
     system_prompt = """你是 GPU-Insight 痛点提取专家。
 从用户讨论中提取显卡相关痛点，输出 JSON 格式：
 {
-  "pain_point": "一句话描述痛点",
+  "pain_point": "具体描述痛点（不要笼统）",
   "category": "性能|价格|散热|驱动|生态|显存|功耗|其他",
   "emotion_intensity": 0.0-1.0,
   "affected_users": "广泛|中等|小众",
   "evidence": "原文关键句",
   "related_post_indices": [0, 2]
 }
+
+重要：痛点描述要具体，不要笼统。
+❌ 笼统："显卡性能问题"、"显卡散热问题"
+✅ 具体："4K 游戏帧率不足"、"光追性能差"、"满载温度过高"、"风扇噪音大"
+
+如果原帖本身就很笼统（如"我的卡好卡"），可以保持笼统，但尽量从上下文推断具体问题。
 related_post_indices 是该痛点来源的帖子序号（从0开始）。
 同类痛点请合并。只输出 JSON，不要其他内容。如果讨论不包含显卡痛点，输出 {"pain_point": null}。"""
 
@@ -196,6 +202,10 @@ related_post_indices 是该痛点来源的帖子序号（从0开始）。
     # 语义去重：合并相似痛点
     if len(results) > 1:
         results = _merge_similar_points(results, llm)
+
+    # Sanity check: 防止过度细化
+    if len(results) > len(posts) * 2:
+        print(f"  [!] 警告: 痛点过度细化 ({len(results)} 个痛点来自 {len(posts)} 个帖子)")
 
     _save_results(results, config, "pain_points")
     return results
@@ -255,21 +265,25 @@ def devils_advocate_review(hidden_needs: list[dict], llm: LLMClient) -> list[dic
         return []
 
     system_prompt = """你是 Charlie Munger，以逆向思维和质疑精神著称。
-你的任务是对 AI 推导的"隐藏需求"进行反向论证，找出逻辑漏洞、过度推理、或缺乏证据支撑的结论。
+你的任务是对 AI 推导的"隐藏需求"进行评估，判断推理质量。
+
+注意：隐藏需求是合理推测，不是数学证明。你的职责是识别过度推测，而非否决所有推导。
 
 输出 JSON 格式：
 {
-  "approved": true/false,
-  "rejection_reason": "如果不通过，说明原因",
+  "quality_level": "strong|moderate|weak",
   "adjusted_confidence": 0.0-1.0,
-  "munger_comment": "你的评价"
+  "munger_comment": "你的评价",
+  "concerns": ["如果有问题，列出关注点"]
 }
 
-判断标准：
-- 推理链是否有逻辑跳跃？
-- 是否过度解读用户意图？
-- 证据是否充分支撑结论？
-- 是否存在其他更合理的解释？
+评分标准：
+- strong (0.8-1.0)：推理链完整，每步有证据支撑，结论合理
+  例：散热差→温度高→降频→帧率低→需要更好散热方案 ✅
+- moderate (0.5-0.79)：推理合理但证据不足，或有小幅跳跃但可接受
+  例：散热差→用户抱怨噪音→可能需要静音散热 ⚠️（噪音未明确提及）
+- weak (0.2-0.49)：逻辑跳跃大，过度揣测用户意图，或结论与痛点关联弱
+  例：散热差→用户可能是矿工→需要矿卡检测工具 ❌（过度推测）
 
 只输出 JSON，不要其他内容。"""
 
@@ -305,27 +319,29 @@ def devils_advocate_review(hidden_needs: list[dict], llm: LLMClient) -> list[dic
 
             if parsed_list:
                 review = parsed_list[0]
-                approved = review.get("approved", False)
+                quality = review.get("quality_level", "moderate")
                 adjusted_conf = review.get("adjusted_confidence", confidence)
 
                 # 记录 Munger 审查结果
                 hn["munger_review"] = {
-                    "approved": approved,
-                    "rejection_reason": review.get("rejection_reason", ""),
+                    "quality_level": quality,
                     "adjusted_confidence": adjusted_conf,
                     "comment": review.get("munger_comment", ""),
+                    "concerns": review.get("concerns", []),
                 }
 
-                # 被否决的需求降低置信度并标记
-                if not approved:
-                    hn["confidence"] = 0.2
+                # 根据质量等级调整置信度
+                if quality == "weak":
+                    hn["confidence"] = min(adjusted_conf, 0.49)
                     hn["munger_rejected"] = True
-                    print(f"    [Munger 否决] {pain_point[:40]}... → {hidden_need[:40]}...")
-                else:
-                    # 通过的需求可能微调置信度
-                    hn["confidence"] = adjusted_conf
-                    if abs(adjusted_conf - confidence) > 0.1:
-                        print(f"    [Munger 调整] {pain_point[:40]}... 置信度 {confidence:.2f} → {adjusted_conf:.2f}")
+                    print(f"    [Munger-Weak] {pain_point[:40]}... → {hidden_need[:40]}...")
+                elif quality == "moderate":
+                    hn["confidence"] = max(0.5, min(adjusted_conf, 0.79))
+                    hn["_needs_verification"] = True
+                    print(f"    [Munger-Moderate] {pain_point[:40]}... 置信度 → {hn['confidence']:.2f}")
+                else:  # strong
+                    hn["confidence"] = max(0.8, adjusted_conf)
+                    print(f"    [Munger-Strong] {pain_point[:40]}... 置信度 → {hn['confidence']:.2f}")
             else:
                 # 解析失败，保持原样
                 print(f"    [!] Munger 审查响应解析失败")
@@ -337,7 +353,9 @@ def devils_advocate_review(hidden_needs: list[dict], llm: LLMClient) -> list[dic
 
     if review_count > 0:
         rejected_count = sum(1 for hn in reviewed if hn.get("munger_rejected", False))
-        print(f"  Munger 审查: {review_count} 个高置信度推导 | 否决: {rejected_count} 个")
+        moderate_count = sum(1 for hn in reviewed if hn.get("_needs_verification", False))
+        strong_count = review_count - rejected_count - moderate_count
+        print(f"  Munger 审查: {review_count} 个 | Strong: {strong_count} | Moderate: {moderate_count} | Weak: {rejected_count}")
 
     return reviewed
 
@@ -360,6 +378,7 @@ def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> li
                 "category": hn.get("category", "功能需求"),
                 "munger_review": hn.get("munger_review"),  # 传递 Munger 审查结果
                 "munger_rejected": hn.get("munger_rejected", False),
+                "_needs_verification": hn.get("_needs_verification", False),
             }
 
     insights = []

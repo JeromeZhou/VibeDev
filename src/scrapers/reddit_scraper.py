@@ -14,7 +14,7 @@ class RedditScraper(BaseScraper):
         self.subreddits = self.source_config.get("subreddits", ["nvidia", "amd", "hardware"])
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
-        """三端点并行抓取"""
+        """三端点并行抓取 + 热帖评论"""
         posts = []
         seen_ids = set()
 
@@ -45,6 +45,18 @@ class RedditScraper(BaseScraper):
         for p in posts:
             p["_signal_score"] = self._calc_signal_score(p)
         posts.sort(key=lambda x: x["_signal_score"], reverse=True)
+
+        # 抓取热帖 Top 评论（回复>10 的帖子，最多 20 条）
+        hot_posts = [p for p in posts if p.get("replies", 0) > 10][:20]
+        if hot_posts:
+            print(f"    抓取 {len(hot_posts)} 条热帖评论...", end=" ")
+            fetched = 0
+            for p in hot_posts:
+                comments = self._fetch_top_comments(p)
+                if comments:
+                    p["content"] = (p.get("content", "") + "\n\n--- Top Comments ---\n" + comments)[:3000]
+                    fetched += 1
+            print(f"成功 {fetched} 条")
 
         return posts
 
@@ -106,6 +118,39 @@ class RedditScraper(BaseScraper):
             return self._parse_listing(resp.json(), subreddit)
         except Exception:
             return []
+
+    def _fetch_top_comments(self, post: dict, max_comments: int = 5) -> str | None:
+        """抓取帖子 Top N 评论（按 score 排序）"""
+        import httpx
+
+        post_id = post["id"].replace("reddit_", "")
+        url = f"https://www.reddit.com/comments/{post_id}.json?sort=top&limit={max_comments}"
+        headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
+
+        try:
+            self.random_delay(1.0, 2.0)
+            resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
+            if resp.status_code != 200:
+                resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True, verify=False)
+            resp.raise_for_status()
+            data = resp.json()
+
+            # Reddit comments JSON: [post_listing, comments_listing]
+            if not isinstance(data, list) or len(data) < 2:
+                return None
+
+            comments_data = data[1].get("data", {}).get("children", [])
+            texts = []
+            for c in comments_data[:max_comments]:
+                cd = c.get("data", {})
+                body = cd.get("body", "")
+                score = cd.get("score", 0)
+                if body and body != "[deleted]" and body != "[removed]":
+                    texts.append(f"[+{score}] {body[:200]}")
+
+            return "\n".join(texts) if texts else None
+        except Exception:
+            return None
 
     def _parse_listing(self, data: dict, subreddit: str) -> list[dict]:
         """解析 Reddit JSON listing"""

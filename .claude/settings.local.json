@@ -78,7 +78,9 @@
       "Bash(taskkill:*)",
       "Bash(taskkill //F //PID 12692 sleep 2 netstat -ano)",
       "Bash(# 检查 8080 和备选端口 netstat -ano)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(ls:*)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest test_devils_advocate.py -v)"
     ]
   }
 }

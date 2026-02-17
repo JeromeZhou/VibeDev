@@ -170,7 +170,7 @@ class NGAScraper(BaseScraper):
         }
 
     def _fetch_thread_content(self, tid: str) -> str | None:
-        """抓取帖子首楼正文"""
+        """抓取帖子首楼正文 + Top 回复"""
         import httpx
 
         self.random_delay(1.0, 2.0)
@@ -196,14 +196,28 @@ class NGAScraper(BaseScraper):
             else:
                 return None
 
-            # 取首楼内容
+            parts = []
+            # 首楼正文
             if items and isinstance(items[0], dict):
                 content = items[0].get("content", "")
-                # 清理 HTML
                 content = re.sub(r'<[^>]+>', ' ', content)
-                content = re.sub(r'\[.*?\]', '', content)  # 去 BBCode
+                content = re.sub(r'\[.*?\]', '', content)
                 content = re.sub(r'\s+', ' ', content).strip()
-                return content[:500] if content else None
+                if content:
+                    parts.append(content[:500])
+
+            # Top 回复（2-6 楼，最多 5 条）
+            for item in items[1:6]:
+                if not isinstance(item, dict):
+                    continue
+                reply = item.get("content", "")
+                reply = re.sub(r'<[^>]+>', ' ', reply)
+                reply = re.sub(r'\[.*?\]', '', reply)
+                reply = re.sub(r'\s+', ' ', reply).strip()
+                if reply and len(reply) > 10:
+                    parts.append(reply[:200])
+
+            return "\n".join(parts) if parts else None
         except Exception:
             pass
         return None

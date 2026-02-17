@@ -1,12 +1,41 @@
 # GPU-Insight 共识记忆
 
-> 最后更新：2026-02-17 19:04
-> 更新者：开发团队 v6 P0全修复
-> 轮次：#6（语义去重 + PPHI重设计 + 防幻觉 + 成本控制 + 共识自动更新）
+> 最后更新：2026-02-17 21:30
+> 更新者：开发团队 v7 数据累积修复 + 新数据源
+> 轮次：#7（GPU标签累积 + 互动数据透传 + 新数据源 + UI增长感）
 
 ## 当前共识
 
-### v6 团队共识（本轮新增）
+### v7 团队共识（本轮新增）
+
+#### 1. GPU 标签跨轮次动态累积
+- 修复：ranker 从 pphi_history（累积数据）加载替代 pain_points（原始数据）
+- 效果：GPU 标签随每次 pipeline 运行持续增长，不再丢失历史标签
+- _hist_mentions 保留历史 mentions 数避免重置
+
+#### 2. 互动数据全链路透传
+- pphi_history 新增 total_replies/total_likes 列
+- save_rankings 保存互动数据，ranker 输出完整互动信息
+- PPHI interaction 分数真正生效
+
+#### 3. 新数据源扩展（3→7 个活跃源）
+- 新增：Bilibili（~100帖/轮）、V2EX（~20帖/轮）、MyDrivers（~23帖/轮）、TechPowerUp（~51帖/轮）
+- Tieba 改为白天时段自动启用（8:00-22:00）
+- 总计 ~259 帖/轮，成本 ~$0.18/轮
+
+#### 4. Dashboard 增长感展示
+- 统计卡片：当前痛点 / 累计帖子 / 分析轮次 / 数据源
+- 本轮变化指示器：+N 新痛点 / +N 新型号
+- GPU 标签展示扩展到 6 个 + 溢出计数
+
+#### 5. 痛点详情页 PPHI 趋势图
+- Chart.js 双 Y 轴：PPHI 分数 + Mentions 数
+- 模糊匹配历史数据，最近 12 轮
+
+#### 6. 历史详情页 Accordion 展开
+- 点击展开显示：AI 推理需求、GPU 型号、厂商、来源链接
+
+### v6 团队共识
 
 #### 1. 语义去重（P0-1）
 - 本地规范化：去掉"显卡"前缀 + 括号分类标签，统一聚合 key
@@ -14,10 +43,10 @@
 - 零 token 成本
 
 #### 2. PPHI 公式重设计（P0-2）
-- 新权重：frequency 35% + source_quality 20% + interaction 15% + cross_platform 15% + freshness 15%
+- 新权重：frequency 30% + source_quality 20% + interaction 15% + cross_platform 15% + freshness 20%
 - 对数缩放：log2(mentions+1) * 20，避免封顶过低
 - 跨平台加成：多论坛出现的痛点优先级更高
-- 效果：Top 10 梯度 58.3→34.8（之前 37.1→35.8）
+- freshness 提升到 20% 防止老数据长期霸榜
 
 #### 3. 防幻觉机制（P0-3）
 - Devil's Advocate (Munger) 审查：对 confidence > 0.6 的隐藏需求反向论证

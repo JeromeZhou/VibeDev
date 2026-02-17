@@ -78,6 +78,9 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
             "inferred_need": data.get("inferred_need_obj"),  # 完整的推理对象
             "total_replies": data.get("total_replies", 0),
             "total_likes": data.get("total_likes", 0),
+            # Munger 质量加权
+            "munger_quality": data.get("munger_quality", "unknown"),
+            "needs_verification": data.get("needs_verification", False),
         })
 
     # 排序：PPHI 降序，相同分数时按 mentions 降序（二级排序）
@@ -291,6 +294,11 @@ def _aggregate(insights: list[dict]) -> dict:
             agg[normalized_pp]["confidences"].append(need.get("confidence", 0.5))
             # 保存完整的推理对象（包含 reasoning_chain 和 munger_review）
             agg[normalized_pp]["inferred_need_obj"] = need
+            # 提取 Munger 质量评级
+            munger_review = need.get("munger_review", {})
+            if munger_review:
+                agg[normalized_pp]["munger_quality"] = munger_review.get("quality_level", "unknown")
+                agg[normalized_pp]["needs_verification"] = need.get("_needs_verification", False)
 
     # 后处理：用最佳展示名替换规范化名称
     final_agg = {}
