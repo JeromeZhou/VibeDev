@@ -89,11 +89,15 @@ def run_pipeline(config: dict):
     print(f"  提取 {len(pain_points)} 个痛点")
     print()
 
-    # 6. 推理需求（仅对 deep_posts 来源的痛点做推理）
+    # 6. 推理需求（对所有痛点做推理，优先 deep，控制数量）
+    # 优先 deep_posts 来源的痛点，不足时补充 light_posts 来源的
     deep_ids = set(p.get("id") for p in deep_posts)
     deep_pains = [pp for pp in pain_points
                   if any(pid in deep_ids for pid in pp.get("source_post_ids", []))]
-    print(f"[6] 隐藏需求推导（{len(deep_pains)} 个深度痛点）...")
+    light_pains = [pp for pp in pain_points if pp not in deep_pains]
+    # 最多推导 5 个（deep 优先，不足用 light 补）
+    pains_for_inference = (deep_pains + light_pains)[:5]
+    print(f"[6] 隐藏需求推导（{len(pains_for_inference)} 个痛点：{len(deep_pains)} 深度 + {len(light_pains)} 轻度）...")
     status = cost_tracker.enforce_budget(llm)
     if status == "pause":
         print("  预算不足，跳过隐藏需求推导")
@@ -102,7 +106,7 @@ def run_pipeline(config: dict):
         print("  预算不足，停止运行")
         return
     else:
-        hidden_needs = infer_hidden_needs(deep_pains, config, llm)
+        hidden_needs = infer_hidden_needs(pains_for_inference, config, llm)
         print(f"  推导 {len(hidden_needs)} 个隐藏需求")
     print()
 

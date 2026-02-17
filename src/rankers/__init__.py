@@ -91,11 +91,11 @@ def _load_historical_insights() -> list[dict]:
         conn = get_db()
         rows = conn.execute(
             """SELECT pain_point, category, mentions, sources, gpu_tags,
-                      source_urls, evidence, hidden_need, confidence, pphi_score
+                      source_urls, evidence, hidden_need, confidence, pphi_score,
+                      total_replies, total_likes, earliest_timestamp
                FROM pain_points
                ORDER BY run_date DESC"""
         ).fetchall()
-        conn.close()
 
         insights = []
         for r in rows:
@@ -107,13 +107,38 @@ def _load_historical_insights() -> list[dict]:
             source_post_ids = []
             for url in source_urls:
                 if "reddit" in url:
-                    source_post_ids.append(f"reddit_{url.split('/')[-1]}")
+                    post_id = url.split('/')[-1] if '/' in url else url.split('comments/')[-1].split('/')[0]
+                    source_post_ids.append(f"reddit_{post_id}")
                 elif "nga" in url:
-                    source_post_ids.append(f"nga_{url.split('tid=')[-1]}")
+                    tid = url.split('tid=')[-1].split('&')[0] if 'tid=' in url else ""
+                    if tid:
+                        source_post_ids.append(f"nga_{tid}")
                 elif "videocardz" in url:
-                    source_post_ids.append(f"videocardz_{url.split('/')[-1]}")
+                    slug = url.split('/')[-1] if '/' in url else ""
+                    if slug:
+                        source_post_ids.append(f"vcz_{slug}")
                 else:
                     source_post_ids.append(f"unknown_{url[-20:]}")
+
+            # 优先使用 pain_points 表直接存储的互动数据，fallback 到 posts 表查询
+            total_replies = r["total_replies"] or 0
+            total_likes = r["total_likes"] or 0
+            earliest_timestamp = r["earliest_timestamp"] or ""
+
+            # 如果直接字段为 0，尝试从 posts 表补充
+            if total_replies == 0 and total_likes == 0 and source_post_ids:
+                placeholders = ",".join("?" * len(source_post_ids))
+                post_rows = conn.execute(
+                    f"""SELECT replies, likes, timestamp FROM posts
+                        WHERE id IN ({placeholders})""",
+                    source_post_ids
+                ).fetchall()
+                total_replies = sum(row["replies"] or 0 for row in post_rows)
+                total_likes = sum(row["likes"] or 0 for row in post_rows)
+                if not earliest_timestamp:
+                    timestamps = [row["timestamp"] for row in post_rows if row["timestamp"]]
+                    if timestamps:
+                        earliest_timestamp = min(timestamps)
 
             hidden_need_obj = None
             if r["hidden_need"]:
@@ -133,10 +158,12 @@ def _load_historical_insights() -> list[dict]:
                 "source_urls": source_urls,
                 "gpu_tags": gpu_tags,
                 "inferred_need": hidden_need_obj,
-                "total_replies": 0,
-                "total_likes": 0,
-                "earliest_timestamp": "",
+                "total_replies": total_replies,
+                "total_likes": total_likes,
+                "earliest_timestamp": earliest_timestamp,
             })
+
+        conn.close()
         return insights
     except Exception as e:
         print(f"  [!] 加载历史痛点失败: {e}")

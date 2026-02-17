@@ -1,6 +1,6 @@
 # GPU-Insight 共识记忆
 
-> 最后更新：2026-02-17 16:04
+> 最后更新：2026-02-17 16:23
 > 更新者：开发团队 v6 P0全修复
 > 轮次：#6（语义去重 + PPHI重设计 + 防幻觉 + 成本控制 + 共识自动更新）
 
@@ -75,11 +75,11 @@
 - class=1 的 `inferred_need` 为 null，后续升级再补
 
 ### Top 痛点（v3 端到端验证 2026-02-17）
-1. 显卡性能问题 (性能) — RTX 3070, RTX 3070 Ti, RTX 4070, RTX 4070 Super, RTX 4070 Ti, RTX 4070 Ti Super, RTX 5060, RTX 5060 Ti, RTX 5070, RTX 5070 Ti, RTX 5080, RTX 5090, RX 7600 XT, RX 7700 XT, RX 7800 XT, RX 9070, RX 9070 XT（PPHI 58.3）
-2. 显卡散热问题 (散热) — RTX 3070, RTX 3070 Ti, RTX 5070, RTX 5070 Ti, RTX 5090, RX 7700 XT（PPHI 54.3）
-3. 显卡驱动问题 (驱动) — RTX 3080, RTX 3080 Ti, RTX 3090, RTX 3090 Ti, RX 9070, RX 9070 XT（PPHI 53.2）
-4. 显卡价格问题 — RTX 5090（PPHI 47.3）
-5. 显卡生态问题 (生态) — 通用（PPHI 42.1）
+1. 显卡性能问题 (性能) — RTX 3070, RTX 3070 Ti, RTX 4070, RTX 4070 Super, RTX 4070 Ti, RTX 4070 Ti Super, RTX 5060, RTX 5060 Ti, RTX 5070, RTX 5070 Ti, RTX 5080, RTX 5090, RX 7600 XT, RX 7700 XT, RX 7800 XT, RX 9070, RX 9070 XT（PPHI 66.9）
+2. 显卡驱动问题 (驱动) — RTX 3080, RTX 3080 Ti, RTX 3090, RTX 3090 Ti, RX 9070, RX 9070 XT（PPHI 59.1）
+3. 显卡价格问题 — RTX 5090（PPHI 55.8）
+4. 显卡散热问题 (散热) — RTX 3070, RTX 3070 Ti, RTX 5070, RTX 5070 Ti, RTX 5090, RX 7700 XT（PPHI 52.8）
+5. 显卡功耗问题 (功耗) — RTX 5060, RTX 5060 Ti, RTX 5090, RX 7700 XT（PPHI 41.3）
 
 ### 已验证的隐藏需求
 - 性能监控与一键优化功能以实现帧率稳定（RTX 5090）
@@ -102,7 +102,7 @@ _本轮无否决_
 - GPU 标签识别率：测试 17/17 用例通过
 
 ## 成本追踪
-- 本轮消耗：$0.0030
+- 本轮消耗：$0.0031
 - 月度累计：$2.57
 - 预算剩余：$77.43 / $80
 

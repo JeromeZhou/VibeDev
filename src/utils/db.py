@@ -50,6 +50,9 @@ def _init_tables(conn: sqlite3.Connection):
             hidden_need TEXT,
             confidence REAL DEFAULT 0,
             pphi_score REAL DEFAULT 0,
+            total_replies INTEGER DEFAULT 0,
+            total_likes INTEGER DEFAULT 0,
+            earliest_timestamp TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         );
         CREATE INDEX IF NOT EXISTS idx_pp_date ON pain_points(run_date);
@@ -78,6 +81,24 @@ def _init_tables(conn: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_posts_url ON posts(url);
     """)
     conn.commit()
+
+    # 迁移：为旧表添加新列（如果不存在）
+    _migrate_tables(conn)
+
+
+def _migrate_tables(conn: sqlite3.Connection):
+    """增量迁移：安全添加新列"""
+    migrations = [
+        ("pain_points", "total_replies", "INTEGER DEFAULT 0"),
+        ("pain_points", "total_likes", "INTEGER DEFAULT 0"),
+        ("pain_points", "earliest_timestamp", "TEXT"),
+    ]
+    for table, column, col_type in migrations:
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # 列已存在
 
 
 def content_hash(text: str) -> str:
@@ -177,7 +198,7 @@ def save_rankings(rankings: list[dict]):
 
 
 def save_pain_points(pain_points: list[dict]):
-    """保存痛点到历史表"""
+    """保存痛点到历史表（支持 PainInsight 结构）"""
     if not pain_points:
         return
 
@@ -185,21 +206,36 @@ def save_pain_points(pain_points: list[dict]):
     run_date = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     for pp in pain_points:
+        # 从 source_post_ids 提取来源列表
+        source_post_ids = pp.get("source_post_ids", [])
+        sources = list(set(pid.split("_")[0] for pid in source_post_ids if "_" in pid))
+
+        # mentions = 关联帖子数
+        mentions = len(source_post_ids)
+
+        # 从 inferred_need 对象中提取 hidden_need 和 confidence
+        inferred_need = pp.get("inferred_need") or {}
+        hidden_need = inferred_need.get("hidden_need", "") if isinstance(inferred_need, dict) else ""
+        confidence = inferred_need.get("confidence", 0) if isinstance(inferred_need, dict) else 0
+
         conn.execute(
-            """INSERT INTO pain_points (run_date, pain_point, category, mentions, sources, gpu_tags, source_urls, evidence, hidden_need, confidence, pphi_score)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO pain_points (run_date, pain_point, category, mentions, sources, gpu_tags, source_urls, evidence, hidden_need, confidence, pphi_score, total_replies, total_likes, earliest_timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 run_date,
                 pp.get("pain_point", ""),
                 pp.get("category", ""),
-                pp.get("mentions", 0),
-                json.dumps(pp.get("sources", []), ensure_ascii=False),
+                mentions,
+                json.dumps(sources, ensure_ascii=False),
                 json.dumps(pp.get("gpu_tags", {}), ensure_ascii=False),
                 json.dumps(pp.get("source_urls", []), ensure_ascii=False),
                 pp.get("evidence", ""),
-                pp.get("hidden_need", ""),
-                pp.get("confidence", 0),
+                hidden_need,
+                confidence,
                 pp.get("pphi_score", 0),
+                pp.get("total_replies", 0),
+                pp.get("total_likes", 0),
+                pp.get("earliest_timestamp", ""),
             )
         )
 
