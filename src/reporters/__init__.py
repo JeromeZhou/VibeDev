@@ -25,7 +25,7 @@ def generate_report(rankings: list[dict], config: dict) -> str:
         models = ", ".join(gpu.get("models", [])) or "-"
         mfrs = ", ".join(gpu.get("manufacturers", [])) or "-"
         sources = ", ".join(r.get("sources", []))
-        trend_icon = {"new": "NEW", "accelerating": "UP", "stable": "->", "declining": "DN"}.get(r.get("trend", ""), "")
+        trend_icon = {"new": "★", "rising": "↑", "stable": "→", "falling": "↓"}.get(r.get("trend", ""), "")
         lines.append(f"| {r['rank']} | {r['pain_point']} | {r['pphi_score']} | {models} | {mfrs} | {sources} | {trend_icon} |")
 
     lines.extend(["", "## 痛点详情\n"])

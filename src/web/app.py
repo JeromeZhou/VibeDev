@@ -85,15 +85,31 @@ def _get_source_distribution() -> dict:
         return {"labels": [], "data": [], "backgroundColor": []}
 
 
+def _get_cumulative_stats() -> dict:
+    """从 DB 获取累计统计"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        total_posts = conn.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
+        total_runs = conn.execute("SELECT COUNT(DISTINCT run_date) as c FROM pphi_history").fetchone()["c"]
+        total_pains = conn.execute("SELECT COUNT(DISTINCT pain_point) as c FROM pphi_history").fetchone()["c"]
+        conn.close()
+        return {"total_posts": total_posts, "total_runs": total_runs, "total_pains": total_pains}
+    except Exception:
+        return {"total_posts": 0, "total_runs": 0, "total_pains": 0}
+
+
 @app.get("/")
 async def dashboard(request: Request):
     """痛点仪表盘"""
     data = _load_rankings()
+    stats = _get_cumulative_stats()
     return templates.TemplateResponse("index.html", {
         "request": request,
         "data": data,
         "rankings": data.get("rankings", [])[:10],
         "updated_at": data.get("timestamp", "尚未运行"),
+        "stats": stats,
     })
 
 

@@ -33,24 +33,20 @@
         <!-- 统计卡片 -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div class="card p-4">
-                <p class="text-gray-400 text-sm">痛点总数</p>
+                <p class="text-gray-400 text-sm">本轮痛点</p>
                 <p class="text-3xl font-bold text-blue-400">{{ data.total_pain_points }}</p>
             </div>
             <div class="card p-4">
-                <p class="text-gray-400 text-sm">数据来源</p>
-                <p class="text-3xl font-bold text-indigo-400">
-                    {% set ns = namespace(sources=[]) %}
-                    {% for r in rankings %}
-                        {% for s in r.get('sources', []) %}
-                            {% if s not in ns.sources %}{% set ns.sources = ns.sources + [s] %}{% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                    {{ ns.sources | length }}
-                </p>
+                <p class="text-gray-400 text-sm">累计分析轮次</p>
+                <p class="text-3xl font-bold text-indigo-400">{{ stats.total_runs }}</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-gray-400 text-sm">累计发现痛点</p>
+                <p class="text-3xl font-bold text-purple-400">{{ stats.total_pains }}</p>
             </div>
             <div class="card p-4">
                 <p class="text-gray-400 text-sm">涉及 GPU 型号</p>
-                <p class="text-3xl font-bold text-purple-400">
+                <p class="text-3xl font-bold text-green-400">
                     {% set ns2 = namespace(models=[]) %}
                     {% for r in rankings %}
                         {% for m in r.get('gpu_tags', {}).get('models', []) %}
@@ -59,10 +55,6 @@
                     {% endfor %}
                     {{ ns2.models | length }}
                 </p>
-            </div>
-            <div class="card p-4">
-                <p class="text-gray-400 text-sm">系统状态</p>
-                <p class="text-xl font-bold text-green-400">运行中</p>
             </div>
         </div>
 
