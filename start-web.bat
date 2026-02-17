@@ -61,6 +61,10 @@ echo.
 :: 4. 打开浏览器
 echo [4/4] 打开浏览器...
 start http://localhost:8080
+timeout /t 1 /nobreak >nul
+start http://localhost:8080/history
+timeout /t 1 /nobreak >nul
+start http://localhost:8080/trends
 echo.
 echo ==========================================
 echo   Dashboard: http://localhost:8080
