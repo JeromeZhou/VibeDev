@@ -74,7 +74,11 @@
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m playwright install chromium)",
       "Bash(test:*)",
       "Bash(curl:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(taskkill //F //PID 12692 sleep 2 netstat -ano)",
+      "Bash(# 检查 8080 和备选端口 netstat -ano)",
+      "Bash(xxd:*)"
     ]
   }
 }

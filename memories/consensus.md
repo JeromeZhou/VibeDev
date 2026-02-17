@@ -141,7 +141,7 @@ _本轮无否决_
 - [x] 语义去重 + PPHI 公式重设计 ✅ 2026-02-17
 - [x] 防幻觉 Munger 审查 + 推理链展示 ✅ 2026-02-17
 - [x] 成本控制三级降级 + 共识自动更新 ✅ 2026-02-17
-- [ ] 部署 Web 界面本地预览（port 8080）
+- [x] 部署 Web 界面本地预览（port 8088）✅ 2026-02-17
 - [ ] 修复 Chiphell 爬虫（Playwright 方案）
 - [ ] auto-loop.bat Windows 定时循环
 - [ ] 互动数据传递优化（Reddit replies/likes）
