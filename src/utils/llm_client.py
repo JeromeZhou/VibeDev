@@ -115,11 +115,11 @@ class LLMClient:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
 
-            # 主模型短超时，fallback 长超时
+            # 主模型短超时，fallback 长超时（晚上 API 慢，需要更长超时）
             fallback_chain = [
-                (model, 20.0),
-                ("THUDM/glm-4-9b-chat", 60.0),
-                ("Qwen/Qwen2.5-7B-Instruct", 60.0),
+                (model, 30.0),
+                ("THUDM/glm-4-9b-chat", 120.0),
+                ("Qwen/Qwen2.5-7B-Instruct", 120.0),
             ]
 
             for i, (m, timeout) in enumerate(fallback_chain):

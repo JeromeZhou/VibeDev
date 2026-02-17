@@ -80,7 +80,11 @@
       "Bash(# 检查 8080 和备选端口 netstat -ano)",
       "Bash(xxd:*)",
       "Bash(ls:*)",
-      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest test_devils_advocate.py -v)"
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest test_devils_advocate.py -v)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" resume_pipeline.py)",
+      "Bash(wmic process where \"name=''python.exe''\" get processid,commandline)",
+      "Bash(wmic process where \"processid=23812\" get processid)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" quick_finish.py)"
     ]
   }
 }
