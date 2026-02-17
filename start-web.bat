@@ -6,11 +6,14 @@ echo   GPU-Insight Web Dashboard
 echo ==========================================
 echo.
 set PYTHON=C:\Users\Jerome\AppData\Local\Programs\Python\Python312\python.exe
-set PORT=8088
+set PORT=9000
 set PROJECT=D:\SarmTest
 echo [1/4] Stop old services...
 taskkill /F /IM python.exe /FI "WINDOWTITLE eq GPU-Insight*" >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%PORT%.*LISTENING" 2^>nul') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":9000.*LISTENING" 2^>nul') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8088.*LISTENING" 2^>nul') do (
     taskkill /F /PID %%a >nul 2>&1
 )
 timeout /t 1 /nobreak >nul
