@@ -58,6 +58,11 @@
             padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;
             border: 1px solid rgba(139,92,246,0.15);
         }
+        .mfr-tag {
+            background: rgba(80,200,150,0.08); color: #7bc4a5;
+            padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;
+            border: 1px solid rgba(80,200,150,0.12);
+        }
         .pphi-ring {
             width: 40px; height: 40px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -109,38 +114,96 @@
             {% if rankings %}
             <div class="space-y-2">
                 {% for r in rankings %}
-                <div class="flex items-center gap-3 p-3 rounded-lg"
+                <div class="rounded-lg"
                      style="background: var(--bg-elevated); border: 1px solid var(--border-subtle); animation: fadeInUp 0.3s ease forwards; animation-delay: {{ loop.index * 0.03 }}s; opacity: 0;">
-                    <div class="pphi-ring shrink-0"
-                         {% if r.rank == 1 %}style="border-color: var(--accent-amber);"
-                         {% elif r.rank == 2 %}style="border-color: var(--accent-silver);"
-                         {% elif r.rank == 3 %}style="border-color: var(--accent-bronze);"
-                         {% else %}style="border-color: var(--accent-blue);"{% endif %}>
-                        <span class="text-sm font-semibold mono"
-                              {% if r.rank == 1 %}style="color: var(--accent-amber);"
-                              {% elif r.rank == 2 %}style="color: var(--accent-silver);"
-                              {% elif r.rank == 3 %}style="color: var(--accent-bronze);"
-                              {% else %}style="color: var(--accent-blue);"{% endif %}>{{ r.pphi_score }}</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-xs font-semibold mono"
+                    <div class="flex items-center gap-3 p-3 cursor-pointer"
+                         onclick="toggleDetail(this)">
+                        <div class="pphi-ring shrink-0"
+                             {% if r.rank == 1 %}style="border-color: var(--accent-amber);"
+                             {% elif r.rank == 2 %}style="border-color: var(--accent-silver);"
+                             {% elif r.rank == 3 %}style="border-color: var(--accent-bronze);"
+                             {% else %}style="border-color: var(--accent-blue);"{% endif %}>
+                            <span class="text-sm font-semibold mono"
                                   {% if r.rank == 1 %}style="color: var(--accent-amber);"
                                   {% elif r.rank == 2 %}style="color: var(--accent-silver);"
                                   {% elif r.rank == 3 %}style="color: var(--accent-bronze);"
-                                  {% else %}style="color: var(--text-tertiary);"{% endif %}>#{{ r.rank }}</span>
-                            <h3 class="font-medium text-sm truncate" style="color: var(--text-primary);">{{ r.pain_point }}</h3>
+                                  {% else %}style="color: var(--accent-blue);"{% endif %}>{{ r.pphi_score }}</span>
                         </div>
-                        <div class="flex flex-wrap gap-1">
-                            {% for m in r.get('gpu_tags', {}).get('models', [])[:4] %}
-                            <span class="gpu-tag">{{ m }}</span>
-                            {% endfor %}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-semibold mono"
+                                      {% if r.rank == 1 %}style="color: var(--accent-amber);"
+                                      {% elif r.rank == 2 %}style="color: var(--accent-silver);"
+                                      {% elif r.rank == 3 %}style="color: var(--accent-bronze);"
+                                      {% else %}style="color: var(--text-tertiary);"{% endif %}>#{{ r.rank }}</span>
+                                <h3 class="font-medium text-sm truncate" style="color: var(--text-primary);">{{ r.pain_point }}</h3>
+                            </div>
+                            <div class="flex flex-wrap gap-1">
+                                {% for m in r.get('gpu_tags', {}).get('models', [])[:4] %}
+                                <span class="gpu-tag">{{ m }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0 ml-2">
+                            <div class="text-xs mono" style="color: var(--text-tertiary);">{{ r.mentions }} disc.</div>
+                            <span class="material-icons expand-icon" style="color: var(--text-tertiary); font-size: 20px; transition: transform 0.2s;">expand_more</span>
+                        </div>
+                    </div>
+                    <!-- Expandable detail -->
+                    <div class="detail-panel" style="display: none; border-top: 1px solid var(--border-subtle);">
+                        <div class="p-4 space-y-3">
                             {% if r.get('hidden_need') %}
-                            <span class="text-xs px-2 py-0.5 rounded" style="background: rgba(139,92,246,0.08); color: var(--accent-purple); border: 1px solid rgba(139,92,246,0.15);">💡 {{ r.hidden_need[:30] }}{% if r.hidden_need|length > 30 %}...{% endif %}</span>
+                            <div class="flex items-start gap-2">
+                                <span class="material-icons text-sm shrink-0 mt-0.5" style="color: var(--accent-purple);">psychology</span>
+                                <div>
+                                    <p class="text-xs font-medium mb-1" style="color: var(--text-tertiary);">AI Inferred Need</p>
+                                    <p class="text-sm" style="color: var(--accent-purple);">{{ r.hidden_need }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if r.get('gpu_tags', {}).get('models') %}
+                            <div class="flex items-start gap-2">
+                                <span class="material-icons text-sm shrink-0 mt-0.5" style="color: var(--accent-green);">memory</span>
+                                <div>
+                                    <p class="text-xs font-medium mb-1" style="color: var(--text-tertiary);">GPU Models</p>
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for m in r.get('gpu_tags', {}).get('models', []) %}
+                                        <span class="gpu-tag">{{ m }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if r.get('gpu_tags', {}).get('manufacturers') %}
+                            <div class="flex items-start gap-2">
+                                <span class="material-icons text-sm shrink-0 mt-0.5" style="color: var(--accent-green);">factory</span>
+                                <div>
+                                    <p class="text-xs font-medium mb-1" style="color: var(--text-tertiary);">Manufacturers</p>
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for mfr in r.get('gpu_tags', {}).get('manufacturers', []) %}
+                                        <span class="mfr-tag">{{ mfr }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if r.get('source_urls') %}
+                            <div class="flex items-start gap-2">
+                                <span class="material-icons text-sm shrink-0 mt-0.5" style="color: var(--accent-blue);">link</span>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-xs font-medium mb-1" style="color: var(--text-tertiary);">Sources</p>
+                                    {% for url in r.get('source_urls', [])[:5] %}
+                                    <a href="{{ url }}" target="_blank" rel="noopener"
+                                       class="block text-xs truncate mb-1" style="color: var(--accent-blue);">{{ url }}</a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if not r.get('hidden_need') and not r.get('source_urls') and not r.get('gpu_tags', {}).get('models') %}
+                            <p class="text-xs" style="color: var(--text-tertiary);">No additional details for this run.</p>
                             {% endif %}
                         </div>
                     </div>
-                    <div class="text-xs mono shrink-0" style="color: var(--text-tertiary);">{{ r.mentions }} 讨论</div>
                 </div>
                 {% endfor %}
             </div>
@@ -154,7 +217,23 @@
     </main>
 
     <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
-        GPU-Insight v1.0 · 显卡用户痛点智能分析系统
+        GPU-Insight v1.0
     </footer>
+
+    <script>
+    function toggleDetail(header) {
+        var panel = header.nextElementSibling;
+        var icon = header.querySelector('.expand-icon');
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            icon.style.transform = 'rotate(180deg)';
+            header.parentElement.style.borderColor = 'var(--border-default)';
+        } else {
+            panel.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+            header.parentElement.style.borderColor = 'var(--border-subtle)';
+        }
+    }
+    </script>
 </body>
 </html>
