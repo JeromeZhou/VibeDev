@@ -225,9 +225,12 @@ async def history(request: Request):
     })
 
 
-@app.get("/history/{run_date}")
-async def history_detail(request: Request, run_date: str):
+@app.get("/history/detail")
+async def history_detail(request: Request, run_date: str = ""):
     """某一轮的详细排名"""
+    if not run_date:
+        from starlette.responses import RedirectResponse
+        return RedirectResponse("/history")
     try:
         from src.utils.db import get_db
         conn = get_db()

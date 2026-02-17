@@ -72,7 +72,9 @@
       "Bash(python -m py_compile:*)",
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m pip install playwright)",
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m playwright install chromium)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

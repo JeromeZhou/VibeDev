@@ -106,7 +106,7 @@
             {% if runs %}
             <div class="space-y-2">
                 {% for run in runs %}
-                <a href="/history/{{ run.run_date | urlencode }}"
+                <a href="/history/detail?run_date={{ run.run_date | urlencode }}"
                    class="run-item flex items-center justify-between p-4 rounded-lg transition-all duration-200"
                    style="background: var(--bg-elevated); border: 1px solid var(--border-subtle); animation: fadeInUp 0.3s ease forwards; animation-delay: {{ loop.index * 0.03 }}s; opacity: 0;"
                    onmouseenter="this.style.borderColor='var(--border-default)'"
