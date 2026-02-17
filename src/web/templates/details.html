@@ -8,36 +8,65 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans SC', sans-serif; background: #0a0f1e; color: #e2e8f0; }
+        body { font-family: 'Noto Sans SC', sans-serif; background: #080c1a; color: #e2e8f0; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .card {
-            background: rgba(30,41,59,0.6);
-            backdrop-filter: blur(12px);
+            background: rgba(15,23,42,0.85);
+            backdrop-filter: blur(16px);
             border-radius: 14px;
-            border: 1px solid rgba(71,85,105,0.4);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.15);
+            border: 1px solid rgba(56,78,122,0.35);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.2);
         }
-        .gpu-tag { background: rgba(49,46,129,0.6); color: #a5b4fc; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; }
-        .mfr-tag { background: rgba(6,78,59,0.6); color: #6ee7b7; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; }
-        .brand-tag { background: rgba(124,45,18,0.5); color: #fdba74; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+        .gpu-tag { background: rgba(67,56,202,0.35); color: #a5b4fc; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid rgba(99,102,241,0.25); }
+        .mfr-tag { background: rgba(6,95,70,0.4); color: #6ee7b7; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid rgba(16,185,129,0.25); }
+        .brand-tag { background: rgba(154,52,18,0.35); color: #fdba74; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid rgba(249,115,22,0.25); }
         .mesh-bg {
             background:
-                radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 80%, rgba(16,185,129,0.04) 0%, transparent 50%);
+                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 60% 40%, rgba(59,130,246,0.04) 0%, transparent 60%);
         }
         .need-card {
-            background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1));
-            border: 1px solid rgba(139,92,246,0.25);
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12));
+            border: 1px solid rgba(139,92,246,0.3);
         }
         .trend-pill {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
         }
-        .trend-rising  { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
-        .trend-falling { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
-        .trend-new     { background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
-        .trend-stable  { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+        .trend-rising  { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+        .trend-falling { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+        .trend-new     { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+        .trend-stable  { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.25); }
+
+        .pphi-detail-ring {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        .pphi-detail-ring.rank-1 {
+            background: radial-gradient(circle, rgba(245,158,11,0.2), transparent);
+            border: 3px solid rgba(245,158,11,0.5);
+            box-shadow: 0 0 24px rgba(245,158,11,0.2), 0 0 48px rgba(245,158,11,0.05);
+        }
+        .pphi-detail-ring.rank-2 {
+            background: radial-gradient(circle, rgba(148,163,184,0.15), transparent);
+            border: 3px solid rgba(148,163,184,0.4);
+            box-shadow: 0 0 20px rgba(148,163,184,0.12);
+        }
+        .pphi-detail-ring.rank-3 {
+            background: radial-gradient(circle, rgba(205,124,47,0.15), transparent);
+            border: 3px solid rgba(205,124,47,0.4);
+            box-shadow: 0 0 20px rgba(205,124,47,0.12);
+        }
+        .pphi-detail-ring.rank-default {
+            background: radial-gradient(circle, rgba(59,130,246,0.15), transparent);
+            border: 3px solid rgba(59,130,246,0.35);
+            box-shadow: 0 0 16px rgba(59,130,246,0.1);
+        }
+
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
@@ -46,7 +75,7 @@
     </style>
 </head>
 <body class="min-h-screen mesh-bg">
-    <header class="py-5 px-6 border-b border-slate-800/50">
+    <header class="py-5 px-6 border-b border-slate-700/40">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <a href="/" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition w-fit">
                 <span class="material-icons text-base">arrow_back</span> 返回仪表盘
@@ -82,32 +111,39 @@
                         </span>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-slate-600/20">
                             <span class="material-icons text-xs">category</span> {{ pain_point.get('category', '-') }}
                         </span>
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-slate-600/20">
                             <span class="material-icons text-xs">people</span> {{ pain_point.get('affected_users', '-') }}
                         </span>
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-slate-600/20">
                             <span class="material-icons text-xs">forum</span> {{ pain_point.get('mentions', 0) }} 讨论
                         </span>
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg">
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-600/20">
                             {{ pain_point.get('sources', []) | join(', ') }}
                         </span>
                     </div>
                 </div>
                 <div class="text-center shrink-0">
-                    <div class="w-20 h-20 rounded-full border-3 border-blue-500/30 flex items-center justify-center"
-                         style="background: radial-gradient(circle, rgba(59,130,246,0.15), transparent);">
-                        <p class="text-2xl font-bold mono text-blue-400">{{ pain_point.pphi_score }}</p>
+                    <div class="pphi-detail-ring
+                        {% if pain_point.get('rank') == 1 %}rank-1
+                        {% elif pain_point.get('rank') == 2 %}rank-2
+                        {% elif pain_point.get('rank') == 3 %}rank-3
+                        {% else %}rank-default{% endif %}">
+                        <p class="text-2xl font-bold mono
+                            {% if pain_point.get('rank') == 1 %}text-amber-400
+                            {% elif pain_point.get('rank') == 2 %}text-slate-300
+                            {% elif pain_point.get('rank') == 3 %}text-amber-600
+                            {% else %}text-blue-400{% endif %}">{{ pain_point.pphi_score }}</p>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1 mono">PPHI</p>
+                    <p class="text-xs text-slate-400 mt-1.5 mono">PPHI</p>
                 </div>
             </div>
 
             {% if pain_point.get('evidence') %}
             <div class="mt-5 p-4 bg-slate-800/40 rounded-xl border-l-3 border-blue-500/60">
-                <p class="text-xs text-slate-500 mb-1 flex items-center gap-1">
+                <p class="text-xs text-slate-400 mb-1 flex items-center gap-1">
                     <span class="material-icons text-xs">format_quote</span> 证据摘要
                 </p>
                 <p class="text-slate-200 text-sm leading-relaxed">{{ pain_point.evidence }}</p>
@@ -143,12 +179,12 @@
         <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.15s">
             <h3 class="font-bold text-white mb-4 flex items-center gap-2">
                 <span class="material-icons text-blue-400 text-lg">forum</span> 关联讨论
-                <span class="text-xs text-slate-500 mono ml-auto">{{ posts | length }} 帖</span>
+                <span class="text-xs text-slate-400 mono ml-auto">{{ posts | length }} 帖</span>
             </h3>
             <div class="space-y-3">
                 {% for post in posts %}
                 <a href="{{ post.url }}" target="_blank" rel="noopener"
-                   class="block p-4 bg-slate-800/30 rounded-xl hover:bg-slate-700/40 transition-all duration-200 group border border-transparent hover:border-slate-600/30">
+                   class="block p-4 bg-slate-800/30 rounded-xl hover:bg-slate-700/40 transition-all duration-200 group border border-slate-700/20 hover:border-slate-600/40">
                     <div class="flex items-start gap-3">
                         <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5
                             {% if post.source == 'reddit' %}bg-orange-500/15 text-orange-400
@@ -164,7 +200,7 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm text-white font-medium group-hover:text-blue-300 transition truncate">{{ post.title }}</p>
-                            <div class="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                            <div class="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
                                 <span class="uppercase font-medium
                                     {% if post.source == 'reddit' %}text-orange-400/70
                                     {% elif post.source == 'nga' %}text-emerald-400/70
@@ -185,7 +221,7 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <span class="material-icons text-slate-600 text-sm group-hover:text-blue-400 transition shrink-0 mt-1">open_in_new</span>
+                        <span class="material-icons text-slate-500 text-sm group-hover:text-blue-400 transition shrink-0 mt-1">open_in_new</span>
                     </div>
                 </a>
                 {% endfor %}
@@ -199,8 +235,8 @@
             <div class="space-y-2">
                 {% for url in pain_point.source_urls %}
                 <a href="{{ url }}" target="_blank" rel="noopener"
-                   class="flex items-center gap-2 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-700/40 transition group">
-                    <span class="material-icons text-slate-500 text-sm group-hover:text-blue-400 transition">open_in_new</span>
+                   class="flex items-center gap-2 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-700/40 transition group border border-slate-700/20 hover:border-slate-600/40">
+                    <span class="material-icons text-slate-400 text-sm group-hover:text-blue-400 transition">open_in_new</span>
                     <span class="text-sm text-blue-400 group-hover:text-blue-300 truncate transition">{{ url }}</span>
                 </a>
                 {% endfor %}
@@ -247,9 +283,9 @@
         {% else %}
         <!-- 空状态 -->
         <div class="card p-12 text-center animate-in" style="animation-delay: 0.05s">
-            <span class="material-icons text-5xl text-slate-600 mb-4">search_off</span>
+            <span class="material-icons text-5xl text-slate-500 mb-4">search_off</span>
             <p class="text-slate-400 text-lg mb-2">未找到该痛点</p>
-            <p class="text-slate-600 text-sm mb-5">可能已被合并或排名变动</p>
+            <p class="text-slate-500 text-sm mb-5">可能已被合并或排名变动</p>
             <a href="/" class="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white transition">
                 <span class="material-icons text-sm">arrow_back</span> 返回仪表盘
             </a>
@@ -257,7 +293,7 @@
         {% endif %}
     </main>
 
-    <footer class="text-center text-slate-600 text-xs py-6 border-t border-slate-800/30 mt-8">
+    <footer class="text-center text-slate-500 text-xs py-6 border-t border-slate-800/30 mt-8">
         GPU-Insight v1.0 · 显卡用户痛点智能分析系统
     </footer>
 </body>

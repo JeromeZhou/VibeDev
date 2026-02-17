@@ -8,34 +8,39 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans SC', sans-serif; background: #0a0f1e; color: #e2e8f0; }
+        body { font-family: 'Noto Sans SC', sans-serif; background: #080c1a; color: #e2e8f0; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .card {
-            background: rgba(30,41,59,0.6);
-            backdrop-filter: blur(12px);
+            background: rgba(15,23,42,0.85);
+            backdrop-filter: blur(16px);
             border-radius: 14px;
-            border: 1px solid rgba(71,85,105,0.4);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.15);
+            border: 1px solid rgba(56,78,122,0.35);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.2);
             transition: all 0.25s ease;
         }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 12px 40px rgba(0,0,0,0.2); }
-        .gpu-tag { background: rgba(49,46,129,0.6); color: #a5b4fc; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; }
-        .mfr-tag { background: rgba(6,78,59,0.6); color: #6ee7b7; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 12px 40px rgba(0,0,0,0.25); }
+        .gpu-tag { background: rgba(67,56,202,0.35); color: #a5b4fc; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid rgba(99,102,241,0.25); }
+        .mfr-tag { background: rgba(6,95,70,0.4); color: #6ee7b7; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid rgba(16,185,129,0.25); }
+        .brand-tag { background: rgba(154,52,18,0.35); color: #fdba74; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid rgba(249,115,22,0.25); }
         .stat-card { position: relative; overflow: hidden; }
         .stat-card::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0;
-            height: 3px;
+            height: 4px;
             border-radius: 14px 14px 0 0;
         }
-        .stat-1::before { background: linear-gradient(90deg, #3b82f6, #6366f1); }
-        .stat-2::before { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
-        .stat-3::before { background: linear-gradient(90deg, #8b5cf6, #a855f7); }
-        .stat-4::before { background: linear-gradient(90deg, #10b981, #34d399); }
+        .stat-1 { border-color: rgba(59,130,246,0.3); }
+        .stat-1::before { background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa); }
+        .stat-2 { border-color: rgba(99,102,241,0.3); }
+        .stat-2::before { background: linear-gradient(90deg, #4f46e5, #6366f1, #818cf8); }
+        .stat-3 { border-color: rgba(139,92,246,0.3); }
+        .stat-3::before { background: linear-gradient(90deg, #7c3aed, #8b5cf6, #a78bfa); }
+        .stat-4 { border-color: rgba(16,185,129,0.3); }
+        .stat-4::before { background: linear-gradient(90deg, #059669, #10b981, #34d399); }
 
         .pphi-ring {
-            width: 56px; height: 56px;
+            width: 58px; height: 58px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             position: relative;
@@ -49,22 +54,41 @@
         }
 
         .top-item { position: relative; }
-        .top-1 { border-left: 3px solid #f59e0b; }
-        .top-2 { border-left: 3px solid #94a3b8; }
-        .top-3 { border-left: 3px solid #b45309; }
-        .top-1 .pphi-ring { background: radial-gradient(circle, rgba(245,158,11,0.15), transparent); }
-        .top-2 .pphi-ring { background: radial-gradient(circle, rgba(148,163,184,0.1), transparent); }
-        .top-3 .pphi-ring { background: radial-gradient(circle, rgba(180,83,9,0.1), transparent); }
+        .top-1 { border-left: 3px solid #f59e0b; background: linear-gradient(90deg, rgba(245,158,11,0.08), transparent 60%); }
+        .top-2 { border-left: 3px solid #94a3b8; background: linear-gradient(90deg, rgba(148,163,184,0.06), transparent 60%); }
+        .top-3 { border-left: 3px solid #cd7c2f; background: linear-gradient(90deg, rgba(205,124,47,0.06), transparent 60%); }
+        .top-1 .pphi-ring {
+            background: radial-gradient(circle, rgba(245,158,11,0.2), transparent);
+            box-shadow: 0 0 20px rgba(245,158,11,0.15), 0 0 40px rgba(245,158,11,0.05);
+        }
+        .top-1 .pphi-ring::before { border-color: rgba(245,158,11,0.5); }
+        .top-2 .pphi-ring {
+            background: radial-gradient(circle, rgba(148,163,184,0.15), transparent);
+            box-shadow: 0 0 16px rgba(148,163,184,0.1);
+        }
+        .top-2 .pphi-ring::before { border-color: rgba(148,163,184,0.4); }
+        .top-3 .pphi-ring {
+            background: radial-gradient(circle, rgba(205,124,47,0.15), transparent);
+            box-shadow: 0 0 16px rgba(205,124,47,0.1);
+        }
+        .top-3 .pphi-ring::before { border-color: rgba(205,124,47,0.4); }
 
-        .glow-blue { box-shadow: 0 0 20px rgba(59,130,246,0.08); }
+        /* Default PPHI ring glow for rank 4+ */
+        .top-item:not(.top-1):not(.top-2):not(.top-3) .pphi-ring {
+            background: radial-gradient(circle, rgba(59,130,246,0.1), transparent);
+            box-shadow: 0 0 12px rgba(59,130,246,0.08);
+        }
+        .top-item:not(.top-1):not(.top-2):not(.top-3) .pphi-ring::before { border-color: rgba(59,130,246,0.35); }
+
+        .glow-blue { box-shadow: 0 0 30px rgba(59,130,246,0.08), 0 4px 20px rgba(0,0,0,0.3); }
         .trend-up { color: #34d399; }
         .trend-down { color: #f87171; }
         .trend-new { color: #60a5fa; }
         .trend-stable { color: #94a3b8; }
 
         .need-badge {
-            background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15));
-            border: 1px solid rgba(139,92,246,0.3);
+            background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.18));
+            border: 1px solid rgba(139,92,246,0.35);
             border-radius: 8px;
             padding: 4px 10px;
         }
@@ -81,18 +105,63 @@
 
         .mesh-bg {
             background:
-                radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 80%, rgba(16,185,129,0.04) 0%, transparent 50%);
+                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 60% 40%, rgba(59,130,246,0.04) 0%, transparent 60%);
+        }
+
+        /* Rank medal badges */
+        .rank-medal {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700;
+        }
+        .medal-gold { background: linear-gradient(135deg, #f59e0b, #d97706); color: #451a03; box-shadow: 0 0 10px rgba(245,158,11,0.3); }
+        .medal-silver { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: #1e293b; box-shadow: 0 0 8px rgba(148,163,184,0.2); }
+        .medal-bronze { background: linear-gradient(135deg, #cd7c2f, #a3631a); color: #1c1917; box-shadow: 0 0 8px rgba(205,124,47,0.2); }
+
+        /* Expand button */
+        .expand-btn {
+            background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(99,102,241,0.12));
+            border: 1px solid rgba(59,130,246,0.3);
+            transition: all 0.25s ease;
+        }
+        .expand-btn:hover {
+            background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(99,102,241,0.2));
+            border-color: rgba(59,130,246,0.5);
+        }
+
+        /* Hidden items */
+        .ranking-extra { display: none; }
+        .ranking-extra.show { display: block; }
+
+        /* About modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            display: none;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: rgba(15,23,42,0.95);
+            border: 1px solid rgba(56,78,122,0.4);
+            border-radius: 16px;
+            max-width: 480px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body class="min-h-screen mesh-bg">
-    <header class="py-6 px-6 border-b border-slate-800/50">
+    <header class="py-6 px-6 border-b border-slate-700/40">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div>
                 <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
                         <span class="material-icons text-white text-lg">insights</span>
                     </div>
                     <h1 class="text-2xl font-bold text-white tracking-tight">GPU-Insight</h1>
@@ -103,9 +172,10 @@
                 <a href="/trends" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
                     <span class="material-icons text-base">trending_up</span> 趋势
                 </a>
-                <a href="/api/rankings" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
-                    <span class="material-icons text-base">code</span> API
-                </a>
+                <button onclick="document.getElementById('aboutModal').classList.add('active')"
+                        class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
+                    <span class="material-icons text-base">info_outline</span> 关于
+                </button>
             </div>
         </div>
     </header>
@@ -158,21 +228,22 @@
                     <span class="material-icons text-blue-400">leaderboard</span>
                     痛点排名
                 </h2>
-                <span class="text-xs text-slate-500 mono">PPHI Index</span>
+                <span class="text-xs text-slate-400 mono">PPHI Index · 共 {{ rankings | length }} 项</span>
             </div>
             {% if rankings %}
-            <div class="space-y-3">
+            <div class="space-y-3" id="rankingList">
                 {% for r in rankings %}
                 <a href="/pain-point/{{ r.rank }}"
                    class="block p-4 rounded-xl top-item
-                          {% if r.rank == 1 %}top-1 bg-amber-500/5{% elif r.rank == 2 %}top-2 bg-slate-400/5{% elif r.rank == 3 %}top-3 bg-amber-700/5{% else %}border-l-3 border-transparent bg-slate-800/30{% endif %}
-                          hover:bg-slate-700/40 transition-all duration-200"
+                          {% if r.rank == 1 %}top-1{% elif r.rank == 2 %}top-2{% elif r.rank == 3 %}top-3{% else %}border-l-3 border-transparent bg-slate-800/20{% endif %}
+                          hover:bg-slate-700/40 transition-all duration-200
+                          {% if r.rank > 10 %}ranking-extra{% endif %}"
                    style="animation: fadeInUp 0.4s ease forwards; animation-delay: {{ r.rank * 0.04 }}s; opacity: 0;">
                     <div class="flex items-center gap-4">
                         <!-- Rank + PPHI Ring -->
                         <div class="pphi-ring shrink-0">
                             <div class="text-center">
-                                <p class="text-lg font-bold mono
+                                <p class="text-xl font-bold mono
                                     {% if r.rank == 1 %}text-amber-400{% elif r.rank == 2 %}text-slate-300{% elif r.rank == 3 %}text-amber-600{% else %}text-blue-400{% endif %}">
                                     {{ r.pphi_score }}
                                 </p>
@@ -182,7 +253,11 @@
                         <!-- Content -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1">
-                                <span class="text-xs font-bold mono text-slate-500">#{{ r.rank }}</span>
+                                {% if r.rank <= 3 %}
+                                <span class="rank-medal {% if r.rank == 1 %}medal-gold{% elif r.rank == 2 %}medal-silver{% else %}medal-bronze{% endif %}">{{ r.rank }}</span>
+                                {% else %}
+                                <span class="text-xs font-bold mono text-slate-400">#{{ r.rank }}</span>
+                                {% endif %}
                                 {% if r.get('trend') == 'rising' %}<span class="trend-up text-xs font-bold">↑</span>
                                 {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-bold">↓</span>
                                 {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
@@ -192,6 +267,9 @@
 
                             <!-- Tags -->
                             <div class="flex flex-wrap gap-1.5 mb-1.5">
+                                {% for b in r.get('gpu_tags', {}).get('brands', [])[:2] %}
+                                <span class="brand-tag">{{ b }}</span>
+                                {% endfor %}
                                 {% for m in r.get('gpu_tags', {}).get('models', [])[:4] %}
                                 <span class="gpu-tag">{{ m }}</span>
                                 {% endfor %}
@@ -200,7 +278,7 @@
                                 {% endfor %}
                             </div>
 
-                            <div class="flex items-center gap-3 text-xs text-slate-500">
+                            <div class="flex items-center gap-3 text-xs text-slate-400">
                                 <span>{{ r.get('mentions', 0) }} 讨论</span>
                                 <span>·</span>
                                 <span>{{ r.get('sources', []) | join(' / ') }}</span>
@@ -222,17 +300,82 @@
                 </a>
                 {% endfor %}
             </div>
+
+            {% if rankings | length > 10 %}
+            <button id="expandBtn" onclick="toggleExpand()"
+                    class="expand-btn w-full mt-4 py-3 rounded-xl text-sm text-blue-400 font-medium flex items-center justify-center gap-2 cursor-pointer">
+                <span class="material-icons text-base" id="expandIcon">expand_more</span>
+                <span id="expandText">查看全部 {{ rankings | length }} 个痛点</span>
+            </button>
+            {% endif %}
+
             {% else %}
             <div class="text-center py-12">
-                <span class="material-icons text-4xl text-slate-600 mb-2">hourglass_empty</span>
-                <p class="text-slate-500">等待首次数据采集...</p>
+                <span class="material-icons text-4xl text-slate-500 mb-2">hourglass_empty</span>
+                <p class="text-slate-400">等待首次数据采集...</p>
             </div>
             {% endif %}
         </div>
     </main>
 
-    <footer class="text-center text-slate-600 text-xs py-6 border-t border-slate-800/30 mt-8">
+    <footer class="text-center text-slate-500 text-xs py-6 border-t border-slate-800/30 mt-8">
         GPU-Insight v1.0 · 显卡用户痛点智能分析系统
     </footer>
+
+    <!-- About Modal -->
+    <div id="aboutModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="modal-content p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="material-icons text-blue-400">info</span> 关于 GPU-Insight
+                </h3>
+                <button onclick="document.getElementById('aboutModal').classList.remove('active')"
+                        class="text-slate-400 hover:text-white transition">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="space-y-3 text-sm text-slate-300 leading-relaxed">
+                <p>GPU-Insight 是一个显卡用户痛点智能分析系统，每 4 小时自动采集全球显卡论坛讨论，通过 AI 提取痛点并推导隐藏需求。</p>
+                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/40">
+                    <p class="text-xs text-slate-400 mb-1">核心指标</p>
+                    <p class="text-white font-medium">PPHI (Pain Point Heat Index) — 痛点热度指数</p>
+                    <p class="text-slate-400 text-xs mt-1">综合讨论量、情感强度、传播范围等维度加权计算</p>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <span class="px-2 py-1 bg-slate-800/50 rounded text-slate-400 border border-slate-700/30">数据源: Reddit / NGA / 贴吧</span>
+                    <span class="px-2 py-1 bg-slate-800/50 rounded text-slate-400 border border-slate-700/30">AI: SiliconFlow GLM</span>
+                    <span class="px-2 py-1 bg-slate-800/50 rounded text-slate-400 border border-slate-700/30">更新: 每 4 小时</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function toggleExpand() {
+        const extras = document.querySelectorAll('.ranking-extra');
+        const btn = document.getElementById('expandBtn');
+        const icon = document.getElementById('expandIcon');
+        const text = document.getElementById('expandText');
+        const isExpanded = extras[0]?.classList.contains('show');
+
+        extras.forEach((el, i) => {
+            if (isExpanded) {
+                el.classList.remove('show');
+            } else {
+                el.classList.add('show');
+                el.style.animation = `fadeInUp 0.3s ease forwards`;
+                el.style.animationDelay = `${i * 0.03}s`;
+            }
+        });
+
+        if (isExpanded) {
+            icon.textContent = 'expand_more';
+            text.textContent = '查看全部 {{ rankings | length }} 个痛点';
+        } else {
+            icon.textContent = 'expand_less';
+            text.textContent = '收起列表';
+        }
+    }
+    </script>
 </body>
 </html>

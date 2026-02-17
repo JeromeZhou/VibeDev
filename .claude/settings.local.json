@@ -64,7 +64,10 @@
       "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -c \"\nfrom dotenv import load_dotenv\nload_dotenv\\(\\)\nimport yaml\nfrom src.scrapers.videocardz_scraper import VideoCardzScraper\n\nwith open\\(''config/config.yaml'', encoding=''utf-8''\\) as f:\n    config = yaml.safe_load\\(f\\)\n\nscraper = VideoCardzScraper\\(config\\)\nposts = scraper.fetch_posts\\(\\)\nprint\\(f''VideoCardz: {len\\(posts\\)} posts''\\)\nfor p in posts[:5]:\n    print\\(f''  {p[\"\"title\"\"][:70]}''\\)\n    print\\(f''    {p[\"\"url\"\"]}''\\)\n\")",
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m uvicorn src.web.app:app --host 0.0.0.0 --port 8080 --reload)",
       "Bash(timeout:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(dir:*)",
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -c:*)",
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe main.py)"
     ]
   }
 }

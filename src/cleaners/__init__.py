@@ -16,16 +16,8 @@ def clean_data(posts: list[dict], config: dict) -> list[dict]:
     posts = _convert_traditional(posts)
     # 3. 内存去重（同批次内）
     posts = _deduplicate(posts)
-    # 4. 持久化去重（跨运行，SQLite）— 只分析新帖，节省 LLM tokens
-    try:
-        from src.utils.db import filter_new_posts
-        before = len(posts)
-        posts = filter_new_posts(posts)
-        skipped = before - len(posts)
-        if skipped > 0:
-            print(f"  持久化去重: 跳过 {skipped} 条已处理帖子 (节省 LLM tokens)")
-    except Exception as e:
-        print(f"  [!] 持久化去重失败(继续运行): {e}")
+    # 4. 持久化去重已在爬虫层完成（scrape_all_forums → filter_new_posts + save_posts）
+    #    此处不再重复过滤，避免爬虫 save_posts 后 cleaner 误判为"旧帖"
     # 5. 截断长文本
     posts = _truncate(posts, max_chars=2000)
     # 6. 保存清洗结果

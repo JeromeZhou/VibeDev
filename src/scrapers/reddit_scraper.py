@@ -49,30 +49,62 @@ class RedditScraper(BaseScraper):
         return posts
 
     def _fetch_endpoint(self, subreddit: str, endpoint: str, limit: int = 25) -> list[dict]:
-        """抓取指定端点"""
+        """抓取指定端点 — 带 SSL 容错和重试"""
+        import httpx
+        import ssl
+
+        url = f"https://www.reddit.com/r/{subreddit}/{endpoint}.json?limit={limit}"
+        headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
+
+        # 尝试 1: 标准 HTTPS
         try:
-            import httpx
             self.random_delay(1.5, 3.0)
-            url = f"https://www.reddit.com/r/{subreddit}/{endpoint}.json?limit={limit}"
-            headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
             resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
             resp.raise_for_status()
             return self._parse_listing(resp.json(), subreddit)
+        except (httpx.ReadError, ssl.SSLError) as e:
+            print(f"    [!] r/{subreddit}/{endpoint} SSL 错误，尝试降级重试: {e}")
         except Exception as e:
             print(f"    [!] r/{subreddit}/{endpoint} 失败: {e}")
             return []
 
-    def _fetch_search(self, subreddit: str, query: str, limit: int = 10) -> list[dict]:
-        """搜索端点"""
+        # 尝试 2: 禁用 SSL 验证（仅作为降级方案）
         try:
-            import httpx
+            self.random_delay(2.0, 4.0)
+            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True, verify=False)
+            resp.raise_for_status()
+            print(f"    [√] r/{subreddit}/{endpoint} SSL 降级成功")
+            return self._parse_listing(resp.json(), subreddit)
+        except Exception as e:
+            print(f"    [!] r/{subreddit}/{endpoint} 降级后仍失败: {e}")
+            return []
+
+    def _fetch_search(self, subreddit: str, query: str, limit: int = 10) -> list[dict]:
+        """搜索端点 — 带 SSL 容错"""
+        import httpx
+        import ssl
+
+        url = f"https://www.reddit.com/r/{subreddit}/search.json?q={query}&restrict_sr=on&sort=relevance&t=week&limit={limit}"
+        headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
+
+        # 尝试 1: 标准 HTTPS
+        try:
             self.random_delay(1.5, 3.0)
-            url = f"https://www.reddit.com/r/{subreddit}/search.json?q={query}&restrict_sr=on&sort=relevance&t=week&limit={limit}"
-            headers = {"User-Agent": "GPU-Insight/1.0 (research bot)"}
             resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
             resp.raise_for_status()
             return self._parse_listing(resp.json(), subreddit)
-        except Exception as e:
+        except (httpx.ReadError, ssl.SSLError):
+            pass  # 静默降级
+        except Exception:
+            return []
+
+        # 尝试 2: 禁用 SSL 验证
+        try:
+            self.random_delay(2.0, 4.0)
+            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True, verify=False)
+            resp.raise_for_status()
+            return self._parse_listing(resp.json(), subreddit)
+        except Exception:
             return []
 
     def _parse_listing(self, data: dict, subreddit: str) -> list[dict]:

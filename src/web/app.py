@@ -107,7 +107,7 @@ async def dashboard(request: Request):
     return templates.TemplateResponse("index.html", {
         "request": request,
         "data": data,
-        "rankings": data.get("rankings", [])[:10],
+        "rankings": data.get("rankings", []),
         "updated_at": data.get("timestamp", "尚未运行"),
         "stats": stats,
     })
