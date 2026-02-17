@@ -142,6 +142,42 @@ def _get_run_delta() -> dict:
         return {"new_pains": 0, "new_models": 0, "prev_date": ""}
 
 
+def _get_pain_trend(pain_point_name: str) -> dict:
+    """获取单个痛点的 PPHI 历史趋势"""
+    if not pain_point_name:
+        return {"labels": [], "scores": [], "mentions": []}
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        # 模糊匹配：去掉括号后的分类标签进行匹配
+        import re
+        base_name = re.sub(r'[（(][^）)]*[）)]', '', pain_point_name).strip()
+        rows = conn.execute(
+            """SELECT run_date, pphi_score, mentions
+               FROM pphi_history
+               WHERE pain_point LIKE ?
+               ORDER BY run_date ASC""",
+            (f"%{base_name}%",)
+        ).fetchall()
+        conn.close()
+
+        # 每个 run_date 取最高分（可能有多条匹配）
+        by_date = {}
+        for r in rows:
+            d = r["run_date"]
+            if d not in by_date or r["pphi_score"] > by_date[d]["score"]:
+                by_date[d] = {"score": r["pphi_score"], "mentions": r["mentions"]}
+
+        dates = sorted(by_date.keys())[-12:]  # 最近 12 轮
+        return {
+            "labels": [d[5:] for d in dates],  # MM-DD HH:MM
+            "scores": [by_date[d]["score"] for d in dates],
+            "mentions": [by_date[d]["mentions"] for d in dates],
+        }
+    except Exception:
+        return {"labels": [], "scores": [], "mentions": []}
+
+
 @app.get("/")
 async def dashboard(request: Request):
     """痛点仪表盘"""
@@ -221,10 +257,15 @@ async def pain_point_detail(request: Request, rank: int):
     rankings = data.get("rankings", [])
     pain_point = next((r for r in rankings if r.get("rank") == rank), {})
     posts = _load_source_posts(pain_point)
+
+    # 获取该痛点的 PPHI 历史趋势
+    trend_data = _get_pain_trend(pain_point.get("pain_point", ""))
+
     return templates.TemplateResponse("details.html", {
         "request": request,
         "pain_point": pain_point,
         "posts": posts,
+        "trend_data_json": json.dumps(trend_data, ensure_ascii=False),
     })
 
 

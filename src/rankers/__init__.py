@@ -76,6 +76,8 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
             "evidence": data.get("evidence", ""),
             "trend": _detect_trend(pain_point, pphi),
             "inferred_need": data.get("inferred_need_obj"),  # 完整的推理对象
+            "total_replies": data.get("total_replies", 0),
+            "total_likes": data.get("total_likes", 0),
         })
 
     # 排序：PPHI 降序，相同分数时按 mentions 降序（二级排序）
@@ -109,7 +111,7 @@ def _load_historical_insights() -> list[dict]:
         latest_date = latest_run["rd"]
         rows = conn.execute(
             """SELECT pain_point, pphi_score, mentions, gpu_tags,
-                      source_urls, hidden_need
+                      source_urls, hidden_need, total_replies, total_likes
                FROM pphi_history
                WHERE run_date = ?
                ORDER BY rank ASC""",
@@ -146,11 +148,11 @@ def _load_historical_insights() -> list[dict]:
                 else:
                     source_post_ids.append(f"unknown_{url[-20:]}")
 
-            # 从 posts 表补充互动数据
-            total_replies = 0
-            total_likes = 0
+            # 互动数据：优先用 pphi_history 存储的累积值，fallback 到 posts 表查询
+            total_replies = r["total_replies"] or 0
+            total_likes = r["total_likes"] or 0
             earliest_timestamp = ""
-            if source_post_ids:
+            if total_replies == 0 and total_likes == 0 and source_post_ids:
                 placeholders = ",".join("?" * len(source_post_ids))
                 post_rows = conn.execute(
                     f"""SELECT replies, likes, timestamp FROM posts

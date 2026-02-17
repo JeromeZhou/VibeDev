@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>痛点详情 — GPU-Insight</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
@@ -209,6 +210,16 @@
                 <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">{{ pain_point.evidence }}</p>
             </div>
             {% endif %}
+        </div>
+
+        <!-- PPHI 趋势小图 -->
+        <div class="card p-6 mb-4 animate-in" style="animation-delay: 0.08s">
+            <h3 class="font-medium mb-3 flex items-center gap-2" style="color: var(--text-primary);">
+                <span class="material-icons" style="color: var(--accent-green);">show_chart</span> PPHI 趋势
+            </h3>
+            <div style="height: 160px;">
+                <canvas id="trendChart"></canvas>
+            </div>
         </div>
 
         <!-- AI 推理需求 -->
@@ -435,5 +446,73 @@
     <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
         GPU-Insight v1.0 · 显卡用户痛点智能分析系统
     </footer>
+
+    <script>
+    (function() {
+        var trendData = {{ trend_data_json | safe }};
+        if (trendData.labels && trendData.labels.length > 1) {
+            var ctx = document.getElementById('trendChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendData.labels,
+                    datasets: [{
+                        label: 'PPHI',
+                        data: trendData.scores,
+                        borderColor: '#5b8def',
+                        backgroundColor: 'rgba(91,141,239,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#5b8def',
+                        borderWidth: 2,
+                    }, {
+                        label: 'Mentions',
+                        data: trendData.mentions,
+                        borderColor: '#5ec49e',
+                        backgroundColor: 'transparent',
+                        tension: 0.3,
+                        pointRadius: 2,
+                        pointBackgroundColor: '#5ec49e',
+                        borderWidth: 1.5,
+                        borderDash: [4, 2],
+                        yAxisID: 'y1',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#8b8fa3', font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#565869', font: { size: 10 } },
+                            grid: { color: 'rgba(255,255,255,0.04)' }
+                        },
+                        y: {
+                            position: 'left',
+                            ticks: { color: '#5b8def', font: { size: 10 } },
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            title: { display: true, text: 'PPHI', color: '#5b8def', font: { size: 10 } }
+                        },
+                        y1: {
+                            position: 'right',
+                            ticks: { color: '#5ec49e', font: { size: 10 } },
+                            grid: { display: false },
+                            title: { display: true, text: 'Mentions', color: '#5ec49e', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        } else {
+            document.getElementById('trendChart').parentElement.innerHTML =
+                '<p class="text-xs text-center py-6" style="color: var(--text-tertiary);">需要至少 2 轮数据才能显示趋势</p>';
+        }
+    })();
+    </script>
 </body>
 </html>

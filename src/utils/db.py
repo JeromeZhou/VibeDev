@@ -92,6 +92,8 @@ def _migrate_tables(conn: sqlite3.Connection):
         ("pain_points", "total_replies", "INTEGER DEFAULT 0"),
         ("pain_points", "total_likes", "INTEGER DEFAULT 0"),
         ("pain_points", "earliest_timestamp", "TEXT"),
+        ("pphi_history", "total_replies", "INTEGER DEFAULT 0"),
+        ("pphi_history", "total_likes", "INTEGER DEFAULT 0"),
     ]
     for table, column, col_type in migrations:
         try:
@@ -170,7 +172,7 @@ def save_posts(posts: list[dict]):
 
 
 def save_rankings(rankings: list[dict]):
-    """保存 PPHI 排名快照到历史表"""
+    """保存 PPHI 排名快照到历史表（含互动数据）"""
     if not rankings:
         return
 
@@ -179,8 +181,8 @@ def save_rankings(rankings: list[dict]):
 
     for r in rankings:
         conn.execute(
-            """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 run_date,
                 r.get("rank", 0),
@@ -190,6 +192,8 @@ def save_rankings(rankings: list[dict]):
                 json.dumps(r.get("gpu_tags", {}), ensure_ascii=False),
                 json.dumps(r.get("source_urls", []), ensure_ascii=False),
                 r.get("hidden_need", ""),
+                r.get("total_replies", 0),
+                r.get("total_likes", 0),
             )
         )
 
