@@ -86,7 +86,8 @@
       "Bash(wmic process where \"processid=23812\" get processid)",
       "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" quick_finish.py)",
       "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" patch_needs.py)",
-      "Bash(wmic process where \"commandline like ''%patch_needs%''\" get processid)"
+      "Bash(wmic process where \"commandline like ''%patch_needs%''\" get processid)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" sync_needs.py)"
     ]
   }
 }
