@@ -50,12 +50,17 @@ def l1_local_filter(posts: list[dict]) -> list[dict]:
         # 痛点信号词计数
         pain_count = sum(1 for w in PAIN_SIGNALS if w in text)
 
+        # 硬件专区来源加分（NGA PC硬件区帖子本身就是硬件话题）
+        source_bonus = 0.0
+        if post.get("_source") in ("nga", "chiphell"):
+            source_bonus = 2.0  # 硬件论坛基础加分
+
         # 信号分数
         base_score = post.get("_signal_score", 0)
         pain_bonus = pain_count * 3.0
         exclude_penalty = -20.0 if excluded else 0.0
 
-        post["_pain_signal_score"] = round(base_score + pain_bonus + exclude_penalty, 2)
+        post["_pain_signal_score"] = round(base_score + pain_bonus + source_bonus + exclude_penalty, 2)
         post["_pain_signals"] = pain_count
         post["_excluded"] = excluded
 

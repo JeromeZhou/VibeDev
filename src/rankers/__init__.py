@@ -29,7 +29,7 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
         sources = data["sources"]
         avg_source_score = sum(source_scores.get(s, 0.5) for s in sources) / max(len(sources), 1)
         interaction = data.get("avg_interaction", 0)
-        days_old = data.get("days_old", 0)
+        days_old = min(data.get("days_old", 0), 30)  # 封顶30天，避免过度衰减
 
         pphi = (
             weights.get("frequency", 0.3) * min(mention_count / 10, 10) * 10

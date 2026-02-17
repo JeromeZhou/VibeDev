@@ -54,6 +54,18 @@ class NGAScraper(BaseScraper):
         for p in posts:
             tag_post(p)
 
+        # 抓取热门帖子正文（回复>3的帖子更可能有痛点讨论）
+        hot_posts = [p for p in posts if p.get("replies", 0) > 3][:30]
+        if hot_posts:
+            print(f"    抓取 {len(hot_posts)} 条热帖正文...", end=" ")
+            fetched = 0
+            for p in hot_posts:
+                content = self._fetch_thread_content(p["id"].replace("nga_", ""))
+                if content:
+                    p["content"] = content
+                    fetched += 1
+            print(f"成功 {fetched} 条")
+
         return posts
 
     def _fetch_forum(self, fid: int, pages: int = 2) -> list[dict]:
@@ -156,3 +168,42 @@ class NGAScraper(BaseScraper):
             "language": "zh-CN",
             "timestamp": post_time.isoformat(),
         }
+
+    def _fetch_thread_content(self, tid: str) -> str | None:
+        """抓取帖子首楼正文"""
+        import httpx
+
+        self.random_delay(1.0, 2.0)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "Referer": f"https://bbs.nga.cn/read.php?tid={tid}",
+        }
+        try:
+            url = f"https://bbs.nga.cn/read.php?tid={tid}&page=1&__output=11"
+            resp = httpx.get(url, headers=headers, cookies=self.cookies, timeout=15, follow_redirects=True)
+            text = resp.text.strip()
+            if text.startswith("window.script_muti_get_var_store"):
+                text = re.sub(r'^window\.script_muti_get_var_store\s*=\s*', '', text)
+                text = text.rstrip(';')
+
+            data = json.loads(text)
+            result = data.get("data", data)
+            rows = result.get("__R", {})
+            if isinstance(rows, dict):
+                items = list(rows.values())
+            elif isinstance(rows, list):
+                items = rows
+            else:
+                return None
+
+            # 取首楼内容
+            if items and isinstance(items[0], dict):
+                content = items[0].get("content", "")
+                # 清理 HTML
+                content = re.sub(r'<[^>]+>', ' ', content)
+                content = re.sub(r'\[.*?\]', '', content)  # 去 BBCode
+                content = re.sub(r'\s+', ' ', content).strip()
+                return content[:500] if content else None
+        except Exception:
+            pass
+        return None
