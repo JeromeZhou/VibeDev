@@ -279,8 +279,9 @@ def devils_advocate_review(hidden_needs: list[dict], llm: LLMClient) -> list[dic
     for hn in hidden_needs:
         confidence = hn.get("confidence", 0.0)
 
-        # 只审查高置信度推导（成本控制）
-        if confidence <= 0.6:
+        # 审查高置信度推导 + Top 3 痛点强制审查
+        is_top3 = review_count < 3
+        if confidence <= 0.6 and not is_top3:
             reviewed.append(hn)
             continue
 

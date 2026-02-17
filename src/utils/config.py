@@ -1,6 +1,7 @@
 """GPU-Insight 配置管理"""
 
 import yaml
+from datetime import datetime
 from pathlib import Path
 
 
@@ -14,12 +15,17 @@ def load_config(config_path: str = "config/config.yaml") -> dict:
 
 
 def get_enabled_sources(config: dict) -> dict:
-    """获取已启用的数据源"""
-    return {
-        name: src
-        for name, src in config.get("sources", {}).items()
-        if src.get("enabled", False)
-    }
+    """获取已启用的数据源（支持时间感知）"""
+    hour = datetime.now().hour
+    enabled = {}
+    for name, src in config.get("sources", {}).items():
+        if not src.get("enabled", False):
+            # 时间感知：daytime_only 的源在 8:00-22:00 自动启用
+            if src.get("daytime_only", False) and 8 <= hour <= 22:
+                enabled[name] = src
+            continue
+        enabled[name] = src
+    return enabled
 
 
 def get_pphi_weights(config: dict) -> dict:

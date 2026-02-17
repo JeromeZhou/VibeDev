@@ -90,14 +90,24 @@
                     <span class="material-icons" style="color: var(--accent-amber);">schedule</span>
                     分析轮次列表
                 </h2>
-                <span class="text-xs mono" style="color: var(--text-tertiary);">共 {{ runs | length }} 轮</span>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <span class="material-icons absolute left-2.5 top-1/2 -translate-y-1/2" style="color: var(--text-tertiary); font-size: 18px;">search</span>
+                        <input type="text" id="searchBox" placeholder="搜索痛点..."
+                               class="pl-8 pr-3 py-1.5 rounded-lg text-xs"
+                               style="background: var(--bg-elevated); border: 1px solid var(--border-default); color: var(--text-primary); outline: none; width: 180px;"
+                               onfocus="this.style.borderColor='var(--accent-blue)'"
+                               onblur="this.style.borderColor='var(--border-default)'">
+                    </div>
+                    <span class="text-xs mono" style="color: var(--text-tertiary);">共 {{ runs | length }} 轮</span>
+                </div>
             </div>
 
             {% if runs %}
             <div class="space-y-2">
                 {% for run in runs %}
                 <a href="/history/{{ run.run_date | urlencode }}"
-                   class="flex items-center justify-between p-4 rounded-lg transition-all duration-200"
+                   class="run-item flex items-center justify-between p-4 rounded-lg transition-all duration-200"
                    style="background: var(--bg-elevated); border: 1px solid var(--border-subtle); animation: fadeInUp 0.3s ease forwards; animation-delay: {{ loop.index * 0.03 }}s; opacity: 0;"
                    onmouseenter="this.style.borderColor='var(--border-default)'"
                    onmouseleave="this.style.borderColor='var(--border-subtle)'">
@@ -136,5 +146,15 @@
     <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
         GPU-Insight v1.0 · 显卡用户痛点智能分析系统
     </footer>
+
+    <script>
+    document.getElementById('searchBox').addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('.run-item').forEach(function(item) {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(query) ? '' : 'none';
+        });
+    });
+    </script>
 </body>
 </html>
