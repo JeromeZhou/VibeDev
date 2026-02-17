@@ -235,6 +235,9 @@
                 <a href="/trends" class="nav-link">
                     <span class="material-icons text-base">trending_up</span> 趋势
                 </a>
+                <a href="/history" class="nav-link">
+                    <span class="material-icons text-base">history</span> 历史
+                </a>
                 <button onclick="document.getElementById('aboutModal').classList.add('active')" class="nav-link">
                     <span class="material-icons text-base">info_outline</span> 关于
                 </button>
@@ -248,7 +251,7 @@
             <div class="card stat-card stat-1 p-4 animate-in delay-1">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-icons text-base" style="color: var(--accent-blue);">bug_report</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">本轮痛点</p>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">Top 痛点</p>
                 </div>
                 <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ data.total_pain_points }}</p>
             </div>

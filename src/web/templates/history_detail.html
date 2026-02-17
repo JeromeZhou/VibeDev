@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史排名 — GPU-Insight</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base:     #0b0d14;
+            --bg-surface:  #111318;
+            --bg-elevated: #161922;
+            --bg-hover:    #1c1f2b;
+            --border-subtle:  rgba(255,255,255,0.06);
+            --border-default: rgba(255,255,255,0.09);
+            --border-strong:  rgba(255,255,255,0.14);
+            --text-primary:   #ececf1;
+            --text-secondary: #8b8fa3;
+            --text-tertiary:  #565869;
+            --accent-blue:    #5b8def;
+            --accent-purple:  #9d8abf;
+            --accent-green:   #5ec49e;
+            --accent-red:     #e5534b;
+            --accent-amber:   #d4a04a;
+            --accent-silver:  #9ba3b0;
+            --accent-bronze:  #b08952;
+        }
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .card {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .mesh-bg {
+            background:
+                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.03) 0%, transparent 50%);
+        }
+        .nav-link {
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: flex; align-items: center; gap: 4px;
+            transition: color 0.15s ease;
+        }
+        .nav-link:hover { color: var(--text-primary); }
+        .gpu-tag {
+            background: rgba(139,92,246,0.10); color: #a78bcc;
+            padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;
+            border: 1px solid rgba(139,92,246,0.15);
+        }
+        .pphi-ring {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid var(--border-strong); background: transparent;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: fadeInUp 0.3s ease forwards; opacity: 0; }
+    </style>
+</head>
+<body class="min-h-screen mesh-bg">
+    <header class="py-4 px-6 border-b" style="border-color: var(--border-subtle);">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--accent-amber);">
+                    <span class="material-icons text-white text-base">history</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-semibold" style="color: var(--text-primary);">历史排名</h1>
+                    <p class="text-xs" style="color: var(--text-tertiary);">GPU-Insight · {{ run_date }}</p>
+                </div>
+            </div>
+            <div class="flex gap-4 items-center">
+                <a href="/" class="nav-link">
+                    <span class="material-icons text-base">dashboard</span> 仪表盘
+                </a>
+                <a href="/history" class="nav-link">
+                    <span class="material-icons text-base">history</span> 历史
+                </a>
+                <a href="/trends" class="nav-link">
+                    <span class="material-icons text-base">trending_up</span> 趋势
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto py-6 px-4">
+        <div class="card p-6 animate-in">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                    <span class="material-icons" style="color: var(--accent-amber);">leaderboard</span>
+                    {{ run_date }} 排名
+                </h2>
+                <span class="text-xs mono" style="color: var(--text-tertiary);">共 {{ rankings | length }} 个痛点</span>
+            </div>
+
+            {% if rankings %}
+            <div class="space-y-2">
+                {% for r in rankings %}
+                <div class="flex items-center gap-3 p-3 rounded-lg"
+                     style="background: var(--bg-elevated); border: 1px solid var(--border-subtle); animation: fadeInUp 0.3s ease forwards; animation-delay: {{ loop.index * 0.03 }}s; opacity: 0;">
+                    <div class="pphi-ring shrink-0"
+                         {% if r.rank == 1 %}style="border-color: var(--accent-amber);"
+                         {% elif r.rank == 2 %}style="border-color: var(--accent-silver);"
+                         {% elif r.rank == 3 %}style="border-color: var(--accent-bronze);"
+                         {% else %}style="border-color: var(--accent-blue);"{% endif %}>
+                        <span class="text-sm font-semibold mono"
+                              {% if r.rank == 1 %}style="color: var(--accent-amber);"
+                              {% elif r.rank == 2 %}style="color: var(--accent-silver);"
+                              {% elif r.rank == 3 %}style="color: var(--accent-bronze);"
+                              {% else %}style="color: var(--accent-blue);"{% endif %}>{{ r.pphi_score }}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-semibold mono"
+                                  {% if r.rank == 1 %}style="color: var(--accent-amber);"
+                                  {% elif r.rank == 2 %}style="color: var(--accent-silver);"
+                                  {% elif r.rank == 3 %}style="color: var(--accent-bronze);"
+                                  {% else %}style="color: var(--text-tertiary);"{% endif %}>#{{ r.rank }}</span>
+                            <h3 class="font-medium text-sm truncate" style="color: var(--text-primary);">{{ r.pain_point }}</h3>
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            {% for m in r.get('gpu_tags', {}).get('models', [])[:4] %}
+                            <span class="gpu-tag">{{ m }}</span>
+                            {% endfor %}
+                            {% if r.get('hidden_need') %}
+                            <span class="text-xs px-2 py-0.5 rounded" style="background: rgba(139,92,246,0.08); color: var(--accent-purple); border: 1px solid rgba(139,92,246,0.15);">💡 {{ r.hidden_need[:30] }}{% if r.hidden_need|length > 30 %}...{% endif %}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-xs mono shrink-0" style="color: var(--text-tertiary);">{{ r.mentions }} 讨论</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <span class="material-icons text-4xl mb-2" style="color: var(--text-tertiary);">search_off</span>
+                <p style="color: var(--text-secondary);">该轮次无数据</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
+        GPU-Insight v1.0 · 显卡用户痛点智能分析系统
+    </footer>
+</body>
+</html>

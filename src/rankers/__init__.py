@@ -7,10 +7,7 @@ from src.utils.config import get_pphi_weights
 
 
 def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
-    """计算 PPHI 指数并生成排名（支持 PainInsight 结构）"""
-    if not insights:
-        return []
-
+    """计算 PPHI 指数并生成排名（累积历史 + 当轮新增）"""
     weights = get_pphi_weights(config)
     decay_rate = config.get("pphi", {}).get("decay_rate_per_day", 0.05)
     source_scores = {
@@ -18,8 +15,13 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
         "nga": 0.8, "guru3d": 0.8, "rog": 0.7, "tieba": 0.6, "twitter": 0.5,
     }
 
+    # 加载历史痛点 + 当轮新增，合并后统一排名
+    all_insights = _load_historical_insights() + (insights or [])
+    if not all_insights:
+        return []
+
     # 聚合同类痛点
-    aggregated = _aggregate(insights)
+    aggregated = _aggregate(all_insights)
 
     # 计算 PPHI
     rankings = []
@@ -60,6 +62,63 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
 
     _save_rankings(rankings, config)
     return rankings
+
+
+def _load_historical_insights() -> list[dict]:
+    """从 DB 加载历史痛点，转换为 insights 格式供聚合"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        rows = conn.execute(
+            """SELECT pain_point, category, mentions, sources, gpu_tags,
+                      source_urls, evidence, hidden_need, confidence, pphi_score
+               FROM pain_points
+               ORDER BY run_date DESC"""
+        ).fetchall()
+        conn.close()
+
+        insights = []
+        for r in rows:
+            sources_list = json.loads(r["sources"]) if r["sources"] else []
+            gpu_tags = json.loads(r["gpu_tags"]) if r["gpu_tags"] else {}
+            source_urls = json.loads(r["source_urls"]) if r["source_urls"] else []
+
+            # 构造 source_post_ids（从 source_urls 推断来源）
+            source_post_ids = []
+            for url in source_urls:
+                if "reddit" in url:
+                    source_post_ids.append(f"reddit_{url.split('/')[-1]}")
+                elif "nga" in url:
+                    source_post_ids.append(f"nga_{url.split('tid=')[-1]}")
+                elif "videocardz" in url:
+                    source_post_ids.append(f"videocardz_{url.split('/')[-1]}")
+                else:
+                    source_post_ids.append(f"unknown_{url[-20:]}")
+
+            hidden_need_obj = None
+            if r["hidden_need"]:
+                hidden_need_obj = {
+                    "hidden_need": r["hidden_need"],
+                    "confidence": r["confidence"] or 0.5,
+                }
+
+            insights.append({
+                "pain_point": r["pain_point"],
+                "category": r["category"] or "",
+                "affected_users": "",
+                "evidence": r["evidence"] or "",
+                "source_post_ids": source_post_ids,
+                "source_urls": source_urls,
+                "gpu_tags": gpu_tags,
+                "inferred_need": hidden_need_obj,
+                "total_replies": 0,
+                "total_likes": 0,
+                "earliest_timestamp": "",
+            })
+        return insights
+    except Exception as e:
+        print(f"  [!] 加载历史痛点失败: {e}")
+        return []
 
 
 def _aggregate(insights: list[dict]) -> dict:

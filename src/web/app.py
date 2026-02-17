@@ -190,3 +190,72 @@ async def api_rankings():
 async def health():
     """健康检查"""
     return {"status": "ok", "service": "GPU-Insight"}
+
+
+@app.get("/history")
+async def history(request: Request):
+    """历史轮次浏览"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        # 获取所有运行轮次
+        runs = conn.execute(
+            """SELECT run_date, COUNT(*) as pain_count,
+                      ROUND(MAX(pphi_score), 1) as top_pphi,
+                      GROUP_CONCAT(DISTINCT pain_point) as pain_list
+               FROM pphi_history
+               GROUP BY run_date
+               ORDER BY run_date DESC"""
+        ).fetchall()
+        conn.close()
+        run_list = []
+        for r in runs:
+            run_list.append({
+                "run_date": r["run_date"],
+                "pain_count": r["pain_count"],
+                "top_pphi": r["top_pphi"],
+                "pain_list": (r["pain_list"] or "")[:100],
+            })
+    except Exception:
+        run_list = []
+
+    return templates.TemplateResponse("history.html", {
+        "request": request,
+        "runs": run_list,
+    })
+
+
+@app.get("/history/{run_date}")
+async def history_detail(request: Request, run_date: str):
+    """某一轮的详细排名"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        rows = conn.execute(
+            """SELECT rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need
+               FROM pphi_history
+               WHERE run_date = ?
+               ORDER BY rank ASC""",
+            (run_date,)
+        ).fetchall()
+        conn.close()
+        rankings = []
+        for r in rows:
+            rankings.append({
+                "rank": r["rank"],
+                "pain_point": r["pain_point"],
+                "pphi_score": r["pphi_score"],
+                "mentions": r["mentions"],
+                "gpu_tags": json.loads(r["gpu_tags"]) if r["gpu_tags"] else {},
+                "source_urls": json.loads(r["source_urls"]) if r["source_urls"] else [],
+                "hidden_need": r["hidden_need"] or "",
+                "trend": "stable",
+            })
+    except Exception:
+        rankings = []
+
+    return templates.TemplateResponse("history_detail.html", {
+        "request": request,
+        "run_date": run_date,
+        "rankings": rankings,
+    })
