@@ -126,14 +126,17 @@ _本轮无否决_
 - 验证结果：91 帖 → 30 有信号 → 9 明确痛点 → 7 个独立痛点，成本 ~$0.003
 
 ## 数据质量评估
-- 抓取成功率：Reddit 部分成功（r/amd SSL 偶发失败），NGA 100%，Chiphell 0%，Tieba 0%
-- 数据重复率：0%（去重机制有效，已修复 cleaner 双重去重 bug）
+- 抓取成功率：Reddit 90%+（SSL 容错），NGA 100%，Bilibili 100%，V2EX 100%，MyDrivers 100%，TechPowerUp 100%，Chiphell 0%，Tieba 白天可用
+- 数据重复率：0%（去重机制有效）
 - GPU 标签识别率：测试 17/17 用例通过
+- 评论区覆盖：Reddit Top5 评论 + NGA Top5 回复
+- 每轮数据量：~259 帖（7 个活跃源）
 
 ## 成本追踪
-- 本轮消耗：$0.1824
-- 月度累计：$2.79
+- 每轮消耗：~$0.19（含评论区，+6%）
+- 月度预计：~$34（180 轮/月）
 - 预算剩余：$77.21 / $80
+- 监控阈值：>$0.25/轮减评论数，DB>100MB 归档旧帖
 
 ## 开发进度
 - [x] 项目骨架搭建（40 文件，2065 行）
@@ -162,8 +165,19 @@ _本轮无否决_
 - [x] 成本控制三级降级（80%警告/90%降级/95%暂停）✅ 2026-02-17
 - [x] 共识自动更新（pipeline 步骤 10）✅ 2026-02-17
 - [x] 推理链 + Munger 审查结果 UI 展示 ✅ 2026-02-17
+- [x] 新数据源：Bilibili + V2EX + MyDrivers + TechPowerUp ✅ 2026-02-17
+- [x] GPU 标签跨轮次动态累积（pphi_history 替代 pain_points）✅ 2026-02-17
+- [x] 互动数据全链路透传（pphi_history 新增 total_replies/likes）✅ 2026-02-17
+- [x] Dashboard 增长感展示（本轮变化指示器 + 统计卡片优化）✅ 2026-02-17
+- [x] 痛点详情页 PPHI 趋势图（Chart.js 双 Y 轴）✅ 2026-02-17
+- [x] PPHI freshness 权重调优（15%→20%）✅ 2026-02-17
+- [x] Munger 三级评分制（strong/moderate/weak 替代通过/否决）✅ 2026-02-17
+- [x] 痛点细化 prompt（要求具体描述而非笼统）✅ 2026-02-17
+- [x] 评论区抓取：Reddit Top5 评论 + NGA Top5 回复 ✅ 2026-02-17
+- [x] auto-loop.bat 纯 ASCII 定时循环 ✅ 2026-02-17
+- [x] start-web.bat 一键启动脚本（port 8088）✅ 2026-02-17
+- [x] 历史详情页 Accordion 展开 ✅ 2026-02-17
 - [ ] Chiphell 爬虫修复（需登录 Cookie 或 Playwright）
-- [ ] auto-loop.sh 实际部署测试
 
 ## Next Action
 - [x] 累积排名 + 历史浏览页 ✅ 2026-02-17
@@ -171,10 +185,14 @@ _本轮无否决_
 - [x] 防幻觉 Munger 审查 + 推理链展示 ✅ 2026-02-17
 - [x] 成本控制三级降级 + 共识自动更新 ✅ 2026-02-17
 - [x] 部署 Web 界面本地预览（port 8088）✅ 2026-02-17
-- [ ] 修复 Chiphell 爬虫（Playwright 方案）
-- [ ] auto-loop.bat Windows 定时循环
-- [ ] 互动数据传递优化（Reddit replies/likes）
+- [x] GPU 标签动态累积 + 互动数据透传 ✅ 2026-02-17
+- [x] Munger 三级评分 + 痛点细化 + 评论区抓取 ✅ 2026-02-17
+- [x] auto-loop.bat Windows 定时循环 ✅ 2026-02-17
+- [ ] 运行 pipeline 验证评论区抓取 + Munger 三级评分效果
 - [ ] 大数据量压力测试（>200 帖漏斗表现）
+- [ ] 修复 Chiphell 爬虫（Playwright + Cookie）
+- [ ] 历史页痛点演变视图
+- [ ] PDF/Excel 导出
 
 ## 历史趋势
 | 日期 | 数据量 | 痛点数 | 成本 |
