@@ -3,78 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPU-Insight 趋势分析</title>
+    <title>趋势分析 — GPU-Insight</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans SC', 'Roboto', sans-serif; background: #0f172a; color: #e2e8f0; }
-        .card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; }
+        body { font-family: 'Noto Sans SC', sans-serif; background: #0a0f1e; color: #e2e8f0; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .card {
+            background: rgba(30,41,59,0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 14px;
+            border: 1px solid rgba(71,85,105,0.4);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.15);
+        }
+        .mesh-bg {
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(16,185,129,0.04) 0%, transparent 50%);
+        }
+        .trend-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+        .trend-rising  { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+        .trend-falling { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+        .trend-new     { background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+        .trend-stable  { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: fadeInUp 0.4s ease forwards; opacity: 0; }
     </style>
 </head>
-<body class="min-h-screen">
-    <header class="bg-gradient-to-r from-blue-900 to-indigo-900 py-5 px-6 shadow-lg">
+<body class="min-h-screen mesh-bg">
+    <header class="py-5 px-6 border-b border-slate-800/50">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div>
-                <h1 class="text-xl font-bold text-white">GPU-Insight 趋势分析</h1>
-                <p class="text-blue-300 text-sm"><a href="/" class="hover:underline">← 返回仪表盘</a></p>
+                <a href="/" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition w-fit mb-2">
+                    <span class="material-icons text-base">arrow_back</span> 返回仪表盘
+                </a>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                        <span class="material-icons text-white text-lg">trending_up</span>
+                    </div>
+                    <h1 class="text-xl font-bold text-white tracking-tight">趋势分析</h1>
+                </div>
             </div>
-            <span class="material-icons text-3xl text-blue-300">trending_up</span>
+            <div class="flex gap-3">
+                <a href="/" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
+                    <span class="material-icons text-base">dashboard</span> 仪表盘
+                </a>
+                <a href="/api/rankings" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
+                    <span class="material-icons text-base">code</span> API
+                </a>
+            </div>
         </div>
     </header>
 
     <main class="max-w-6xl mx-auto py-6 px-4">
-        <!-- 时间筛选 -->
-        <div class="card p-4 mb-6 flex gap-3">
-            <button class="px-4 py-1 bg-blue-700 text-white rounded-full text-sm">全部</button>
-        </div>
-
         <!-- PPHI 趋势图 -->
-        <div class="card p-6 mb-6">
-            <h2 class="text-lg font-bold mb-4 text-white">Top 5 痛点 PPHI 趋势</h2>
-            <canvas id="trendChart" height="100"></canvas>
+        <div class="card p-6 mb-6 animate-in" style="animation-delay: 0.05s">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="font-bold text-white flex items-center gap-2">
+                    <span class="material-icons text-purple-400 text-lg">show_chart</span>
+                    Top 5 痛点 PPHI 趋势
+                </h2>
+                <span class="text-xs text-slate-500 mono">最近 10 轮</span>
+            </div>
+            <div style="position: relative; height: 280px;">
+                <canvas id="trendChart"></canvas>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <!-- 论坛活跃度 -->
-            <div class="card p-6">
-                <h2 class="text-lg font-bold mb-4 text-white">各论坛讨论量分布</h2>
-                <canvas id="sourceChart" height="150"></canvas>
+            <!-- 论坛分布 -->
+            <div class="card p-6 animate-in" style="animation-delay: 0.1s">
+                <h2 class="font-bold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons text-emerald-400 text-lg">pie_chart</span>
+                    数据源分布
+                </h2>
+                <div style="position: relative; height: 240px;">
+                    <canvas id="sourceChart"></canvas>
+                </div>
             </div>
 
-            <!-- 趋势变化 -->
-            <div class="card p-6">
-                <h2 class="text-lg font-bold mb-4 text-white">趋势变化</h2>
-                <div class="space-y-2">
+            <!-- 趋势变化列表 -->
+            <div class="card p-6 animate-in" style="animation-delay: 0.15s">
+                <h2 class="font-bold text-white mb-4 flex items-center gap-2">
+                    <span class="material-icons text-blue-400 text-lg">swap_vert</span>
+                    排名变动
+                </h2>
+                <div class="space-y-2 max-h-[280px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: #334155 transparent;">
                     {% for r in rankings %}
-                    <div class="flex justify-between items-center p-2 rounded
-                        {% if r.get('trend') == 'rising' %}bg-green-900/30 border border-green-700/30
-                        {% elif r.get('trend') == 'falling' %}bg-red-900/30 border border-red-700/30
-                        {% elif r.get('trend') == 'new' %}bg-blue-900/30 border border-blue-700/30
-                        {% else %}bg-slate-800/50{% endif %}">
-                        <span class="text-sm text-gray-200">
-                            {% if r.get('trend') == 'rising' %}↑
-                            {% elif r.get('trend') == 'falling' %}↓
-                            {% elif r.get('trend') == 'new' %}★
-                            {% else %}→{% endif %}
-                            {{ r.pain_point }}
-                        </span>
-                        <span class="text-sm font-bold text-blue-400">{{ r.pphi_score }}</span>
-                    </div>
+                    <a href="/pain-point/{{ r.rank }}"
+                       class="flex justify-between items-center p-3 rounded-xl hover:bg-slate-700/30 transition-all duration-200 group">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="text-xs font-bold mono text-slate-500 w-5 text-right">#{{ r.rank }}</span>
+                            <span class="trend-pill
+                                {% if r.get('trend') == 'rising' %}trend-rising
+                                {% elif r.get('trend') == 'falling' %}trend-falling
+                                {% elif r.get('trend') == 'new' %}trend-new
+                                {% else %}trend-stable{% endif %}">
+                                {% if r.get('trend') == 'rising' %}↑
+                                {% elif r.get('trend') == 'falling' %}↓
+                                {% elif r.get('trend') == 'new' %}★
+                                {% else %}→{% endif %}
+                            </span>
+                            <span class="text-sm text-slate-200 truncate group-hover:text-white transition">{{ r.pain_point }}</span>
+                        </div>
+                        <span class="text-sm font-bold mono text-blue-400 shrink-0 ml-3">{{ r.pphi_score }}</span>
+                    </a>
                     {% endfor %}
                     {% if not rankings %}
-                    <p class="text-gray-500 text-sm">等待数据采集...</p>
+                    <div class="text-center py-8">
+                        <span class="material-icons text-3xl text-slate-600 mb-2">hourglass_empty</span>
+                        <p class="text-slate-500 text-sm">等待数据采集...</p>
+                    </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 分析摘要 -->
+        <div class="card p-6 animate-in" style="animation-delay: 0.2s">
+            <h2 class="font-bold text-white mb-4 flex items-center gap-2">
+                <span class="material-icons text-amber-400 text-lg">analytics</span>
+                趋势摘要
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {% set ns = namespace(rising=0, falling=0, new=0, stable=0) %}
+                {% for r in rankings %}
+                    {% if r.get('trend') == 'rising' %}{% set ns.rising = ns.rising + 1 %}
+                    {% elif r.get('trend') == 'falling' %}{% set ns.falling = ns.falling + 1 %}
+                    {% elif r.get('trend') == 'new' %}{% set ns.new = ns.new + 1 %}
+                    {% else %}{% set ns.stable = ns.stable + 1 %}{% endif %}
+                {% endfor %}
+                <div class="text-center p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                    <p class="text-2xl font-bold mono text-emerald-400">{{ ns.rising }}</p>
+                    <p class="text-xs text-slate-400 mt-1">上升 ↑</p>
+                </div>
+                <div class="text-center p-4 rounded-xl bg-red-500/5 border border-red-500/15">
+                    <p class="text-2xl font-bold mono text-red-400">{{ ns.falling }}</p>
+                    <p class="text-xs text-slate-400 mt-1">下降 ↓</p>
+                </div>
+                <div class="text-center p-4 rounded-xl bg-blue-500/5 border border-blue-500/15">
+                    <p class="text-2xl font-bold mono text-blue-400">{{ ns.new }}</p>
+                    <p class="text-xs text-slate-400 mt-1">新增 ★</p>
+                </div>
+                <div class="text-center p-4 rounded-xl bg-slate-500/5 border border-slate-500/15">
+                    <p class="text-2xl font-bold mono text-slate-400">{{ ns.stable }}</p>
+                    <p class="text-xs text-slate-400 mt-1">稳定 →</p>
                 </div>
             </div>
         </div>
     </main>
 
+    <footer class="text-center text-slate-600 text-xs py-6 border-t border-slate-800/30 mt-8">
+        GPU-Insight v1.0 · 显卡用户痛点智能分析系统
+    </footer>
+
     <script>
     const trendData = {{ trend_data_json | safe }};
     const sourceData = {{ source_data_json | safe }};
 
-    // PPHI 趋势图
+    // PPHI 趋势折线图
     const trendCtx = document.getElementById('trendChart').getContext('2d');
     if (trendData.labels.length > 0) {
         new Chart(trendCtx, {
@@ -82,35 +178,98 @@
             data: {
                 labels: trendData.labels,
                 datasets: trendData.datasets.map(ds => ({
-                    ...ds, tension: 0.3, fill: false, spanGaps: true,
-                    pointRadius: 3, borderWidth: 2,
+                    ...ds,
+                    tension: 0.4,
+                    fill: false,
+                    spanGaps: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    borderWidth: 2.5,
+                    pointBackgroundColor: ds.borderColor,
+                    pointBorderColor: '#0a0f1e',
+                    pointBorderWidth: 2,
                 }))
             },
             options: {
                 responsive: true,
-                plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } },
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', padding: 16, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15,23,42,0.9)',
+                        borderColor: 'rgba(71,85,105,0.5)',
+                        borderWidth: 1,
+                        titleColor: '#e2e8f0',
+                        bodyColor: '#94a3b8',
+                        padding: 10,
+                        cornerRadius: 8,
+                    }
+                },
                 scales: {
-                    x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
-                    y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
+                    x: {
+                        ticks: { color: '#475569', font: { size: 10 } },
+                        grid: { color: 'rgba(51,65,85,0.3)', drawBorder: false }
+                    },
+                    y: {
+                        ticks: { color: '#475569', font: { size: 10 } },
+                        grid: { color: 'rgba(51,65,85,0.3)', drawBorder: false }
+                    }
                 }
             }
         });
+    } else {
+        trendCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 text-sm"><span class="material-icons mr-2">hourglass_empty</span>需要至少 2 轮数据</div>';
     }
 
-    // 论坛分布图
+    // 数据源分布环形图
     const sourceCtx = document.getElementById('sourceChart').getContext('2d');
     if (sourceData.labels.length > 0) {
+        const sourceColors = {
+            'reddit': '#FF6B35', 'nga': '#10b981', 'tieba': '#f59e0b',
+            'chiphell': '#3b82f6', 'videocardz': '#8b5cf6'
+        };
+        const bgColors = sourceData.labels.map(l => sourceColors[l] || '#6366f1');
+
         new Chart(sourceCtx, {
             type: 'doughnut',
             data: {
                 labels: sourceData.labels,
-                datasets: [{ data: sourceData.data, backgroundColor: sourceData.backgroundColor }]
+                datasets: [{
+                    data: sourceData.data,
+                    backgroundColor: bgColors,
+                    borderColor: '#0a0f1e',
+                    borderWidth: 3,
+                    hoverBorderColor: '#1e293b',
+                    hoverOffset: 6,
+                }]
             },
             options: {
                 responsive: true,
-                plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } }
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', padding: 14, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15,23,42,0.9)',
+                        borderColor: 'rgba(71,85,105,0.5)',
+                        borderWidth: 1,
+                        titleColor: '#e2e8f0',
+                        bodyColor: '#94a3b8',
+                        padding: 10,
+                        cornerRadius: 8,
+                    }
+                }
             }
         });
+    } else {
+        sourceCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 text-sm"><span class="material-icons mr-2">hourglass_empty</span>等待数据采集</div>';
     }
     </script>
 </body>

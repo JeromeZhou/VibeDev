@@ -82,6 +82,10 @@ sources:
     enabled: false  # Phase 2
     weight: 0.8
     interval_hours: 6
+  videocardz:
+    enabled: true
+    weight: 0.85
+    interval_hours: 4
 
 # PPHI 算法权重
 pphi:

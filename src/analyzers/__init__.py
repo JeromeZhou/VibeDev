@@ -40,9 +40,10 @@ def _merge_similar_points(points: list[dict], llm: LLMClient) -> list[dict]:
 
     # 构建痛点列表让 LLM 分组
     listing = "\n".join(f"[{i}] {p['pain_point']} ({p.get('category', '')})" for i, p in enumerate(points))
-    prompt = f"""以下是 {len(points)} 个显卡痛点，请找出含义相似或重复的痛点并分组。
+    prompt = f"""以下是 {len(points)} 个显卡痛点，请找出含义高度相似或明显重复的痛点并分组。
+注意：只合并真正重复的（如"散热问题"和"显卡过热"），不要把不同类别的痛点合并（如"散热"和"噪音"是不同痛点）。
 每组输出一个 JSON：{{"group": [序号], "merged_name": "合并后的痛点名"}}
-不相似的痛点单独一组。只输出 JSON 数组。
+不相似的痛点单独一组（group只有一个元素）。只输出 JSON 数组。
 
 {listing}"""
 
@@ -77,6 +78,17 @@ def _merge_similar_points(points: list[dict], llm: LLMClient) -> list[dict]:
             valid = [i for i in indices if isinstance(i, int) and 0 <= i < len(points) and i not in used]
             if not valid:
                 continue
+
+            # 安全检查：不合并不同类别的痛点
+            if len(valid) > 1:
+                categories = set(points[i].get("category", "") for i in valid)
+                if len(categories) > 1:
+                    # 类别不同，不合并，各自独立
+                    for i in valid:
+                        used.add(i)
+                        merged.append(points[i])
+                    continue
+
             used.update(valid)
 
             # 以第一个为基础，合并其余

@@ -14,8 +14,8 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
     weights = get_pphi_weights(config)
     decay_rate = config.get("pphi", {}).get("decay_rate_per_day", 0.05)
     source_scores = {
-        "chiphell": 1.0, "reddit": 0.9, "nga": 0.8,
-        "guru3d": 0.8, "rog": 0.7, "tieba": 0.6, "twitter": 0.5,
+        "chiphell": 1.0, "reddit": 0.9, "videocardz": 0.85,
+        "nga": 0.8, "guru3d": 0.8, "rog": 0.7, "tieba": 0.6, "twitter": 0.5,
     }
 
     # 聚合同类痛点

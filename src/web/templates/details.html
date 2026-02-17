@@ -5,48 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>痛点详情 — GPU-Insight</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans SC', 'Roboto', sans-serif; background: #0f172a; color: #e2e8f0; }
-        .card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; }
-        .gpu-tag { background: #312e81; color: #a5b4fc; padding: 2px 10px; border-radius: 4px; font-size: 13px; }
-        .mfr-tag { background: #064e3b; color: #6ee7b7; padding: 2px 10px; border-radius: 4px; font-size: 13px; }
-        .brand-tag { background: #7c2d12; color: #fdba74; padding: 2px 10px; border-radius: 4px; font-size: 13px; }
+        body { font-family: 'Noto Sans SC', sans-serif; background: #0a0f1e; color: #e2e8f0; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .card {
+            background: rgba(30,41,59,0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 14px;
+            border: 1px solid rgba(71,85,105,0.4);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.15);
+        }
+        .gpu-tag { background: rgba(49,46,129,0.6); color: #a5b4fc; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+        .mfr-tag { background: rgba(6,78,59,0.6); color: #6ee7b7; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+        .brand-tag { background: rgba(124,45,18,0.5); color: #fdba74; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+        .mesh-bg {
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%);
+        }
+        .need-card {
+            background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1));
+            border: 1px solid rgba(139,92,246,0.25);
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: fadeInUp 0.4s ease forwards; opacity: 0; }
     </style>
 </head>
-<body class="min-h-screen">
-    <header class="bg-gradient-to-r from-blue-900 to-indigo-900 py-5 px-6 shadow-lg">
+<body class="min-h-screen mesh-bg">
+    <header class="py-5 px-6 border-b border-slate-800/50">
         <div class="max-w-4xl mx-auto">
-            <a href="/" class="text-blue-300 hover:text-white text-sm">< 返回仪表盘</a>
-            <h1 class="text-xl font-bold text-white mt-1">痛点详情</h1>
+            <a href="/" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition w-fit">
+                <span class="material-icons text-base">arrow_back</span> 返回仪表盘
+            </a>
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto py-6 px-4">
         {% if pain_point %}
         <!-- 痛点概览 -->
-        <div class="card p-6 mb-4">
+        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.05s">
             <div class="flex items-start justify-between">
-                <div>
-                    <span class="text-3xl font-bold text-blue-400">#{{ pain_point.get('rank', '?') }}</span>
-                    <h2 class="text-xl font-bold text-white mt-2">{{ pain_point.pain_point }}</h2>
+                <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-3xl font-bold mono
+                            {% if pain_point.get('rank') == 1 %}text-amber-400
+                            {% elif pain_point.get('rank') == 2 %}text-slate-300
+                            {% elif pain_point.get('rank') == 3 %}text-amber-600
+                            {% else %}text-blue-400{% endif %}">#{{ pain_point.get('rank', '?') }}</span>
+                        <h2 class="text-xl font-bold text-white">{{ pain_point.pain_point }}</h2>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                            <span class="material-icons text-xs">category</span> {{ pain_point.get('category', '-') }}
+                        </span>
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                            <span class="material-icons text-xs">people</span> {{ pain_point.get('affected_users', '-') }}
+                        </span>
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                            <span class="material-icons text-xs">forum</span> {{ pain_point.get('mentions', 0) }} 讨论
+                        </span>
+                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg">
+                            {{ pain_point.get('sources', []) | join(', ') }}
+                        </span>
+                    </div>
                 </div>
-                <div class="text-right">
-                    <p class="text-3xl font-bold text-blue-400">{{ pain_point.pphi_score }}</p>
-                    <p class="text-sm text-gray-400">PPHI 指数</p>
+                <div class="text-center ml-6">
+                    <div class="w-20 h-20 rounded-full border-3 border-blue-500/30 flex items-center justify-center"
+                         style="background: radial-gradient(circle, rgba(59,130,246,0.1), transparent);">
+                        <p class="text-2xl font-bold mono text-blue-400">{{ pain_point.pphi_score }}</p>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1 mono">PPHI</p>
                 </div>
-            </div>
-
-            <div class="mt-4 flex flex-wrap gap-2">
-                <span class="text-sm bg-slate-700 text-gray-300 px-3 py-1 rounded">{{ pain_point.get('category', '-') }}</span>
-                <span class="text-sm bg-slate-700 text-gray-300 px-3 py-1 rounded">影响: {{ pain_point.get('affected_users', '-') }}</span>
-                <span class="text-sm bg-slate-700 text-gray-300 px-3 py-1 rounded">{{ pain_point.get('mentions', 0) }} 条讨论</span>
-                <span class="text-sm bg-slate-700 text-gray-300 px-3 py-1 rounded">{{ pain_point.get('sources', []) | join(', ') }}</span>
             </div>
 
             {% if pain_point.get('evidence') %}
-            <div class="mt-4 p-3 bg-slate-800 rounded-lg border-l-4 border-blue-500">
-                <p class="text-sm text-gray-400 mb-1">证据</p>
-                <p class="text-gray-200">{{ pain_point.evidence }}</p>
+            <div class="mt-5 p-4 bg-slate-800/40 rounded-xl border-l-3 border-blue-500/60">
+                <p class="text-xs text-slate-500 mb-1 flex items-center gap-1">
+                    <span class="material-icons text-xs">format_quote</span> 证据
+                </p>
+                <p class="text-slate-200 text-sm leading-relaxed">{{ pain_point.evidence }}</p>
             </div>
             {% endif %}
         </div>
@@ -54,12 +96,14 @@
         <!-- GPU 产品标签 -->
         {% set gpu = pain_point.get('gpu_tags', {}) %}
         {% if gpu.get('brands') or gpu.get('models') or gpu.get('manufacturers') %}
-        <div class="card p-6 mb-4">
-            <h3 class="font-bold text-white mb-3">GPU 产品关联</h3>
-            <div class="space-y-3">
+        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.1s">
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                <span class="material-icons text-emerald-400 text-lg">memory</span> GPU 产品关联
+            </h3>
+            <div class="space-y-4">
                 {% if gpu.get('brands') %}
                 <div>
-                    <p class="text-sm text-gray-400 mb-1">芯片品牌</p>
+                    <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider">芯片品牌</p>
                     <div class="flex flex-wrap gap-2">
                         {% for b in gpu.brands %}<span class="brand-tag">{{ b }}</span>{% endfor %}
                     </div>
@@ -67,7 +111,7 @@
                 {% endif %}
                 {% if gpu.get('models') %}
                 <div>
-                    <p class="text-sm text-gray-400 mb-1">具体型号</p>
+                    <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider">具体型号</p>
                     <div class="flex flex-wrap gap-2">
                         {% for m in gpu.models %}<span class="gpu-tag">{{ m }}</span>{% endfor %}
                     </div>
@@ -75,7 +119,7 @@
                 {% endif %}
                 {% if gpu.get('manufacturers') %}
                 <div>
-                    <p class="text-sm text-gray-400 mb-1">板卡厂商</p>
+                    <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider">板卡厂商</p>
                     <div class="flex flex-wrap gap-2">
                         {% for mfr in gpu.manufacturers %}<span class="mfr-tag">{{ mfr }}</span>{% endfor %}
                     </div>
@@ -87,21 +131,33 @@
 
         <!-- 推理需求 -->
         {% if pain_point.get('hidden_need') %}
-        <div class="card p-6 mb-4">
-            <h3 class="font-bold text-white mb-3">推理需求</h3>
-            <p class="text-indigo-300 text-lg">{{ pain_point.hidden_need }}</p>
-            <p class="text-sm text-gray-400 mt-2">置信度: {{ (pain_point.get('confidence', 0) * 100) | int }}%</p>
+        <div class="card need-card p-6 mb-5 animate-in" style="animation-delay: 0.15s">
+            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+                <span class="material-icons text-indigo-400 text-lg">psychology</span> AI 推理需求
+            </h3>
+            <p class="text-indigo-200 text-lg leading-relaxed">{{ pain_point.hidden_need }}</p>
+            <div class="mt-3 flex items-center gap-4">
+                <span class="text-xs text-slate-400 mono">置信度: {{ (pain_point.get('confidence', 0) * 100) | int }}%</span>
+                <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full">
+                    <div class="h-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                         style="width: {{ (pain_point.get('confidence', 0) * 100) | int }}%"></div>
+                </div>
+            </div>
         </div>
         {% endif %}
 
         <!-- 原帖链接 -->
         {% if pain_point.get('source_urls') %}
-        <div class="card p-6 mb-4">
-            <h3 class="font-bold text-white mb-3">原帖追溯</h3>
+        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.2s">
+            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+                <span class="material-icons text-blue-400 text-lg">link</span> 原帖追溯
+            </h3>
             <div class="space-y-2">
                 {% for url in pain_point.source_urls %}
-                <a href="{{ url }}" target="_blank" rel="noopener" class="block text-sm text-blue-400 hover:text-blue-300 truncate">
-                    {{ url }}
+                <a href="{{ url }}" target="_blank" rel="noopener"
+                   class="flex items-center gap-2 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-700/40 transition group">
+                    <span class="material-icons text-slate-500 text-sm group-hover:text-blue-400 transition">open_in_new</span>
+                    <span class="text-sm text-blue-400 group-hover:text-blue-300 truncate transition">{{ url }}</span>
                 </a>
                 {% endfor %}
             </div>
@@ -109,9 +165,10 @@
         {% endif %}
 
         {% else %}
-        <div class="card p-8 text-center">
-            <p class="text-gray-500">未找到该痛点</p>
-            <a href="/" class="text-blue-400 hover:text-blue-300 mt-2 inline-block">返回仪表盘</a>
+        <div class="card p-12 text-center">
+            <span class="material-icons text-4xl text-slate-600 mb-3">search_off</span>
+            <p class="text-slate-500 mb-3">未找到该痛点</p>
+            <a href="/" class="text-blue-400 hover:text-blue-300 transition">返回仪表盘</a>
         </div>
         {% endif %}
     </main>
