@@ -1,11 +1,13 @@
 """GPU-Insight Web 界面 — FastAPI 后端 — UI Designer + Fullstack 协作"""
 
 import json
+import csv
+import io
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 app = FastAPI(title="GPU-Insight", description="显卡用户痛点智能分析系统")
 
@@ -206,6 +208,7 @@ async def trends(request: Request):
         "rankings": data.get("rankings", []),
         "trend_data_json": json.dumps(_get_trend_data(), ensure_ascii=False),
         "source_data_json": json.dumps(_get_source_distribution(), ensure_ascii=False),
+        "evolution_data_json": json.dumps(_get_evolution_data(), ensure_ascii=False),
     })
 
 
@@ -281,6 +284,37 @@ async def health():
     return {"status": "ok", "service": "GPU-Insight"}
 
 
+@app.get("/report")
+async def report(request: Request):
+    """打印友好的分析报告页（浏览器 Ctrl+P 导出 PDF）"""
+    data = _load_rankings()
+    stats = _get_cumulative_stats()
+
+    # 数据源分布（带颜色）
+    source_colors = {
+        'reddit': '#e5534b', 'nga': '#5ec49e', 'tieba': '#d4a04a',
+        'chiphell': '#5b8def', 'bilibili': '#fb7299', 'bili': '#fb7299',
+        'v2ex': '#778087', 'mydrivers': '#1e88e5', 'techpowerup': '#ff6f00',
+    }
+    source_raw = _get_source_distribution()
+    source_dist = []
+    for name, count in zip(source_raw.get("labels", []), source_raw.get("data", [])):
+        source_dist.append({
+            "name": name,
+            "count": count,
+            "color": source_colors.get(name, "#5b8def"),
+        })
+
+    return templates.TemplateResponse("report.html", {
+        "request": request,
+        "timestamp": data.get("timestamp", ""),
+        "total_pain_points": data.get("total_pain_points", 0),
+        "rankings": data.get("rankings", []),
+        "stats": stats,
+        "source_dist": source_dist,
+    })
+
+
 @app.get("/history")
 async def history(request: Request):
     """历史轮次浏览"""
@@ -351,3 +385,96 @@ async def history_detail(request: Request, run_date: str = ""):
         "run_date": run_date,
         "rankings": rankings,
     })
+
+
+@app.get("/api/export/csv")
+async def export_csv():
+    """导出当前排名为 CSV"""
+    data = _load_rankings()
+    rankings = data.get("rankings", [])
+
+    output = io.StringIO()
+    output.write('\ufeff')  # BOM for Excel UTF-8
+    writer = csv.writer(output)
+    writer.writerow([
+        "排名", "痛点", "PPHI", "讨论数", "类别", "影响范围",
+        "GPU型号", "数据源", "隐藏需求", "Munger评级", "置信度", "证据"
+    ])
+    for r in rankings:
+        gpu_models = ", ".join(r.get("gpu_tags", {}).get("models", []))
+        sources = ", ".join(r.get("sources", []))
+        inferred = r.get("inferred_need") or {}
+        munger = inferred.get("munger_review", {}) or {}
+        writer.writerow([
+            r.get("rank", ""),
+            r.get("pain_point", ""),
+            r.get("pphi_score", ""),
+            r.get("mentions", ""),
+            r.get("category", ""),
+            r.get("affected_users", ""),
+            gpu_models,
+            sources,
+            r.get("hidden_need", ""),
+            munger.get("quality_level", ""),
+            inferred.get("confidence", ""),
+            r.get("evidence", ""),
+        ])
+
+    output.seek(0)
+    ts = (data.get("timestamp") or "export")[:10]
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=gpu-insight-{ts}.csv"}
+    )
+
+
+def _get_evolution_data() -> dict:
+    """获取痛点排名演变数据（Bump Chart 用）"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        rows = conn.execute(
+            """SELECT run_date, pain_point, rank, pphi_score
+               FROM pphi_history
+               ORDER BY run_date ASC, rank ASC"""
+        ).fetchall()
+        conn.close()
+
+        if not rows:
+            return {"dates": [], "series": []}
+
+        dates = sorted(set(r["run_date"] for r in rows))
+        dates = dates[-10:]  # 最近 10 轮
+
+        # 找出在这些轮次中出现最多的 Top 8 痛点
+        from collections import Counter
+        pp_counter = Counter(
+            r["pain_point"] for r in rows if r["run_date"] in dates
+        )
+        top_pps = [pp for pp, _ in pp_counter.most_common(8)]
+
+        colors = [
+            "#5b8def", "#9d8abf", "#5ec49e", "#d4a04a",
+            "#e5534b", "#fb7299", "#778087", "#1e88e5"
+        ]
+
+        series = []
+        for i, pp in enumerate(top_pps):
+            ranks = []
+            for d in dates:
+                rank = next(
+                    (r["rank"] for r in rows if r["run_date"] == d and r["pain_point"] == pp),
+                    None
+                )
+                ranks.append(rank)
+            series.append({
+                "name": pp[:20],
+                "data": ranks,
+                "color": colors[i % len(colors)],
+            })
+
+        labels = [d[5:] for d in dates]  # MM-DD HH:MM
+        return {"dates": labels, "series": series}
+    except Exception:
+        return {"dates": [], "series": []}

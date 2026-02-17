@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU-Insight 痛点分析报告</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* === 屏幕样式 === */
+        :root {
+            --bg-base:     #0b0d14;
+            --bg-surface:  #111318;
+            --bg-elevated: #161922;
+            --border-subtle:  rgba(255,255,255,0.06);
+            --border-default: rgba(255,255,255,0.09);
+            --text-primary:   #ececf1;
+            --text-secondary: #8b8fa3;
+            --text-tertiary:  #565869;
+            --accent-blue:    #5b8def;
+            --accent-purple:  #9d8abf;
+            --accent-green:   #5ec49e;
+            --accent-red:     #e5534b;
+            --accent-amber:   #d4a04a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* 工具栏（仅屏幕显示） */
+        .toolbar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 12px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .toolbar-title {
+            font-size: 14px; font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .toolbar-actions { display: flex; gap: 8px; }
+        .btn {
+            padding: 8px 16px; border-radius: 8px; font-size: 13px;
+            font-weight: 500; cursor: pointer; border: none;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: all 0.15s ease;
+        }
+        .btn-primary {
+            background: var(--accent-blue); color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-ghost {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid var(--border-default);
+        }
+        .btn-ghost:hover { color: var(--text-primary); border-color: var(--border-subtle); }
+
+        /* 报告容器 */
+        .report {
+            max-width: 800px; margin: 72px auto 40px;
+            padding: 0 24px;
+        }
+
+        /* 封面区 */
+        .cover {
+            text-align: center; padding: 60px 0 48px;
+            border-bottom: 1px solid var(--border-subtle);
+            margin-bottom: 40px;
+        }
+        .cover-logo {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: var(--accent-blue);
+            display: inline-flex; align-items: center; justify-content: center;
+            margin-bottom: 20px; font-size: 24px; color: white;
+        }
+        .cover h1 {
+            font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+        .cover .subtitle {
+            font-size: 15px; color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+        .cover-meta {
+            display: flex; justify-content: center; gap: 24px;
+            font-size: 12px; color: var(--text-tertiary);
+        }
+        .cover-meta span { display: flex; align-items: center; gap: 4px; }
+
+        /* 章节 */
+        .section { margin-bottom: 40px; }
+        .section-title {
+            font-size: 16px; font-weight: 600; color: var(--text-primary);
+            margin-bottom: 16px; padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-title .icon {
+            width: 24px; height: 24px; border-radius: 6px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 14px;
+        }
+
+        /* 概览统计 */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            margin-bottom: 32px;
+        }
+        .stat-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px; padding: 16px; text-align: center;
+        }
+        .stat-value {
+            font-size: 24px; font-weight: 700;
+            color: var(--text-primary);
+        }
+        .stat-label {
+            font-size: 11px; color: var(--text-tertiary);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        /* 排名表格 */
+        .rank-table { width: 100%; border-collapse: collapse; }
+        .rank-table th {
+            text-align: left; font-size: 11px; font-weight: 600;
+            color: var(--text-tertiary); text-transform: uppercase;
+            letter-spacing: 0.5px; padding: 8px 12px;
+            border-bottom: 1px solid var(--border-default);
+        }
+        .rank-table td {
+            padding: 12px; font-size: 13px;
+            border-bottom: 1px solid var(--border-subtle);
+            vertical-align: top;
+        }
+        .rank-table tr:last-child td { border-bottom: none; }
+        .rank-num {
+            font-weight: 700; width: 36px; text-align: center;
+        }
+        .rank-1 { color: var(--accent-amber); }
+        .rank-2 { color: var(--accent-silver, #9ba3b0); }
+        .rank-3 { color: var(--accent-bronze, #b08952); }
+        .rank-default { color: var(--text-tertiary); }
+        .pain-name { font-weight: 500; color: var(--text-primary); }
+        .pain-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+        .pphi-val { font-weight: 600; color: var(--accent-blue); }
+        .gpu-tag-sm {
+            display: inline-block; font-size: 10px; padding: 1px 6px;
+            border-radius: 3px; margin: 1px 2px;
+            background: rgba(139,92,246,0.10); color: #a78bcc;
+            border: 1px solid rgba(139,92,246,0.15);
+        }
+
+        /* 隐藏需求卡片 */
+        .need-card {
+            background: var(--bg-surface);
+            border: 1px solid rgba(139,92,246,0.15);
+            border-radius: 8px; padding: 16px; margin-bottom: 12px;
+        }
+        .need-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .need-rank {
+            font-size: 12px; font-weight: 600; color: var(--text-tertiary);
+        }
+        .need-quality {
+            font-size: 11px; font-weight: 600; padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .quality-strong {
+            background: rgba(94,196,158,0.10); color: var(--accent-green);
+            border: 1px solid rgba(94,196,158,0.18);
+        }
+        .quality-moderate {
+            background: rgba(212,160,74,0.10); color: var(--accent-amber);
+            border: 1px solid rgba(212,160,74,0.18);
+        }
+        .quality-weak {
+            background: rgba(229,83,75,0.10); color: var(--accent-red);
+            border: 1px solid rgba(229,83,75,0.18);
+        }
+        .need-pain {
+            font-size: 13px; font-weight: 500; color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+        .need-text {
+            font-size: 14px; color: var(--accent-purple);
+            margin-bottom: 8px;
+        }
+        .need-chain {
+            font-size: 12px; color: var(--text-secondary);
+            padding-left: 16px;
+        }
+        .need-chain li { margin-bottom: 4px; }
+        .need-conf {
+            margin-top: 8px; display: flex; align-items: center; gap: 8px;
+        }
+        .conf-bar {
+            flex: 1; height: 4px; border-radius: 2px;
+            background: var(--bg-elevated);
+        }
+        .conf-fill { height: 100%; border-radius: 2px; }
+        .conf-label { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+
+        /* 数据源分布 */
+        .source-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+        }
+        .source-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 12px; border-radius: 6px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+        }
+        .source-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+        }
+        .source-name { font-size: 12px; font-weight: 500; color: var(--text-secondary); flex: 1; }
+        .source-count { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+        /* 页脚 */
+        .report-footer {
+            text-align: center; padding: 32px 0;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 11px; color: var(--text-tertiary);
+        }
+
+        /* === 打印样式 === */
+        @media print {
+            @page {
+                size: A4; margin: 20mm 18mm;
+            }
+            body {
+                background: white !important;
+                color: #1a1a2e !important;
+                font-size: 11px;
+            }
+            .toolbar { display: none !important; }
+            .report { margin: 0; padding: 0; max-width: none; }
+
+            .cover { padding: 30px 0 24px; border-bottom-color: #e0e0e0; }
+            .cover-logo { background: #2563eb; }
+            .cover h1 { color: #1a1a2e; font-size: 22px; }
+            .cover .subtitle { color: #666; }
+            .cover-meta span { color: #888; }
+
+            .section-title { color: #1a1a2e; border-bottom-color: #e0e0e0; }
+
+            .stat-box {
+                background: #f8f9fa !important;
+                border-color: #e0e0e0 !important;
+            }
+            .stat-value { color: #1a1a2e !important; }
+            .stat-label { color: #888 !important; }
+
+            .rank-table th { color: #888; border-bottom-color: #ccc; }
+            .rank-table td { border-bottom-color: #eee; color: #333; }
+            .pain-name { color: #1a1a2e !important; }
+            .pphi-val { color: #2563eb !important; }
+            .gpu-tag-sm {
+                background: #f0ecf9 !important; color: #6b4fa0 !important;
+                border-color: #d8d0e8 !important;
+            }
+
+            .need-card {
+                background: #faf8ff !important;
+                border-color: #d8d0e8 !important;
+                break-inside: avoid;
+            }
+            .need-pain { color: #1a1a2e !important; }
+            .need-text { color: #6b4fa0 !important; }
+            .need-chain { color: #555 !important; }
+            .quality-strong { background: #e8f5e9 !important; color: #2e7d32 !important; border-color: #c8e6c9 !important; }
+            .quality-moderate { background: #fff8e1 !important; color: #f57f17 !important; border-color: #ffecb3 !important; }
+            .quality-weak { background: #ffebee !important; color: #c62828 !important; border-color: #ffcdd2 !important; }
+
+            .source-item {
+                background: #f8f9fa !important;
+                border-color: #e0e0e0 !important;
+            }
+            .source-name { color: #555 !important; }
+            .source-count { color: #1a1a2e !important; }
+
+            .conf-bar { background: #eee !important; }
+
+            .report-footer { color: #aaa; border-top-color: #e0e0e0; }
+
+            /* 避免分页断裂 */
+            .section { break-inside: avoid; }
+            .need-card { break-inside: avoid; }
+            .stats-grid { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 工具栏（仅屏幕） -->
+    <div class="toolbar">
+        <span class="toolbar-title">GPU-Insight · 报告预览</span>
+        <div class="toolbar-actions">
+            <a href="/" class="btn btn-ghost">← 返回仪表盘</a>
+            <a href="/api/export/csv" class="btn btn-ghost">📊 CSV</a>
+            <button onclick="window.print()" class="btn btn-primary">🖨️ 导出 PDF</button>
+        </div>
+    </div>
+
+    <div class="report">
+        <!-- 封面 -->
+        <div class="cover">
+            <div class="cover-logo">📊</div>
+            <h1>显卡用户痛点分析报告</h1>
+            <p class="subtitle">GPU-Insight · Pain Point Heat Index Analysis</p>
+            <div class="cover-meta">
+                <span>📅 {{ timestamp[:10] if timestamp else '—' }}</span>
+                <span>📋 {{ total_pain_points }} 个痛点</span>
+                <span>💬 {{ stats.total_posts }} 条讨论</span>
+                <span>🌐 {{ stats.total_sources }} 个数据源</span>
+            </div>
+        </div>
+
+        <!-- 1. 概览统计 -->
+        <div class="section">
+            <div class="section-title">
+                <span class="icon" style="background: rgba(91,141,239,0.12); color: var(--accent-blue);">📈</span>
+                概览
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value mono">{{ total_pain_points }}</div>
+                    <div class="stat-label">当前痛点</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value mono">{{ stats.total_posts }}</div>
+                    <div class="stat-label">累计帖子</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value mono">{{ stats.total_runs }}</div>
+                    <div class="stat-label">分析轮次</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value mono">{{ stats.total_sources }}</div>
+                    <div class="stat-label">数据源</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 数据源分布 -->
+        <div class="section">
+            <div class="section-title">
+                <span class="icon" style="background: rgba(94,196,158,0.12); color: var(--accent-green);">🌐</span>
+                数据源分布
+            </div>
+            <div class="source-grid">
+                {% for src in source_dist %}
+                <div class="source-item">
+                    <span class="source-dot" style="background: {{ src.color }};"></span>
+                    <span class="source-name">{{ src.name }}</span>
+                    <span class="source-count mono">{{ src.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 3. 痛点排名 Top 10 -->
+        <div class="section">
+            <div class="section-title">
+                <span class="icon" style="background: rgba(212,160,74,0.12); color: var(--accent-amber);">🏆</span>
+                痛点排名 Top {{ rankings[:10] | length }}
+            </div>
+            <table class="rank-table">
+                <thead>
+                    <tr>
+                        <th style="width: 36px;">#</th>
+                        <th>痛点</th>
+                        <th style="width: 60px;">PPHI</th>
+                        <th style="width: 50px;">讨论</th>
+                        <th>GPU 型号</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rankings[:10] %}
+                    <tr>
+                        <td class="rank-num mono {% if r.rank == 1 %}rank-1{% elif r.rank == 2 %}rank-2{% elif r.rank == 3 %}rank-3{% else %}rank-default{% endif %}">
+                            {{ r.rank }}
+                        </td>
+                        <td>
+                            <div class="pain-name">{{ r.pain_point }}</div>
+                            <div class="pain-meta">{{ r.get('category', '') }} · {{ r.get('affected_users', '') }}</div>
+                        </td>
+                        <td class="pphi-val mono">{{ r.pphi_score }}</td>
+                        <td class="mono" style="color: var(--text-secondary);">{{ r.get('mentions', 0) }}</td>
+                        <td>
+                            {% for m in r.get('gpu_tags', {}).get('models', [])[:5] %}
+                            <span class="gpu-tag-sm">{{ m }}</span>
+                            {% endfor %}
+                            {% if r.get('gpu_tags', {}).get('models', []) | length > 5 %}
+                            <span class="gpu-tag-sm" style="opacity: 0.6;">+{{ r.get('gpu_tags', {}).get('models', []) | length - 5 }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 4. AI 隐藏需求推导 -->
+        <div class="section">
+            <div class="section-title">
+                <span class="icon" style="background: rgba(157,138,191,0.12); color: var(--accent-purple);">🧠</span>
+                AI 隐藏需求推导
+            </div>
+            {% for r in rankings[:10] %}
+            {% set inferred = r.get('inferred_need') %}
+            {% if inferred and inferred.get('hidden_need') %}
+            <div class="need-card">
+                <div class="need-header">
+                    <span class="need-rank">#{{ r.rank }} · {{ r.pain_point[:30] }}</span>
+                    {% set munger = inferred.get('munger_review') %}
+                    {% if munger %}
+                    {% set ql = munger.get('quality_level', 'unknown') %}
+                    <span class="need-quality {% if ql == 'strong' %}quality-strong{% elif ql == 'moderate' %}quality-moderate{% else %}quality-weak{% endif %}">
+                        {% if ql == 'strong' %}✓ Strong{% elif ql == 'moderate' %}◐ Moderate{% else %}✗ Weak{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="need-text">💡 {{ inferred.hidden_need }}</div>
+                {% if inferred.get('reasoning_chain') %}
+                <ol class="need-chain">
+                    {% for step in inferred.reasoning_chain %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                </ol>
+                {% endif %}
+                {% if munger and munger.get('comment') %}
+                <div style="margin-top: 8px; font-size: 11px; color: var(--text-tertiary); font-style: italic;">
+                    Munger: "{{ munger.comment[:120] }}"
+                </div>
+                {% endif %}
+                <div class="need-conf">
+                    <span class="conf-label mono">{{ (inferred.get('confidence', 0) * 100) | int }}%</span>
+                    <div class="conf-bar">
+                        <div class="conf-fill" style="width: {{ (inferred.get('confidence', 0) * 100) | int }}%;
+                            background: {% if inferred.get('confidence', 0) >= 0.8 %}var(--accent-green){% elif inferred.get('confidence', 0) >= 0.6 %}var(--accent-purple){% else %}var(--accent-amber){% endif %};"></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- 5. 完整排名（11-N） -->
+        {% if rankings | length > 10 %}
+        <div class="section">
+            <div class="section-title">
+                <span class="icon" style="background: rgba(86,88,105,0.12); color: var(--text-tertiary);">📋</span>
+                其他痛点 (#11 — #{{ rankings | length }})
+            </div>
+            <table class="rank-table">
+                <thead>
+                    <tr>
+                        <th style="width: 36px;">#</th>
+                        <th>痛点</th>
+                        <th style="width: 60px;">PPHI</th>
+                        <th style="width: 50px;">讨论</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rankings[10:] %}
+                    <tr>
+                        <td class="rank-num mono rank-default">{{ r.rank }}</td>
+                        <td>
+                            <div class="pain-name">{{ r.pain_point }}</div>
+                        </td>
+                        <td class="pphi-val mono">{{ r.pphi_score }}</td>
+                        <td class="mono" style="color: var(--text-secondary);">{{ r.get('mentions', 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- 页脚 -->
+        <div class="report-footer">
+            <p>GPU-Insight v1.0 · 显卡用户痛点智能分析系统</p>
+            <p style="margin-top: 4px;">本报告由 AI 自动生成，数据来源：Reddit / NGA / Bilibili / V2EX / TechPowerUp / MyDrivers</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -93,6 +93,9 @@
                 <a href="/" class="nav-link">
                     <span class="material-icons text-base">dashboard</span> 仪表盘
                 </a>
+                <a href="/report" class="nav-link">
+                    <span class="material-icons text-base">description</span> 报告
+                </a>
                 <a href="/history" class="nav-link">
                     <span class="material-icons text-base">history</span> 历史
                 </a>
@@ -112,6 +115,20 @@
             </div>
             <div style="position: relative; height: 280px;">
                 <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 排名演变 Bump Chart -->
+        <div class="card p-6 mb-6 animate-in" style="animation-delay: 0.07s">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                    <span class="material-icons" style="color: var(--accent-amber);">swap_vert</span>
+                    痛点排名演变
+                </h2>
+                <span class="text-xs mono" style="color: var(--text-tertiary);">Bump Chart · Top 8</span>
+            </div>
+            <div style="position: relative; height: 320px;">
+                <canvas id="bumpChart"></canvas>
             </div>
         </div>
 
@@ -211,6 +228,7 @@
     <script>
     const trendData = {{ trend_data_json | safe }};
     const sourceData = {{ source_data_json | safe }};
+    const evolutionData = {{ evolution_data_json | safe }};
 
     /* Chart.js color palette — synced with design system */
     const chartColors = ['#5b8def', '#9d8abf', '#5ec49e', '#d4a04a', '#e5534b'];
@@ -323,6 +341,76 @@
         });
     } else {
         sourceCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-sm" style="color: var(--text-tertiary);"><span class="material-icons mr-2">hourglass_empty</span>等待数据采集</div>';
+    }
+
+    // 排名演变 Bump Chart（Y 轴反转，排名 1 在顶部）
+    const bumpCtx = document.getElementById('bumpChart').getContext('2d');
+    if (evolutionData.dates && evolutionData.dates.length > 0 && evolutionData.series.length > 0) {
+        new Chart(bumpCtx, {
+            type: 'line',
+            data: {
+                labels: evolutionData.dates,
+                datasets: evolutionData.series.map(s => ({
+                    label: s.name,
+                    data: s.data,
+                    borderColor: s.color,
+                    backgroundColor: s.color,
+                    tension: 0.3,
+                    fill: false,
+                    spanGaps: true,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    borderWidth: 2.5,
+                    pointBackgroundColor: s.color,
+                    pointBorderColor: '#0b0d14',
+                    pointBorderWidth: 2,
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#8b8fa3', padding: 14, usePointStyle: true, pointStyleWidth: 8, font: { family: "'Inter', 'Noto Sans SC', sans-serif", size: 11 } }
+                    },
+                    tooltip: {
+                        backgroundColor: '#161922',
+                        borderColor: 'rgba(255,255,255,0.09)',
+                        borderWidth: 1,
+                        titleColor: '#ececf1',
+                        bodyColor: '#8b8fa3',
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': #' + ctx.parsed.y;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#565869', font: { family: "'Inter', sans-serif", size: 11 } },
+                        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }
+                    },
+                    y: {
+                        reverse: true,
+                        min: 1,
+                        ticks: {
+                            color: '#565869',
+                            font: { family: "'JetBrains Mono', monospace", size: 11 },
+                            stepSize: 1,
+                            callback: function(val) { return '#' + val; }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }
+                    }
+                }
+            }
+        });
+    } else {
+        bumpCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-sm" style="color: var(--text-tertiary);"><span class="material-icons mr-2">hourglass_empty</span>需要至少 2 轮数据才能显示排名演变</div>';
     }
     </script>
 </body>
