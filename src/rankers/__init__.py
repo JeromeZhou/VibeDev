@@ -51,13 +51,14 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
         # 5. Freshness 新鲜度加成（7天内有额外分数，替代 time_decay）
         freshness_score = max(0, (7 - days_old) / 7) * 100
 
-        # 新权重：frequency 0.35, source_quality 0.20, interaction 0.15, cross_platform 0.15, freshness 0.15
+        # 新权重：frequency 0.30, source_quality 0.20, interaction 0.15, cross_platform 0.15, freshness 0.20
+        # freshness 提升到 20% 防止老数据长期霸榜，frequency 降到 30% 平衡
         pphi = (
-            0.35 * frequency_score
+            0.30 * frequency_score
             + 0.20 * source_quality_score
             + 0.15 * interaction_score
             + 0.15 * cross_platform_score
-            + 0.15 * freshness_score
+            + 0.20 * freshness_score
         )
         pphi = max(0, round(pphi, 1))
 

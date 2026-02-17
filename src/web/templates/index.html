@@ -251,40 +251,45 @@
             <div class="card stat-card stat-1 p-4 animate-in delay-1">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-icons text-base" style="color: var(--accent-blue);">bug_report</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">Top 痛点</p>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">当前痛点</p>
                 </div>
                 <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ data.total_pain_points }}</p>
             </div>
             <div class="card stat-card stat-2 p-4 animate-in delay-2">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="material-icons text-base" style="color: var(--accent-green);">article</span>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">累计帖子</p>
+                </div>
+                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_posts }}</p>
+            </div>
+            <div class="card stat-card stat-3 p-4 animate-in delay-3">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-icons text-base" style="color: var(--accent-purple);">replay</span>
                     <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">分析轮次</p>
                 </div>
                 <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_runs }}</p>
             </div>
-            <div class="card stat-card stat-3 p-4 animate-in delay-3">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-base" style="color: #8b5cf6;">psychology</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">累计痛点</p>
-                </div>
-                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_pains }}</p>
-            </div>
             <div class="card stat-card stat-4 p-4 animate-in delay-4">
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-base" style="color: var(--accent-green);">memory</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">GPU 型号</p>
+                    <span class="material-icons text-base" style="color: var(--accent-amber);">language</span>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">数据源</p>
                 </div>
-                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">
-                    {% set ns2 = namespace(models=[]) %}
-                    {% for r in rankings %}
-                        {% for m in r.get('gpu_tags', {}).get('models', []) %}
-                            {% if m not in ns2.models %}{% set ns2.models = ns2.models + [m] %}{% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                    {{ ns2.models | length }}
-                </p>
+                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_sources }}</p>
             </div>
         </div>
+
+        {% if delta.new_pains > 0 or delta.new_models > 0 %}
+        <div class="flex items-center gap-3 mb-6 px-1 text-xs" style="color: var(--text-tertiary);">
+            <span class="material-icons" style="font-size: 14px; color: var(--accent-green);">trending_up</span>
+            <span>本轮变化：</span>
+            {% if delta.new_pains > 0 %}
+            <span style="color: var(--accent-green);">+{{ delta.new_pains }} 新痛点</span>
+            {% endif %}
+            {% if delta.new_models > 0 %}
+            <span style="color: var(--accent-blue);">+{{ delta.new_models }} 新型号</span>
+            {% endif %}
+        </div>
+        {% endif %}
 
         <!-- Top 痛点排名 -->
         <div class="card p-6">
@@ -334,28 +339,29 @@
                                 <h3 class="font-medium text-sm truncate" style="color: var(--text-primary);">{{ r.pain_point }}</h3>
                             </div>
 
-                            <!-- Tags -->
+                            <!-- Tags: show more models to reflect accumulation -->
                             <div class="flex flex-wrap gap-1 mb-1">
-                                {% for b in r.get('gpu_tags', {}).get('brands', [])[:2] %}
-                                <span class="brand-tag">{{ b }}</span>
-                                {% endfor %}
-                                {% for m in r.get('gpu_tags', {}).get('models', [])[:4] %}
+                                {% set all_models = r.get('gpu_tags', {}).get('models', []) %}
+                                {% for m in all_models[:6] %}
                                 <span class="gpu-tag">{{ m }}</span>
                                 {% endfor %}
+                                {% if all_models | length > 6 %}
+                                <span class="gpu-tag" style="opacity: 0.6;">+{{ all_models | length - 6 }}</span>
+                                {% endif %}
                                 {% for mfr in r.get('gpu_tags', {}).get('manufacturers', [])[:3] %}
                                 <span class="mfr-tag">{{ mfr }}</span>
                                 {% endfor %}
                             </div>
 
                             <div class="flex items-center gap-2 text-xs" style="color: var(--text-tertiary);">
-                                <span>{{ r.get('mentions', 0) }} 讨论</span>
+                                <span class="mono">{{ r.get('mentions', 0) }}</span> 讨论
                                 <span>·</span>
-                                <span>{{ r.get('sources', []) | join(' / ') }}</span>
+                                <span>{{ r.get('sources', []) | length }} 个来源</span>
+                                <span>·</span>
+                                <span>{{ all_models | length }} 个型号</span>
+                                {% if r.get('category') %}
                                 <span>·</span>
                                 <span>{{ r.get('category', '') }}</span>
-                                {% if r.get('affected_users') %}
-                                <span>·</span>
-                                <span>{{ r.get('affected_users', '') }}</span>
                                 {% endif %}
                             </div>
 
@@ -415,7 +421,7 @@
                     <p class="text-xs mt-1" style="color: var(--text-tertiary);">综合讨论量、情感强度、传播范围等维度加权计算</p>
                 </div>
                 <div class="flex flex-wrap gap-2 text-xs">
-                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">数据源: Reddit / NGA / 贴吧</span>
+                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">Reddit / NGA / Bilibili / V2EX / TechPowerUp / MyDrivers</span>
                     <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">AI: SiliconFlow GLM</span>
                     <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">更新: 每 4 小时</span>
                 </div>

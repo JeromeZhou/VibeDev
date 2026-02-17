@@ -93,10 +93,53 @@ def _get_cumulative_stats() -> dict:
         total_posts = conn.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
         total_runs = conn.execute("SELECT COUNT(DISTINCT run_date) as c FROM pphi_history").fetchone()["c"]
         total_pains = conn.execute("SELECT COUNT(DISTINCT pain_point) as c FROM pphi_history").fetchone()["c"]
+        total_sources = conn.execute("SELECT COUNT(DISTINCT source) as c FROM posts").fetchone()["c"]
         conn.close()
-        return {"total_posts": total_posts, "total_runs": total_runs, "total_pains": total_pains}
+        return {"total_posts": total_posts, "total_runs": total_runs, "total_pains": total_pains, "total_sources": total_sources}
     except Exception:
-        return {"total_posts": 0, "total_runs": 0, "total_pains": 0}
+        return {"total_posts": 0, "total_runs": 0, "total_pains": 0, "total_sources": 0}
+
+
+def _get_run_delta() -> dict:
+    """对比最新两轮 pphi_history，计算新增痛点数和新增 GPU 型号数"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        dates = conn.execute(
+            "SELECT DISTINCT run_date FROM pphi_history ORDER BY run_date DESC LIMIT 2"
+        ).fetchall()
+        if len(dates) < 2:
+            conn.close()
+            return {"new_pains": 0, "new_models": 0, "prev_date": ""}
+
+        curr_date, prev_date = dates[0]["run_date"], dates[1]["run_date"]
+
+        # Current run pain points and models
+        curr_rows = conn.execute(
+            "SELECT pain_point, gpu_tags FROM pphi_history WHERE run_date = ?", (curr_date,)
+        ).fetchall()
+        prev_rows = conn.execute(
+            "SELECT pain_point, gpu_tags FROM pphi_history WHERE run_date = ?", (prev_date,)
+        ).fetchall()
+        conn.close()
+
+        curr_pains = set(r["pain_point"] for r in curr_rows)
+        prev_pains = set(r["pain_point"] for r in prev_rows)
+        new_pains = len(curr_pains - prev_pains)
+
+        curr_models = set()
+        for r in curr_rows:
+            tags = json.loads(r["gpu_tags"]) if r["gpu_tags"] else {}
+            curr_models.update(tags.get("models", []))
+        prev_models = set()
+        for r in prev_rows:
+            tags = json.loads(r["gpu_tags"]) if r["gpu_tags"] else {}
+            prev_models.update(tags.get("models", []))
+        new_models = len(curr_models - prev_models)
+
+        return {"new_pains": new_pains, "new_models": new_models, "prev_date": prev_date}
+    except Exception:
+        return {"new_pains": 0, "new_models": 0, "prev_date": ""}
 
 
 @app.get("/")
@@ -104,12 +147,17 @@ async def dashboard(request: Request):
     """痛点仪表盘"""
     data = _load_rankings()
     stats = _get_cumulative_stats()
+
+    # 计算本轮新增统计（对比最新两轮 pphi_history）
+    delta = _get_run_delta()
+
     return templates.TemplateResponse("index.html", {
         "request": request,
         "data": data,
         "rankings": data.get("rankings", []),
         "updated_at": data.get("timestamp", "尚未运行"),
         "stats": stats,
+        "delta": delta,
     })
 
 
