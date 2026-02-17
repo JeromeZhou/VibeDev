@@ -86,6 +86,22 @@ sources:
     enabled: true
     weight: 0.85
     interval_hours: 4
+  bilibili:
+    enabled: true
+    weight: 0.75
+    interval_hours: 4
+  v2ex:
+    enabled: true
+    weight: 0.7
+    interval_hours: 4
+  mydrivers:
+    enabled: true
+    weight: 0.75
+    interval_hours: 4
+  techpowerup:
+    enabled: true
+    weight: 0.85
+    interval_hours: 4
 
 # PPHI 算法权重
 pphi:

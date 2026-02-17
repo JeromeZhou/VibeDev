@@ -13,7 +13,9 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
     decay_rate = config.get("pphi", {}).get("decay_rate_per_day", 0.05)
     source_scores = {
         "chiphell": 1.0, "reddit": 0.9, "videocardz": 0.85,
-        "nga": 0.8, "guru3d": 0.8, "rog": 0.7, "tieba": 0.6, "twitter": 0.5,
+        "techpowerup": 0.85, "nga": 0.8, "guru3d": 0.8,
+        "bilibili": 0.75, "mydrivers": 0.75, "v2ex": 0.7,
+        "rog": 0.7, "tieba": 0.6, "twitter": 0.5,
     }
 
     # 加载历史痛点 + 当轮新增，合并后统一排名

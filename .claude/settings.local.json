@@ -69,7 +69,9 @@
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -c:*)",
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe main.py)",
       "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" test_cost_control.py)",
-      "Bash(python -m py_compile:*)"
+      "Bash(python -m py_compile:*)",
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m pip install playwright)",
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m playwright install chromium)"
     ]
   }
 }

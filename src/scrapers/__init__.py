@@ -5,19 +5,27 @@ from src.utils.config import get_enabled_sources
 
 def scrape_all_forums(config: dict) -> list[dict]:
     """串行抓取所有已启用的论坛（带增量检查点）"""
-    from .chiphell_scraper import ChiphellScraper
+    from .chiphell_pw_scraper import ChiphellPlaywrightScraper
     from .reddit_scraper import RedditScraper
     from .tieba_scraper import TiebaScraper
     from .nga_scraper import NGAScraper
     from .videocardz_scraper import VideoCardzScraper
+    from .bilibili_scraper import BilibiliScraper
+    from .v2ex_scraper import V2EXScraper
+    from .mydrivers_scraper import MyDriversScraper
+    from .techpowerup_scraper import TechPowerUpScraper
     from src.utils.db import filter_new_posts, save_posts, save_checkpoint, get_checkpoint
 
     scraper_map = {
-        "chiphell": ChiphellScraper,
+        "chiphell": ChiphellPlaywrightScraper,
         "reddit": RedditScraper,
         "tieba": TiebaScraper,
         "nga": NGAScraper,
         "videocardz": VideoCardzScraper,
+        "bilibili": BilibiliScraper,
+        "v2ex": V2EXScraper,
+        "mydrivers": MyDriversScraper,
+        "techpowerup": TechPowerUpScraper,
     }
 
     enabled = get_enabled_sources(config)
