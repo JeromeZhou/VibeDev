@@ -6,98 +6,142 @@
     <title>GPU-Insight 痛点仪表盘</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans SC', sans-serif; background: #080c1a; color: #e2e8f0; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .card {
-            background: rgba(15,23,42,0.85);
-            backdrop-filter: blur(16px);
-            border-radius: 14px;
-            border: 1px solid rgba(56,78,122,0.35);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.2);
-            transition: all 0.25s ease;
+        :root {
+            --bg-base:     #0b0d14;
+            --bg-surface:  #111318;
+            --bg-elevated: #161922;
+            --bg-hover:    #1c1f2b;
+            --border-subtle:  rgba(255,255,255,0.06);
+            --border-default: rgba(255,255,255,0.09);
+            --border-strong:  rgba(255,255,255,0.14);
+            --text-primary:   #ececf1;
+            --text-secondary: #8b8fa3;
+            --text-tertiary:  #565869;
+            --accent-blue:    #5b8def;
+            --accent-purple:  #9d8abf;
+            --accent-green:   #5ec49e;
+            --accent-red:     #e5534b;
+            --accent-amber:   #d4a04a;
+            --accent-silver:  #9ba3b0;
+            --accent-bronze:  #b08952;
         }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 12px 40px rgba(0,0,0,0.25); }
-        .gpu-tag { background: rgba(67,56,202,0.35); color: #a5b4fc; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid rgba(99,102,241,0.25); }
-        .mfr-tag { background: rgba(6,95,70,0.4); color: #6ee7b7; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid rgba(16,185,129,0.25); }
-        .brand-tag { background: rgba(154,52,18,0.35); color: #fdba74; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid rgba(249,115,22,0.25); }
+
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .card {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: border-color 0.2s ease;
+        }
+        .card:hover { border-color: var(--border-default); }
+
+        .gpu-tag {
+            background: rgba(139,92,246,0.10);
+            color: #a78bcc;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid rgba(139,92,246,0.15);
+        }
+        .mfr-tag {
+            background: rgba(80,200,150,0.08);
+            color: #7bc4a5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid rgba(80,200,150,0.12);
+        }
+        .brand-tag {
+            background: rgba(220,150,60,0.08);
+            color: #c4a06b;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid rgba(220,150,60,0.12);
+        }
+
+        /* Stat cards — left 2px color bar instead of top 4px */
         .stat-card { position: relative; overflow: hidden; }
         .stat-card::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 4px;
-            border-radius: 14px 14px 0 0;
+            top: 0; left: 0; bottom: 0;
+            width: 2px;
+            border-radius: 12px 0 0 12px;
         }
-        .stat-1 { border-color: rgba(59,130,246,0.3); }
-        .stat-1::before { background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa); }
-        .stat-2 { border-color: rgba(99,102,241,0.3); }
-        .stat-2::before { background: linear-gradient(90deg, #4f46e5, #6366f1, #818cf8); }
-        .stat-3 { border-color: rgba(139,92,246,0.3); }
-        .stat-3::before { background: linear-gradient(90deg, #7c3aed, #8b5cf6, #a78bfa); }
-        .stat-4 { border-color: rgba(16,185,129,0.3); }
-        .stat-4::before { background: linear-gradient(90deg, #059669, #10b981, #34d399); }
+        .stat-1::before { background: var(--accent-blue); }
+        .stat-2::before { background: var(--accent-purple); }
+        .stat-3::before { background: #8b5cf6; }
+        .stat-4::before { background: var(--accent-green); }
 
+        /* PPHI ring — 44px, no glow, plain */
         .pphi-ring {
-            width: 58px; height: 58px;
+            width: 44px; height: 44px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
+            border: 2px solid var(--border-strong);
+            background: transparent;
+        }
+
+        .top-item {
             position: relative;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
         }
-        .pphi-ring::before {
-            content: '';
-            position: absolute;
-            inset: 0;
+        .top-item:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-default);
+        }
+
+        /* Top 1/2/3 — left 2px bar, low-saturation colors, no glow */
+        .top-1 { border-left: 2px solid var(--accent-amber); }
+        .top-1 .pphi-ring { border-color: var(--accent-amber); }
+        .top-2 { border-left: 2px solid var(--accent-silver); }
+        .top-2 .pphi-ring { border-color: var(--accent-silver); }
+        .top-3 { border-left: 2px solid var(--accent-bronze); }
+        .top-3 .pphi-ring { border-color: var(--accent-bronze); }
+
+        .rank-medal {
+            width: 24px; height: 24px;
             border-radius: 50%;
-            border: 3px solid rgba(51,65,85,0.5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600;
         }
+        .medal-gold   { background: var(--accent-amber); color: #1a1400; }
+        .medal-silver { background: var(--accent-silver); color: #111318; }
+        .medal-bronze { background: var(--accent-bronze); color: #1a1400; }
 
-        .top-item { position: relative; }
-        .top-1 { border-left: 3px solid #f59e0b; background: linear-gradient(90deg, rgba(245,158,11,0.08), transparent 60%); }
-        .top-2 { border-left: 3px solid #94a3b8; background: linear-gradient(90deg, rgba(148,163,184,0.06), transparent 60%); }
-        .top-3 { border-left: 3px solid #cd7c2f; background: linear-gradient(90deg, rgba(205,124,47,0.06), transparent 60%); }
-        .top-1 .pphi-ring {
-            background: radial-gradient(circle, rgba(245,158,11,0.2), transparent);
-            box-shadow: 0 0 20px rgba(245,158,11,0.15), 0 0 40px rgba(245,158,11,0.05);
-        }
-        .top-1 .pphi-ring::before { border-color: rgba(245,158,11,0.5); }
-        .top-2 .pphi-ring {
-            background: radial-gradient(circle, rgba(148,163,184,0.15), transparent);
-            box-shadow: 0 0 16px rgba(148,163,184,0.1);
-        }
-        .top-2 .pphi-ring::before { border-color: rgba(148,163,184,0.4); }
-        .top-3 .pphi-ring {
-            background: radial-gradient(circle, rgba(205,124,47,0.15), transparent);
-            box-shadow: 0 0 16px rgba(205,124,47,0.1);
-        }
-        .top-3 .pphi-ring::before { border-color: rgba(205,124,47,0.4); }
-
-        /* Default PPHI ring glow for rank 4+ */
-        .top-item:not(.top-1):not(.top-2):not(.top-3) .pphi-ring {
-            background: radial-gradient(circle, rgba(59,130,246,0.1), transparent);
-            box-shadow: 0 0 12px rgba(59,130,246,0.08);
-        }
-        .top-item:not(.top-1):not(.top-2):not(.top-3) .pphi-ring::before { border-color: rgba(59,130,246,0.35); }
-
-        .glow-blue { box-shadow: 0 0 30px rgba(59,130,246,0.08), 0 4px 20px rgba(0,0,0,0.3); }
-        .trend-up { color: #34d399; }
-        .trend-down { color: #f87171; }
-        .trend-new { color: #60a5fa; }
-        .trend-stable { color: #94a3b8; }
+        .trend-up     { color: var(--accent-green); }
+        .trend-down   { color: var(--accent-red); }
+        .trend-new    { color: var(--accent-blue); }
+        .trend-stable { color: var(--text-tertiary); }
 
         .need-badge {
-            background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.18));
-            border: 1px solid rgba(139,92,246,0.35);
-            border-radius: 8px;
-            padding: 4px 10px;
+            background: rgba(139,92,246,0.08);
+            border: 1px solid rgba(139,92,246,0.15);
+            border-radius: 6px;
+            padding: 4px 8px;
         }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(12px); }
+            from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-in { animation: fadeInUp 0.4s ease forwards; opacity: 0; }
+        .animate-in { animation: fadeInUp 0.3s ease forwards; opacity: 0; }
         .delay-1 { animation-delay: 0.05s; }
         .delay-2 { animation-delay: 0.1s; }
         .delay-3 { animation-delay: 0.15s; }
@@ -105,75 +149,93 @@
 
         .mesh-bg {
             background:
-                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.12) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 60% 40%, rgba(59,130,246,0.04) 0%, transparent 60%);
+                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.03) 0%, transparent 50%);
         }
 
-        /* Rank medal badges */
-        .rank-medal {
-            width: 28px; height: 28px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 700;
-        }
-        .medal-gold { background: linear-gradient(135deg, #f59e0b, #d97706); color: #451a03; box-shadow: 0 0 10px rgba(245,158,11,0.3); }
-        .medal-silver { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: #1e293b; box-shadow: 0 0 8px rgba(148,163,184,0.2); }
-        .medal-bronze { background: linear-gradient(135deg, #cd7c2f, #a3631a); color: #1c1917; box-shadow: 0 0 8px rgba(205,124,47,0.2); }
-
-        /* Expand button */
         .expand-btn {
-            background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(99,102,241,0.12));
-            border: 1px solid rgba(59,130,246,0.3);
-            transition: all 0.25s ease;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            transition: border-color 0.2s ease;
         }
-        .expand-btn:hover {
-            background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(99,102,241,0.2));
-            border-color: rgba(59,130,246,0.5);
-        }
+        .expand-btn:hover { border-color: var(--border-default); }
 
-        /* Hidden items */
         .ranking-extra { display: none; }
         .ranking-extra.show { display: block; }
 
-        /* About modal */
         .modal-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
             z-index: 50;
             display: none;
             align-items: center; justify-content: center;
         }
         .modal-overlay.active { display: flex; }
         .modal-content {
-            background: rgba(15,23,42,0.95);
-            border: 1px solid rgba(56,78,122,0.4);
-            border-radius: 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: 12px;
             max-width: 480px; width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
+
+        /* PPHI tooltip */
+        .pphi-tooltip {
+            position: relative;
+            cursor: help;
+        }
+        .pphi-tooltip .pphi-tip-text {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            z-index: 10;
+            transition: opacity 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .pphi-tooltip:hover .pphi-tip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Nav link */
+        .nav-link {
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: flex; align-items: center; gap: 4px;
+            transition: color 0.15s ease;
+        }
+        .nav-link:hover { color: var(--text-primary); }
     </style>
 </head>
 <body class="min-h-screen mesh-bg">
-    <header class="py-6 px-6 border-b border-slate-700/40">
+    <header class="py-4 px-6 border-b" style="border-color: var(--border-subtle);">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div>
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <span class="material-icons text-white text-lg">insights</span>
-                    </div>
-                    <h1 class="text-2xl font-bold text-white tracking-tight">GPU-Insight</h1>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--accent-blue);">
+                    <span class="material-icons text-white text-base">insights</span>
                 </div>
-                <p class="text-slate-400 text-sm mt-1 ml-12">显卡用户痛点智能分析 · {{ updated_at }}</p>
+                <div>
+                    <h1 class="text-lg font-semibold" style="color: var(--text-primary);">GPU-Insight</h1>
+                    <p class="text-xs" style="color: var(--text-tertiary);">显卡用户痛点智能分析 · {{ updated_at }}</p>
+                </div>
             </div>
             <div class="flex gap-4 items-center">
-                <a href="/trends" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
+                <a href="/trends" class="nav-link">
                     <span class="material-icons text-base">trending_up</span> 趋势
                 </a>
-                <button onclick="document.getElementById('aboutModal').classList.add('active')"
-                        class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
+                <button onclick="document.getElementById('aboutModal').classList.add('active')" class="nav-link">
                     <span class="material-icons text-base">info_outline</span> 关于
                 </button>
             </div>
@@ -183,33 +245,33 @@
     <main class="max-w-6xl mx-auto py-6 px-4">
         <!-- 统计卡片 -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="card stat-card stat-1 p-5 animate-in delay-1">
+            <div class="card stat-card stat-1 p-4 animate-in delay-1">
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-blue-400 text-lg">bug_report</span>
-                    <p class="text-slate-400 text-xs font-medium uppercase tracking-wider">本轮痛点</p>
+                    <span class="material-icons text-base" style="color: var(--accent-blue);">bug_report</span>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">本轮痛点</p>
                 </div>
-                <p class="text-3xl font-bold text-white mono">{{ data.total_pain_points }}</p>
+                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ data.total_pain_points }}</p>
             </div>
-            <div class="card stat-card stat-2 p-5 animate-in delay-2">
+            <div class="card stat-card stat-2 p-4 animate-in delay-2">
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-indigo-400 text-lg">replay</span>
-                    <p class="text-slate-400 text-xs font-medium uppercase tracking-wider">分析轮次</p>
+                    <span class="material-icons text-base" style="color: var(--accent-purple);">replay</span>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">分析轮次</p>
                 </div>
-                <p class="text-3xl font-bold text-white mono">{{ stats.total_runs }}</p>
+                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_runs }}</p>
             </div>
-            <div class="card stat-card stat-3 p-5 animate-in delay-3">
+            <div class="card stat-card stat-3 p-4 animate-in delay-3">
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-purple-400 text-lg">psychology</span>
-                    <p class="text-slate-400 text-xs font-medium uppercase tracking-wider">累计痛点</p>
+                    <span class="material-icons text-base" style="color: #8b5cf6;">psychology</span>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">累计痛点</p>
                 </div>
-                <p class="text-3xl font-bold text-white mono">{{ stats.total_pains }}</p>
+                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_pains }}</p>
             </div>
-            <div class="card stat-card stat-4 p-5 animate-in delay-4">
+            <div class="card stat-card stat-4 p-4 animate-in delay-4">
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-emerald-400 text-lg">memory</span>
-                    <p class="text-slate-400 text-xs font-medium uppercase tracking-wider">GPU 型号</p>
+                    <span class="material-icons text-base" style="color: var(--accent-green);">memory</span>
+                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">GPU 型号</p>
                 </div>
-                <p class="text-3xl font-bold text-white mono">
+                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">
                     {% set ns2 = namespace(models=[]) %}
                     {% for r in rankings %}
                         {% for m in r.get('gpu_tags', {}).get('models', []) %}
@@ -222,32 +284,36 @@
         </div>
 
         <!-- Top 痛点排名 -->
-        <div class="card p-6 glow-blue">
-            <div class="flex items-center justify-between mb-5">
-                <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                    <span class="material-icons text-blue-400">leaderboard</span>
+        <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                    <span class="material-icons" style="color: var(--accent-blue);">leaderboard</span>
                     痛点排名
+                    <span class="pphi-tooltip">
+                        <span class="material-icons text-sm" style="color: var(--text-tertiary);">help_outline</span>
+                        <span class="pphi-tip-text">PPHI = Pain Point Heat Index，综合讨论量、情感强度、传播范围加权计算</span>
+                    </span>
                 </h2>
-                <span class="text-xs text-slate-400 mono">PPHI Index · 共 {{ rankings | length }} 项</span>
+                <span class="text-xs mono" style="color: var(--text-tertiary);">PPHI Index · 共 {{ rankings | length }} 项</span>
             </div>
             {% if rankings %}
-            <div class="space-y-3" id="rankingList">
+            <div class="space-y-2" id="rankingList">
                 {% for r in rankings %}
                 <a href="/pain-point/{{ r.rank }}"
-                   class="block p-4 rounded-xl top-item
-                          {% if r.rank == 1 %}top-1{% elif r.rank == 2 %}top-2{% elif r.rank == 3 %}top-3{% else %}border-l-3 border-transparent bg-slate-800/20{% endif %}
-                          hover:bg-slate-700/40 transition-all duration-200
+                   class="block p-3 top-item
+                          {% if r.rank == 1 %}top-1{% elif r.rank == 2 %}top-2{% elif r.rank == 3 %}top-3{% endif %}
                           {% if r.rank > 10 %}ranking-extra{% endif %}"
-                   style="animation: fadeInUp 0.4s ease forwards; animation-delay: {{ r.rank * 0.04 }}s; opacity: 0;">
-                    <div class="flex items-center gap-4">
-                        <!-- Rank + PPHI Ring -->
+                   style="animation: fadeInUp 0.3s ease forwards; animation-delay: {{ r.rank * 0.03 }}s; opacity: 0;">
+                    <div class="flex items-center gap-3">
+                        <!-- PPHI Ring -->
                         <div class="pphi-ring shrink-0">
-                            <div class="text-center">
-                                <p class="text-xl font-bold mono
-                                    {% if r.rank == 1 %}text-amber-400{% elif r.rank == 2 %}text-slate-300{% elif r.rank == 3 %}text-amber-600{% else %}text-blue-400{% endif %}">
-                                    {{ r.pphi_score }}
-                                </p>
-                            </div>
+                            <span class="text-sm font-semibold mono
+                                {% if r.rank == 1 %}" style="color: var(--accent-amber);
+                                {% elif r.rank == 2 %}" style="color: var(--accent-silver);
+                                {% elif r.rank == 3 %}" style="color: var(--accent-bronze);
+                                {% else %}" style="color: var(--accent-blue);{% endif %}">
+                                {{ r.pphi_score }}
+                            </span>
                         </div>
 
                         <!-- Content -->
@@ -256,17 +322,17 @@
                                 {% if r.rank <= 3 %}
                                 <span class="rank-medal {% if r.rank == 1 %}medal-gold{% elif r.rank == 2 %}medal-silver{% else %}medal-bronze{% endif %}">{{ r.rank }}</span>
                                 {% else %}
-                                <span class="text-xs font-bold mono text-slate-400">#{{ r.rank }}</span>
+                                <span class="text-xs font-semibold mono" style="color: var(--text-tertiary);">#{{ r.rank }}</span>
                                 {% endif %}
-                                {% if r.get('trend') == 'rising' %}<span class="trend-up text-xs font-bold">↑</span>
-                                {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-bold">↓</span>
+                                {% if r.get('trend') == 'rising' %}<span class="trend-up text-xs font-semibold">↑</span>
+                                {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-semibold">↓</span>
                                 {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
-                                {% else %}<span class="trend-new text-xs font-bold">★</span>{% endif %}
-                                <h3 class="font-semibold text-white truncate">{{ r.pain_point }}</h3>
+                                {% else %}<span class="trend-new text-xs font-semibold">★</span>{% endif %}
+                                <h3 class="font-medium text-sm truncate" style="color: var(--text-primary);">{{ r.pain_point }}</h3>
                             </div>
 
                             <!-- Tags -->
-                            <div class="flex flex-wrap gap-1.5 mb-1.5">
+                            <div class="flex flex-wrap gap-1 mb-1">
                                 {% for b in r.get('gpu_tags', {}).get('brands', [])[:2] %}
                                 <span class="brand-tag">{{ b }}</span>
                                 {% endfor %}
@@ -278,7 +344,7 @@
                                 {% endfor %}
                             </div>
 
-                            <div class="flex items-center gap-3 text-xs text-slate-400">
+                            <div class="flex items-center gap-2 text-xs" style="color: var(--text-tertiary);">
                                 <span>{{ r.get('mentions', 0) }} 讨论</span>
                                 <span>·</span>
                                 <span>{{ r.get('sources', []) | join(' / ') }}</span>
@@ -292,10 +358,13 @@
 
                             {% if r.get('hidden_need') %}
                             <div class="need-badge mt-2 inline-block">
-                                <span class="text-xs text-indigo-300">💡 {{ r.hidden_need }}</span>
+                                <span class="text-xs" style="color: var(--accent-purple);">💡 {{ r.hidden_need }}</span>
                             </div>
                             {% endif %}
                         </div>
+
+                        <!-- Chevron -->
+                        <span class="material-icons shrink-0" style="color: var(--text-tertiary); font-size: 20px;">chevron_right</span>
                     </div>
                 </a>
                 {% endfor %}
@@ -303,7 +372,8 @@
 
             {% if rankings | length > 10 %}
             <button id="expandBtn" onclick="toggleExpand()"
-                    class="expand-btn w-full mt-4 py-3 rounded-xl text-sm text-blue-400 font-medium flex items-center justify-center gap-2 cursor-pointer">
+                    class="expand-btn w-full mt-4 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-pointer"
+                    style="color: var(--accent-blue);">
                 <span class="material-icons text-base" id="expandIcon">expand_more</span>
                 <span id="expandText">查看全部 {{ rankings | length }} 个痛点</span>
             </button>
@@ -311,14 +381,14 @@
 
             {% else %}
             <div class="text-center py-12">
-                <span class="material-icons text-4xl text-slate-500 mb-2">hourglass_empty</span>
-                <p class="text-slate-400">等待首次数据采集...</p>
+                <span class="material-icons text-4xl mb-2" style="color: var(--text-tertiary);">hourglass_empty</span>
+                <p style="color: var(--text-secondary);">等待首次数据采集...</p>
             </div>
             {% endif %}
         </div>
     </main>
 
-    <footer class="text-center text-slate-500 text-xs py-6 border-t border-slate-800/30 mt-8">
+    <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
         GPU-Insight v1.0 · 显卡用户痛点智能分析系统
     </footer>
 
@@ -326,25 +396,25 @@
     <div id="aboutModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content p-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <span class="material-icons text-blue-400">info</span> 关于 GPU-Insight
+                <h3 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                    <span class="material-icons" style="color: var(--accent-blue);">info</span> 关于 GPU-Insight
                 </h3>
                 <button onclick="document.getElementById('aboutModal').classList.remove('active')"
-                        class="text-slate-400 hover:text-white transition">
+                        class="nav-link">
                     <span class="material-icons">close</span>
                 </button>
             </div>
-            <div class="space-y-3 text-sm text-slate-300 leading-relaxed">
+            <div class="space-y-3 text-sm leading-relaxed" style="color: var(--text-secondary);">
                 <p>GPU-Insight 是一个显卡用户痛点智能分析系统，每 4 小时自动采集全球显卡论坛讨论，通过 AI 提取痛点并推导隐藏需求。</p>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/40">
-                    <p class="text-xs text-slate-400 mb-1">核心指标</p>
-                    <p class="text-white font-medium">PPHI (Pain Point Heat Index) — 痛点热度指数</p>
-                    <p class="text-slate-400 text-xs mt-1">综合讨论量、情感强度、传播范围等维度加权计算</p>
+                <div class="p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
+                    <p class="text-xs mb-1" style="color: var(--text-tertiary);">核心指标</p>
+                    <p class="font-medium" style="color: var(--text-primary);">PPHI (Pain Point Heat Index) — 痛点热度指数</p>
+                    <p class="text-xs mt-1" style="color: var(--text-tertiary);">综合讨论量、情感强度、传播范围等维度加权计算</p>
                 </div>
                 <div class="flex flex-wrap gap-2 text-xs">
-                    <span class="px-2 py-1 bg-slate-800/50 rounded text-slate-400 border border-slate-700/30">数据源: Reddit / NGA / 贴吧</span>
-                    <span class="px-2 py-1 bg-slate-800/50 rounded text-slate-400 border border-slate-700/30">AI: SiliconFlow GLM</span>
-                    <span class="px-2 py-1 bg-slate-800/50 rounded text-slate-400 border border-slate-700/30">更新: 每 4 小时</span>
+                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">数据源: Reddit / NGA / 贴吧</span>
+                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">AI: SiliconFlow GLM</span>
+                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">更新: 每 4 小时</span>
                 </div>
             </div>
         </div>

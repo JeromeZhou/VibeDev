@@ -96,6 +96,7 @@ _本轮无否决_
 - 后期可考虑混合模型策略（简单任务用 Qwen3-8B 降成本）
 
 ## Git 提交记录
+- `c883fdf` feat: v3 端到端验证通过 + UI改版 + cleaner去重修复 + Reddit SSL容错
 - `待提交` feat: GPU 产品标签 + URL 追溯 + PainInsight 合并结构
 - `12a94de` feat: 三层漏斗 + Reddit v2 + Tieba 爬虫
 - `9c0d355` feat: 开发团队协同推进 — 6 Agent 产出

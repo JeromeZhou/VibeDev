@@ -21,6 +21,10 @@ PAIN_SIGNALS = [
     "rip", "dead", "fail", "error", "freeze", "stutter", "lag", "artifact",
     "coil whine", "black screen", "blue screen", "bsod", "rma", "refund",
     "waste", "scam", "overpriced", "underpowered", "bottleneck",
+    # 新增英文信号词
+    "throttle", "downclock", "unstable", "compatibility", "screen tearing",
+    "microstutter", "fps drop", "memory leak", "thermal throttle", "vrm",
+    "artifacting", "stuttering",
     # 中文痛点信号
     "爆显存", "崩溃", "黑屏", "花屏", "噪音", "发热", "功耗", "太贵",
     "后悔", "翻车", "缩水", "虚标", "矿卡", "售后", "卡顿", "掉帧",
@@ -30,6 +34,9 @@ PAIN_SIGNALS = [
     "画面撕裂", "拖影", "延迟", "帧数低", "吃显存", "显存不够",
     "散热差", "风扇声音大", "积热", "热管", "均热板",
     "做工差", "用料缩", "品控", "质量问题", "返修", "保修",
+    # 新增中文信号词
+    "降频", "不稳定", "温度墙", "功耗墙", "体质", "翻车", "缩水",
+    "掉驱动", "蓝屏", "死机", "卡顿", "掉帧",
 ]
 
 
@@ -81,8 +88,8 @@ def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 15) -
     system = """你是显卡用户痛点分类器。对每条帖子标题判断是否包含显卡用户痛点。
 输出格式：每行一个数字，对应每条标题。
 0 = 明确无关（晒单、新闻、购买建议、无关话题）
-1 = 可能相关（提问、讨论、不确定）
-2 = 明确是痛点（抱怨、吐槽、报错、质量问题）
+1 = 可能相关（只有不确定是否是痛点的情况）
+2 = 明确是痛点（抱怨、吐槽、报错、质量问题、技术问题提问、性能调优讨论、驱动问题、兼容性咨询）
 只输出数字，每行一个，不要其他内容。"""
 
     total_batches = (len(posts) + batch_size - 1) // batch_size
@@ -122,7 +129,7 @@ def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 15) -
     return posts
 
 
-def l3_select(posts: list[dict], max_deep: int = 30, max_light: int = 20) -> tuple[list[dict], list[dict]]:
+def l3_select(posts: list[dict], max_deep: int = 50, max_light: int = 50) -> tuple[list[dict], list[dict]]:
     """L3: 选择深度分析和轻度分析的帖子
 
     返回 (deep_list, light_list):

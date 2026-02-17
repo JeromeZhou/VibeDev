@@ -6,99 +6,156 @@
     <title>痛点详情 — GPU-Insight</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans SC', sans-serif; background: #080c1a; color: #e2e8f0; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .card {
-            background: rgba(15,23,42,0.85);
-            backdrop-filter: blur(16px);
-            border-radius: 14px;
-            border: 1px solid rgba(56,78,122,0.35);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.2);
+        :root {
+            --bg-base:     #0b0d14;
+            --bg-surface:  #111318;
+            --bg-elevated: #161922;
+            --bg-hover:    #1c1f2b;
+            --border-subtle:  rgba(255,255,255,0.06);
+            --border-default: rgba(255,255,255,0.09);
+            --border-strong:  rgba(255,255,255,0.14);
+            --text-primary:   #ececf1;
+            --text-secondary: #8b8fa3;
+            --text-tertiary:  #565869;
+            --accent-blue:    #5b8def;
+            --accent-purple:  #9d8abf;
+            --accent-green:   #5ec49e;
+            --accent-red:     #e5534b;
+            --accent-amber:   #d4a04a;
+            --accent-silver:  #9ba3b0;
+            --accent-bronze:  #b08952;
         }
-        .gpu-tag { background: rgba(67,56,202,0.35); color: #a5b4fc; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid rgba(99,102,241,0.25); }
-        .mfr-tag { background: rgba(6,95,70,0.4); color: #6ee7b7; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid rgba(16,185,129,0.25); }
-        .brand-tag { background: rgba(154,52,18,0.35); color: #fdba74; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid rgba(249,115,22,0.25); }
+
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .card {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .gpu-tag {
+            background: rgba(139,92,246,0.10);
+            color: #a78bcc;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid rgba(139,92,246,0.15);
+        }
+        .mfr-tag {
+            background: rgba(80,200,150,0.08);
+            color: #7bc4a5;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid rgba(80,200,150,0.12);
+        }
+        .brand-tag {
+            background: rgba(220,150,60,0.08);
+            color: #c4a06b;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid rgba(220,150,60,0.12);
+        }
+
         .mesh-bg {
             background:
-                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.12) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 60% 40%, rgba(59,130,246,0.04) 0%, transparent 60%);
+                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.03) 0%, transparent 50%);
         }
+
         .need-card {
-            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12));
-            border: 1px solid rgba(139,92,246,0.3);
+            background: var(--bg-surface);
+            border: 1px solid rgba(139,92,246,0.15);
         }
+
         .trend-pill {
             display: inline-flex; align-items: center; gap: 4px;
-            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600;
         }
-        .trend-rising  { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
-        .trend-falling { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
-        .trend-new     { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
-        .trend-stable  { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.25); }
+        .trend-rising  { background: rgba(94,196,158,0.10); color: var(--accent-green); border: 1px solid rgba(94,196,158,0.18); }
+        .trend-falling { background: rgba(229,83,75,0.10); color: var(--accent-red); border: 1px solid rgba(229,83,75,0.18); }
+        .trend-new     { background: rgba(91,141,239,0.10); color: var(--accent-blue); border: 1px solid rgba(91,141,239,0.18); }
+        .trend-stable  { background: rgba(86,88,105,0.12); color: var(--text-tertiary); border: 1px solid rgba(86,88,105,0.20); }
 
+        /* PPHI detail ring — 44px, no glow */
         .pphi-detail-ring {
-            width: 80px; height: 80px;
+            width: 44px; height: 44px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            position: relative;
+            border: 2px solid var(--border-strong);
+            background: transparent;
         }
-        .pphi-detail-ring.rank-1 {
-            background: radial-gradient(circle, rgba(245,158,11,0.2), transparent);
-            border: 3px solid rgba(245,158,11,0.5);
-            box-shadow: 0 0 24px rgba(245,158,11,0.2), 0 0 48px rgba(245,158,11,0.05);
-        }
-        .pphi-detail-ring.rank-2 {
-            background: radial-gradient(circle, rgba(148,163,184,0.15), transparent);
-            border: 3px solid rgba(148,163,184,0.4);
-            box-shadow: 0 0 20px rgba(148,163,184,0.12);
-        }
-        .pphi-detail-ring.rank-3 {
-            background: radial-gradient(circle, rgba(205,124,47,0.15), transparent);
-            border: 3px solid rgba(205,124,47,0.4);
-            box-shadow: 0 0 20px rgba(205,124,47,0.12);
-        }
-        .pphi-detail-ring.rank-default {
-            background: radial-gradient(circle, rgba(59,130,246,0.15), transparent);
-            border: 3px solid rgba(59,130,246,0.35);
-            box-shadow: 0 0 16px rgba(59,130,246,0.1);
-        }
+        .pphi-detail-ring.rank-1 { border-color: var(--accent-amber); }
+        .pphi-detail-ring.rank-2 { border-color: var(--accent-silver); }
+        .pphi-detail-ring.rank-3 { border-color: var(--accent-bronze); }
+        .pphi-detail-ring.rank-default { border-color: var(--accent-blue); }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(12px); }
+            from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-in { animation: fadeInUp 0.4s ease forwards; opacity: 0; }
+        .animate-in { animation: fadeInUp 0.3s ease forwards; opacity: 0; }
+
+        .nav-link {
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: flex; align-items: center; gap: 4px;
+            transition: color 0.15s ease;
+        }
+        .nav-link:hover { color: var(--text-primary); }
     </style>
 </head>
 <body class="min-h-screen mesh-bg">
-    <header class="py-5 px-6 border-b border-slate-700/40">
+    <header class="py-4 px-6 border-b" style="border-color: var(--border-subtle);">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <a href="/" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition w-fit">
-                <span class="material-icons text-base">arrow_back</span> 返回仪表盘
-            </a>
-            <a href="/trends" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
-                <span class="material-icons text-base">trending_up</span> 趋势
-            </a>
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--accent-blue);">
+                    <span class="material-icons text-white text-base">article</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-semibold" style="color: var(--text-primary);">痛点详情</h1>
+                    <p class="text-xs" style="color: var(--text-tertiary);">GPU-Insight · 深度分析</p>
+                </div>
+            </div>
+            <div class="flex gap-4 items-center">
+                <a href="/" class="nav-link">
+                    <span class="material-icons text-base">dashboard</span> 仪表盘
+                </a>
+                <a href="/trends" class="nav-link">
+                    <span class="material-icons text-base">trending_up</span> 趋势
+                </a>
+            </div>
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto py-6 px-4">
         {% if pain_point %}
         <!-- 痛点概览 -->
-        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.05s">
+        <div class="card p-6 mb-4 animate-in" style="animation-delay: 0.05s">
             <div class="flex items-start justify-between gap-4">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-3 mb-3 flex-wrap">
-                        <span class="text-3xl font-bold mono
-                            {% if pain_point.get('rank') == 1 %}text-amber-400
-                            {% elif pain_point.get('rank') == 2 %}text-slate-300
-                            {% elif pain_point.get('rank') == 3 %}text-amber-600
-                            {% else %}text-blue-400{% endif %}">#{{ pain_point.get('rank', '?') }}</span>
-                        <h2 class="text-xl font-bold text-white">{{ pain_point.pain_point }}</h2>
+                        <span class="text-2xl font-semibold mono
+                            {% if pain_point.get('rank') == 1 %}" style="color: var(--accent-amber);
+                            {% elif pain_point.get('rank') == 2 %}" style="color: var(--accent-silver);
+                            {% elif pain_point.get('rank') == 3 %}" style="color: var(--accent-bronze);
+                            {% else %}" style="color: var(--accent-blue);{% endif %}">#{{ pain_point.get('rank', '?') }}</span>
+                        <h2 class="text-lg font-semibold" style="color: var(--text-primary);">{{ pain_point.pain_point }}</h2>
                         <span class="trend-pill
                             {% if pain_point.get('trend') == 'rising' %}trend-rising
                             {% elif pain_point.get('trend') == 'falling' %}trend-falling
@@ -111,16 +168,16 @@
                         </span>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-slate-600/20">
+                        <span class="text-xs px-3 py-1 rounded-md flex items-center gap-1" style="background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border-subtle);">
                             <span class="material-icons text-xs">category</span> {{ pain_point.get('category', '-') }}
                         </span>
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-slate-600/20">
+                        <span class="text-xs px-3 py-1 rounded-md flex items-center gap-1" style="background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border-subtle);">
                             <span class="material-icons text-xs">people</span> {{ pain_point.get('affected_users', '-') }}
                         </span>
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-slate-600/20">
+                        <span class="text-xs px-3 py-1 rounded-md flex items-center gap-1" style="background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border-subtle);">
                             <span class="material-icons text-xs">forum</span> {{ pain_point.get('mentions', 0) }} 讨论
                         </span>
-                        <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-600/20">
+                        <span class="text-xs px-3 py-1 rounded-md" style="background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border-subtle);">
                             {{ pain_point.get('sources', []) | join(', ') }}
                         </span>
                     </div>
@@ -131,44 +188,43 @@
                         {% elif pain_point.get('rank') == 2 %}rank-2
                         {% elif pain_point.get('rank') == 3 %}rank-3
                         {% else %}rank-default{% endif %}">
-                        <p class="text-2xl font-bold mono
-                            {% if pain_point.get('rank') == 1 %}text-amber-400
-                            {% elif pain_point.get('rank') == 2 %}text-slate-300
-                            {% elif pain_point.get('rank') == 3 %}text-amber-600
-                            {% else %}text-blue-400{% endif %}">{{ pain_point.pphi_score }}</p>
+                        <p class="text-base font-semibold mono
+                            {% if pain_point.get('rank') == 1 %}" style="color: var(--accent-amber);
+                            {% elif pain_point.get('rank') == 2 %}" style="color: var(--accent-silver);
+                            {% elif pain_point.get('rank') == 3 %}" style="color: var(--accent-bronze);
+                            {% else %}" style="color: var(--accent-blue);{% endif %}">{{ pain_point.pphi_score }}</p>
                     </div>
-                    <p class="text-xs text-slate-400 mt-1.5 mono">PPHI</p>
+                    <p class="text-xs mt-1 mono" style="color: var(--text-tertiary);">PPHI</p>
                 </div>
             </div>
 
             {% if pain_point.get('evidence') %}
-            <div class="mt-5 p-4 bg-slate-800/40 rounded-xl border-l-3 border-blue-500/60">
-                <p class="text-xs text-slate-400 mb-1 flex items-center gap-1">
+            <div class="mt-4 p-4 rounded-lg" style="background: var(--bg-elevated); border-left: 2px solid var(--accent-blue);">
+                <p class="text-xs mb-1 flex items-center gap-1" style="color: var(--text-tertiary);">
                     <span class="material-icons text-xs">format_quote</span> 证据摘要
                 </p>
-                <p class="text-slate-200 text-sm leading-relaxed">{{ pain_point.evidence }}</p>
+                <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">{{ pain_point.evidence }}</p>
             </div>
             {% endif %}
         </div>
 
-        <!-- AI 推理需求（核心价值，提前展示） -->
+        <!-- AI 推理需求 -->
         {% if pain_point.get('hidden_need') %}
-        <div class="card need-card p-6 mb-5 animate-in" style="animation-delay: 0.1s">
-            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
-                <span class="material-icons text-indigo-400 text-lg">psychology</span> AI 推理需求
+        <div class="card need-card p-6 mb-4 animate-in" style="animation-delay: 0.1s">
+            <h3 class="font-medium mb-3 flex items-center gap-2" style="color: var(--text-primary);">
+                <span class="material-icons" style="color: var(--accent-purple);">psychology</span> AI 推理需求
                 {% if pain_point.get('confidence', 0) < 0.6 %}
-                <span class="text-xs bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/25 ml-auto">待验证</span>
+                <span class="text-xs px-2 py-0.5 rounded-full ml-auto" style="background: rgba(212,160,74,0.10); color: var(--accent-amber); border: 1px solid rgba(212,160,74,0.18);">待验证</span>
                 {% endif %}
             </h3>
-            <p class="text-indigo-200 text-lg leading-relaxed">{{ pain_point.hidden_need }}</p>
+            <p class="text-base leading-relaxed" style="color: var(--accent-purple);">{{ pain_point.hidden_need }}</p>
             <div class="mt-3 flex items-center gap-4">
-                <span class="text-xs text-slate-400 mono">置信度: {{ (pain_point.get('confidence', 0) * 100) | int }}%</span>
-                <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full">
-                    <div class="h-1.5 rounded-full
-                        {% if pain_point.get('confidence', 0) >= 0.8 %}bg-gradient-to-r from-emerald-500 to-green-400
-                        {% elif pain_point.get('confidence', 0) >= 0.6 %}bg-gradient-to-r from-indigo-500 to-purple-500
-                        {% else %}bg-gradient-to-r from-amber-500 to-orange-500{% endif %}"
-                         style="width: {{ (pain_point.get('confidence', 0) * 100) | int }}%"></div>
+                <span class="text-xs mono" style="color: var(--text-tertiary);">置信度: {{ (pain_point.get('confidence', 0) * 100) | int }}%</span>
+                <div class="flex-1 h-1 rounded-full" style="background: var(--bg-elevated);">
+                    <div class="h-1 rounded-full
+                        {% if pain_point.get('confidence', 0) >= 0.8 %}" style="background: var(--accent-green); width: {{ (pain_point.get('confidence', 0) * 100) | int }}%
+                        {% elif pain_point.get('confidence', 0) >= 0.6 %}" style="background: var(--accent-purple); width: {{ (pain_point.get('confidence', 0) * 100) | int }}%
+                        {% else %}" style="background: var(--accent-amber); width: {{ (pain_point.get('confidence', 0) * 100) | int }}%{% endif %}"></div>
                 </div>
             </div>
         </div>
@@ -176,21 +232,24 @@
 
         <!-- 关联原帖 -->
         {% if posts %}
-        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.15s">
-            <h3 class="font-bold text-white mb-4 flex items-center gap-2">
-                <span class="material-icons text-blue-400 text-lg">forum</span> 关联讨论
-                <span class="text-xs text-slate-400 mono ml-auto">{{ posts | length }} 帖</span>
+        <div class="card p-6 mb-4 animate-in" style="animation-delay: 0.15s">
+            <h3 class="font-medium mb-4 flex items-center gap-2" style="color: var(--text-primary);">
+                <span class="material-icons" style="color: var(--accent-blue);">forum</span> 关联讨论
+                <span class="text-xs mono ml-auto" style="color: var(--text-tertiary);">{{ posts | length }} 帖</span>
             </h3>
-            <div class="space-y-3">
+            <div class="space-y-2">
                 {% for post in posts %}
                 <a href="{{ post.url }}" target="_blank" rel="noopener"
-                   class="block p-4 bg-slate-800/30 rounded-xl hover:bg-slate-700/40 transition-all duration-200 group border border-slate-700/20 hover:border-slate-600/40">
+                   class="block p-3 rounded-lg transition-all duration-200 group"
+                   style="background: var(--bg-elevated); border: 1px solid var(--border-subtle);"
+                   onmouseenter="this.style.borderColor='var(--border-default)'"
+                   onmouseleave="this.style.borderColor='var(--border-subtle)'">
                     <div class="flex items-start gap-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5
-                            {% if post.source == 'reddit' %}bg-orange-500/15 text-orange-400
-                            {% elif post.source == 'nga' %}bg-emerald-500/15 text-emerald-400
-                            {% elif post.source == 'videocardz' %}bg-purple-500/15 text-purple-400
-                            {% else %}bg-blue-500/15 text-blue-400{% endif %}">
+                        <div class="w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5
+                            {% if post.source == 'reddit' %}" style="background: rgba(229,83,75,0.10); color: var(--accent-red);
+                            {% elif post.source == 'nga' %}" style="background: rgba(94,196,158,0.10); color: var(--accent-green);
+                            {% elif post.source == 'videocardz' %}" style="background: rgba(157,138,191,0.10); color: var(--accent-purple);
+                            {% else %}" style="background: rgba(91,141,239,0.10); color: var(--accent-blue);{% endif %}">
                             <span class="material-icons text-sm">
                                 {% if post.source == 'reddit' %}reddit
                                 {% elif post.source == 'nga' %}language
@@ -199,13 +258,13 @@
                             </span>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm text-white font-medium group-hover:text-blue-300 transition truncate">{{ post.title }}</p>
-                            <div class="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
+                            <p class="text-sm font-medium truncate" style="color: var(--text-primary);">{{ post.title }}</p>
+                            <div class="flex items-center gap-3 mt-1 text-xs" style="color: var(--text-tertiary);">
                                 <span class="uppercase font-medium
-                                    {% if post.source == 'reddit' %}text-orange-400/70
-                                    {% elif post.source == 'nga' %}text-emerald-400/70
-                                    {% elif post.source == 'videocardz' %}text-purple-400/70
-                                    {% else %}text-blue-400/70{% endif %}">{{ post.source }}</span>
+                                    {% if post.source == 'reddit' %}" style="color: var(--accent-red);
+                                    {% elif post.source == 'nga' %}" style="color: var(--accent-green);
+                                    {% elif post.source == 'videocardz' %}" style="color: var(--accent-purple);
+                                    {% else %}" style="color: var(--accent-blue);{% endif %}">{{ post.source }}</span>
                                 {% if post.replies %}
                                 <span class="flex items-center gap-0.5">
                                     <span class="material-icons text-xs">chat_bubble_outline</span> {{ post.replies }}
@@ -221,40 +280,43 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <span class="material-icons text-slate-500 text-sm group-hover:text-blue-400 transition shrink-0 mt-1">open_in_new</span>
+                        <span class="material-icons text-sm shrink-0 mt-1" style="color: var(--text-tertiary);">open_in_new</span>
                     </div>
                 </a>
                 {% endfor %}
             </div>
         </div>
         {% elif pain_point.get('source_urls') %}
-        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.15s">
-            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
-                <span class="material-icons text-blue-400 text-lg">link</span> 原帖追溯
+        <div class="card p-6 mb-4 animate-in" style="animation-delay: 0.15s">
+            <h3 class="font-medium mb-3 flex items-center gap-2" style="color: var(--text-primary);">
+                <span class="material-icons" style="color: var(--accent-blue);">link</span> 原帖追溯
             </h3>
             <div class="space-y-2">
                 {% for url in pain_point.source_urls %}
                 <a href="{{ url }}" target="_blank" rel="noopener"
-                   class="flex items-center gap-2 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-700/40 transition group border border-slate-700/20 hover:border-slate-600/40">
-                    <span class="material-icons text-slate-400 text-sm group-hover:text-blue-400 transition">open_in_new</span>
-                    <span class="text-sm text-blue-400 group-hover:text-blue-300 truncate transition">{{ url }}</span>
+                   class="flex items-center gap-2 p-3 rounded-lg transition group"
+                   style="background: var(--bg-elevated); border: 1px solid var(--border-subtle);"
+                   onmouseenter="this.style.borderColor='var(--border-default)'"
+                   onmouseleave="this.style.borderColor='var(--border-subtle)'">
+                    <span class="material-icons text-sm" style="color: var(--text-tertiary);">open_in_new</span>
+                    <span class="text-sm truncate" style="color: var(--accent-blue);">{{ url }}</span>
                 </a>
                 {% endfor %}
             </div>
         </div>
         {% endif %}
 
-        <!-- GPU 产品标签（辅助信息，放后面） -->
+        <!-- GPU 产品标签 -->
         {% set gpu = pain_point.get('gpu_tags', {}) %}
         {% if gpu.get('brands') or gpu.get('models') or gpu.get('manufacturers') %}
-        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.2s">
-            <h3 class="font-bold text-white mb-4 flex items-center gap-2">
-                <span class="material-icons text-emerald-400 text-lg">memory</span> GPU 产品关联
+        <div class="card p-6 mb-4 animate-in" style="animation-delay: 0.2s">
+            <h3 class="font-medium mb-4 flex items-center gap-2" style="color: var(--text-primary);">
+                <span class="material-icons" style="color: var(--accent-green);">memory</span> GPU 产品关联
             </h3>
             <div class="flex flex-wrap gap-x-8 gap-y-4">
                 {% if gpu.get('brands') %}
                 <div>
-                    <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider">芯片品牌</p>
+                    <p class="text-xs mb-2 uppercase tracking-wider" style="color: var(--text-tertiary);">芯片品牌</p>
                     <div class="flex flex-wrap gap-2">
                         {% for b in gpu.brands %}<span class="brand-tag">{{ b }}</span>{% endfor %}
                     </div>
@@ -262,7 +324,7 @@
                 {% endif %}
                 {% if gpu.get('models') %}
                 <div>
-                    <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider">具体型号</p>
+                    <p class="text-xs mb-2 uppercase tracking-wider" style="color: var(--text-tertiary);">具体型号</p>
                     <div class="flex flex-wrap gap-2">
                         {% for m in gpu.models %}<span class="gpu-tag">{{ m }}</span>{% endfor %}
                     </div>
@@ -270,7 +332,7 @@
                 {% endif %}
                 {% if gpu.get('manufacturers') %}
                 <div>
-                    <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider">板卡厂商</p>
+                    <p class="text-xs mb-2 uppercase tracking-wider" style="color: var(--text-tertiary);">板卡厂商</p>
                     <div class="flex flex-wrap gap-2">
                         {% for mfr in gpu.manufacturers %}<span class="mfr-tag">{{ mfr }}</span>{% endfor %}
                     </div>
@@ -283,17 +345,17 @@
         {% else %}
         <!-- 空状态 -->
         <div class="card p-12 text-center animate-in" style="animation-delay: 0.05s">
-            <span class="material-icons text-5xl text-slate-500 mb-4">search_off</span>
-            <p class="text-slate-400 text-lg mb-2">未找到该痛点</p>
-            <p class="text-slate-500 text-sm mb-5">可能已被合并或排名变动</p>
-            <a href="/" class="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white transition">
+            <span class="material-icons text-5xl mb-4" style="color: var(--text-tertiary);">search_off</span>
+            <p class="text-lg mb-2" style="color: var(--text-secondary);">未找到该痛点</p>
+            <p class="text-sm mb-4" style="color: var(--text-tertiary);">可能已被合并或排名变动</p>
+            <a href="/" class="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-sm transition" style="background: var(--accent-blue); color: white;">
                 <span class="material-icons text-sm">arrow_back</span> 返回仪表盘
             </a>
         </div>
         {% endif %}
     </main>
 
-    <footer class="text-center text-slate-500 text-xs py-6 border-t border-slate-800/30 mt-8">
+    <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
         GPU-Insight v1.0 · 显卡用户痛点智能分析系统
     </footer>
 </body>
