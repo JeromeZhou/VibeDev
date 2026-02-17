@@ -87,48 +87,69 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
 
 
 def _load_historical_insights() -> list[dict]:
-    """从 DB 加载历史痛点，转换为 insights 格式供聚合"""
+    """从 DB 加载历史痛点（从 pphi_history 最新一轮的累积数据）
+
+    关键设计：pphi_history 存的是每轮聚合后的结果（GPU 标签已合并），
+    而 pain_points 存的是每轮原始提取结果（标签未合并）。
+    所以必须从 pphi_history 加载，才能实现跨轮次的标签累积。
+    """
     try:
         from src.utils.db import get_db
         conn = get_db()
+
+        # 取最新一轮的累积排名数据（已包含历史合并的 GPU 标签）
+        latest_run = conn.execute(
+            "SELECT MAX(run_date) as rd FROM pphi_history"
+        ).fetchone()
+        if not latest_run or not latest_run["rd"]:
+            conn.close()
+            return []
+
+        latest_date = latest_run["rd"]
         rows = conn.execute(
-            """SELECT pain_point, category, mentions, sources, gpu_tags,
-                      source_urls, evidence, hidden_need, confidence, pphi_score,
-                      total_replies, total_likes, earliest_timestamp
-               FROM pain_points
-               ORDER BY run_date DESC"""
+            """SELECT pain_point, pphi_score, mentions, gpu_tags,
+                      source_urls, hidden_need
+               FROM pphi_history
+               WHERE run_date = ?
+               ORDER BY rank ASC""",
+            (latest_date,)
         ).fetchall()
 
         insights = []
         for r in rows:
-            sources_list = json.loads(r["sources"]) if r["sources"] else []
             gpu_tags = json.loads(r["gpu_tags"]) if r["gpu_tags"] else {}
             source_urls = json.loads(r["source_urls"]) if r["source_urls"] else []
 
-            # 构造 source_post_ids（从 source_urls 推断来源）
+            # 从 source_urls 推断来源，构造 source_post_ids
             source_post_ids = []
             for url in source_urls:
                 if "reddit" in url:
-                    post_id = url.split('/')[-1] if '/' in url else url.split('comments/')[-1].split('/')[0]
-                    source_post_ids.append(f"reddit_{post_id}")
+                    slug = url.rstrip("/").split("/")[-1]
+                    source_post_ids.append(f"reddit_{slug}")
                 elif "nga" in url:
-                    tid = url.split('tid=')[-1].split('&')[0] if 'tid=' in url else ""
+                    tid = url.split("tid=")[-1].split("&")[0] if "tid=" in url else ""
                     if tid:
                         source_post_ids.append(f"nga_{tid}")
-                elif "videocardz" in url:
-                    slug = url.split('/')[-1] if '/' in url else ""
-                    if slug:
-                        source_post_ids.append(f"vcz_{slug}")
+                elif "bilibili" in url:
+                    bv = url.rstrip("/").split("/")[-1]
+                    source_post_ids.append(f"bilibili_{bv}")
+                elif "v2ex" in url:
+                    tid = url.rstrip("/").split("/")[-1]
+                    source_post_ids.append(f"v2ex_{tid}")
+                elif "mydrivers" in url:
+                    slug = url.rstrip("/").split("/")[-1]
+                    source_post_ids.append(f"mydrivers_{slug}")
+                elif "techpowerup" in url:
+                    slug = url.rstrip("/").split("/")[-1]
+                    source_post_ids.append(f"techpowerup_{slug}")
                 else:
                     source_post_ids.append(f"unknown_{url[-20:]}")
 
-            # 优先使用 pain_points 表直接存储的互动数据，fallback 到 posts 表查询
-            total_replies = r["total_replies"] or 0
-            total_likes = r["total_likes"] or 0
-            earliest_timestamp = r["earliest_timestamp"] or ""
-
-            # 如果直接字段为 0，尝试从 posts 表补充
-            if total_replies == 0 and total_likes == 0 and source_post_ids:
+            # 从 posts 表补充互动数据
+            total_replies = 0
+            total_likes = 0
+            earliest_timestamp = ""
+            if source_post_ids:
                 placeholders = ",".join("?" * len(source_post_ids))
                 post_rows = conn.execute(
                     f"""SELECT replies, likes, timestamp FROM posts
@@ -137,25 +158,24 @@ def _load_historical_insights() -> list[dict]:
                 ).fetchall()
                 total_replies = sum(row["replies"] or 0 for row in post_rows)
                 total_likes = sum(row["likes"] or 0 for row in post_rows)
-                if not earliest_timestamp:
-                    timestamps = [row["timestamp"] for row in post_rows if row["timestamp"]]
-                    if timestamps:
-                        earliest_timestamp = min(timestamps)
+                timestamps = [row["timestamp"] for row in post_rows if row["timestamp"]]
+                if timestamps:
+                    earliest_timestamp = min(timestamps)
 
             hidden_need_obj = None
             if r["hidden_need"]:
                 hidden_need_obj = {
                     "hidden_need": r["hidden_need"],
-                    "confidence": r["confidence"] or 0.5,
-                    "reasoning_chain": [],  # 历史数据没有推理链
-                    "munger_review": None,  # 历史数据没有 Munger 审查
+                    "confidence": 0.5,
+                    "reasoning_chain": [],
+                    "munger_review": None,
                 }
 
             insights.append({
                 "pain_point": r["pain_point"],
-                "category": r["category"] or "",
+                "category": "",
                 "affected_users": "",
-                "evidence": r["evidence"] or "",
+                "evidence": "",
                 "source_post_ids": source_post_ids,
                 "source_urls": source_urls,
                 "gpu_tags": gpu_tags,
@@ -163,9 +183,11 @@ def _load_historical_insights() -> list[dict]:
                 "total_replies": total_replies,
                 "total_likes": total_likes,
                 "earliest_timestamp": earliest_timestamp,
+                "_hist_mentions": r["mentions"] or 0,  # 历史累积的 mentions 数
             })
 
         conn.close()
+        print(f"  [历史] 从 pphi_history 加载 {len(insights)} 个累积痛点 (run: {latest_date})")
         return insights
     except Exception as e:
         print(f"  [!] 加载历史痛点失败: {e}")
@@ -231,7 +253,9 @@ def _aggregate(insights: list[dict]) -> dict:
             if len(original_pp) > len(current_display) or (original_pp.startswith("显卡") and not current_display.startswith("显卡")):
                 name_mapping[normalized_pp] = original_pp
 
-        agg[normalized_pp]["count"] += 1
+        # count: 如果 insight 来自历史累积（已有 mentions），用 mentions；否则 +1
+        hist_mentions = item.get("_hist_mentions", 0)
+        agg[normalized_pp]["count"] += hist_mentions if hist_mentions > 0 else 1
 
         # 来源
         for pid in item.get("source_post_ids", []):
