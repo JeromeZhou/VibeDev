@@ -1,12 +1,43 @@
 # GPU-Insight 共识记忆
 
 > 最后更新：2026-02-17 16:04
-> 更新者：开发团队 v4 UI改版 + 召回率优化
-> 轮次：#4（Linear/Vercel 设计系统 + 漏斗召回率优化）
+> 更新者：开发团队 v6 P0全修复
+> 轮次：#6（语义去重 + PPHI重设计 + 防幻觉 + 成本控制 + 共识自动更新）
 
 ## 当前共识
 
-### v4 团队共识（本轮新增）
+### v6 团队共识（本轮新增）
+
+#### 1. 语义去重（P0-1）
+- 本地规范化：去掉"显卡"前缀 + 括号分类标签，统一聚合 key
+- 效果：26 个重复痛点 → 16-17 个独立痛点
+- 零 token 成本
+
+#### 2. PPHI 公式重设计（P0-2）
+- 新权重：frequency 35% + source_quality 20% + interaction 15% + cross_platform 15% + freshness 15%
+- 对数缩放：log2(mentions+1) * 20，避免封顶过低
+- 跨平台加成：多论坛出现的痛点优先级更高
+- 效果：Top 10 梯度 58.3→34.8（之前 37.1→35.8）
+
+#### 3. 防幻觉机制（P0-3）
+- Devil's Advocate (Munger) 审查：对 confidence > 0.6 的隐藏需求反向论证
+- 推理链展示：details.html 展示完整推理过程
+- 被否决需求标记 munger_rejected，confidence 降为 0.2
+
+#### 4. 成本控制三级降级（P0-4）
+- 80%: 警告 | 90%: 自动降级模型(Qwen2.5-7B) | 95%: 暂停非关键任务
+- pipeline 步骤 5/6/6.5 前各检查一次预算
+
+#### 5. 累积排名 + 历史浏览（v5）
+- ranker 从 DB 加载历史痛点 + 当轮合并，统一计算 PPHI
+- 新增 /history 和 /history/{run_date} 页面
+- 导航栏统一：仪表盘 / 趋势 / 历史
+
+#### 6. 共识自动更新（P1-5）
+- pipeline 步骤 10 自动更新 consensus.md 的 Top 痛点和成本
+- src/reporters/consensus_updater.py
+
+### v4 团队共识
 
 #### 1. Web UI 全面改版（Linear/Vercel 设计系统）
 - 设计参考：Linear、Vercel Dashboard、Grafana 暗色主题
@@ -94,16 +125,26 @@ _本轮无否决_
 - [x] Web UI v4 改版（Linear/Vercel 设计系统，3 页全部重写）✅ 2026-02-17
 - [x] 召回率优化（24 信号词 + L3 阈值 + L2 prompt）✅ 2026-02-17
 - [x] Reddit SSL 容错（verify=False fallback）✅ 2026-02-17
+- [x] 累积排名（历史+当轮合并 PPHI）✅ 2026-02-17
+- [x] 历史浏览页（/history + /history/{run_date}）✅ 2026-02-17
+- [x] 语义去重（本地规范化，26→16 痛点）✅ 2026-02-17
+- [x] PPHI 公式重设计（对数缩放+跨平台+新鲜度）✅ 2026-02-17
+- [x] 防幻觉 Devil's Advocate Munger 审查 ✅ 2026-02-17
+- [x] 成本控制三级降级（80%警告/90%降级/95%暂停）✅ 2026-02-17
+- [x] 共识自动更新（pipeline 步骤 10）✅ 2026-02-17
+- [x] 推理链 + Munger 审查结果 UI 展示 ✅ 2026-02-17
 - [ ] Chiphell 爬虫修复（需登录 Cookie 或 Playwright）
 - [ ] auto-loop.sh 实际部署测试
 
 ## Next Action
-- [x] UI 全面改版（参考 Linear/Vercel 设计系统）✅ 2026-02-17
-- [x] 召回率优化（信号词 + L3 阈值 + L2 prompt）✅ 2026-02-17
-- [x] Reddit r/amd SSL 错误排查 ✅ 2026-02-17（verify=False fallback）
+- [x] 累积排名 + 历史浏览页 ✅ 2026-02-17
+- [x] 语义去重 + PPHI 公式重设计 ✅ 2026-02-17
+- [x] 防幻觉 Munger 审查 + 推理链展示 ✅ 2026-02-17
+- [x] 成本控制三级降级 + 共识自动更新 ✅ 2026-02-17
 - [ ] 部署 Web 界面本地预览（port 8080）
-- [ ] 修复 Chiphell 爬虫（Playwright 方案，Data Engineer 已评估）
-- [ ] auto-loop.sh 定时循环部署测试
+- [ ] 修复 Chiphell 爬虫（Playwright 方案）
+- [ ] auto-loop.bat Windows 定时循环
+- [ ] 互动数据传递优化（Reddit replies/likes）
 - [ ] 大数据量压力测试（>200 帖漏斗表现）
 
 ## 历史趋势
@@ -118,9 +159,12 @@ _本轮无否决_
 - 后期可考虑混合模型策略（简单任务用 Qwen3-8B 降成本）
 
 ## Git 提交记录
+- `90cb91f` feat: v6 P0全修复 — 防幻觉Munger审查 + 成本控制三级降级 + 共识自动更新 + 推理链UI展示
+- `17dbbc8` fix: P0-1 语义去重(本地规范化合并) + P0-2 PPHI公式重设计(对数缩放+跨平台+新鲜度)
+- `1a1c888` feat: v5 累积排名(历史+当轮合并PPHI) + 历史浏览页 + 导航栏统一
+- `bab83be` docs: 更新共识记忆至v4（UI改版+召回率优化）
 - `b4a6db6` feat: v4 UI全面改版(Linear/Vercel设计系统) + 召回率优化(信号词+L3阈值+L2 prompt)
 - `c883fdf` feat: v3 端到端验证通过 + UI改版 + cleaner去重修复 + Reddit SSL容错
-- `待提交` feat: GPU 产品标签 + URL 追溯 + PainInsight 合并结构
 - `12a94de` feat: 三层漏斗 + Reddit v2 + Tieba 爬虫
 - `9c0d355` feat: 开发团队协同推进 — 6 Agent 产出
 - `80c35e8` feat: 完成真实 LLM pipeline 验证
