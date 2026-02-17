@@ -125,6 +125,7 @@ def run_pipeline(config: dict):
     print()
 
     # 10. 输出 Top 10
+    trend_icons = {"rising": "↑", "falling": "↓", "stable": "→", "new": "★"}
     print("=" * 70)
     print("  GPU-Insight Top 10 痛点排名")
     print("=" * 70)
@@ -136,7 +137,8 @@ def run_pipeline(config: dict):
         urls = r.get("source_urls", [])
         url_str = urls[0][:60] if urls else "-"
         need = r.get("hidden_need", "")
-        print(f"  #{r['rank']:2d} [PPHI {r['pphi_score']:5.1f}] {r['pain_point']}")
+        trend = trend_icons.get(r.get("trend", "new"), "★")
+        print(f"  #{r['rank']:2d} {trend} [PPHI {r['pphi_score']:5.1f}] {r['pain_point']}")
         print(f"       GPU: {models} | 厂商: {mfrs}")
         print(f"       来源: {url_str}")
         if need:
@@ -161,6 +163,23 @@ def main():
     except FileNotFoundError as e:
         print(f"错误: {e}")
         sys.exit(1)
+
+    # 定时模式：python main.py --loop
+    if "--loop" in sys.argv:
+        import time
+        interval = config.get("runtime", {}).get("cycle_interval_hours", 4) * 3600
+        print(f"定时模式：每 {interval/3600:.0f} 小时运行一轮")
+        print()
+        while True:
+            try:
+                run_pipeline(config)
+            except Exception as e:
+                print(f"\n[!] Pipeline 异常: {e}")
+            next_run = datetime.now().strftime('%H:%M')
+            print(f"\n下一轮: {interval/3600:.0f}h 后")
+            print("-" * 50)
+            time.sleep(interval)
+        return
 
     agent_teams_enabled = config.get("agent_teams", {}).get("enabled", False)
     agent_teams_available = check_agent_teams_available()

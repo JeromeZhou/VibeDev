@@ -88,6 +88,10 @@
                                     {% endfor %}
                                 </div>
                                 <p class="text-sm text-gray-400">
+                                    {% if r.get('trend') == 'rising' %}<span class="text-green-400">↑</span>
+                                    {% elif r.get('trend') == 'falling' %}<span class="text-red-400">↓</span>
+                                    {% elif r.get('trend') == 'stable' %}<span class="text-gray-400">→</span>
+                                    {% else %}<span class="text-blue-400">★</span>{% endif %}
                                     {{ r.get('mentions', 0) }} 条讨论 |
                                     {{ r.get('sources', []) | join(', ') }} |
                                     {{ r.get('category', '') }} |
