@@ -67,6 +67,15 @@ def _init_tables(conn: sqlite3.Connection):
             created_at TEXT DEFAULT (datetime('now'))
         );
         CREATE INDEX IF NOT EXISTS idx_pphi_date ON pphi_history(run_date);
+
+        CREATE TABLE IF NOT EXISTS scrape_checkpoints (
+            source TEXT PRIMARY KEY,
+            last_scrape_at TEXT NOT NULL,
+            last_post_count INTEGER DEFAULT 0,
+            total_scraped INTEGER DEFAULT 0
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_posts_url ON posts(url);
     """)
     conn.commit()
 
@@ -103,7 +112,7 @@ def filter_new_posts(posts: list[dict]) -> list[dict]:
 
 
 def save_posts(posts: list[dict]):
-    """批量保存帖子到数据库"""
+    """批量保存帖子到数据库（新帖插入，旧帖更新互动数据）"""
     if not posts:
         return
 
@@ -115,8 +124,11 @@ def save_posts(posts: list[dict]):
 
         try:
             conn.execute(
-                """INSERT OR IGNORE INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(id) DO UPDATE SET
+                       replies = MAX(posts.replies, excluded.replies),
+                       likes = MAX(posts.likes, excluded.likes)""",
                 (
                     post.get("id", ""),
                     post.get("source", ""),
@@ -204,6 +216,33 @@ def get_post_count() -> dict:
         by_source[row["source"]] = row["cnt"]
     conn.close()
     return {"total": total, "by_source": by_source}
+
+
+def save_checkpoint(source: str, post_count: int):
+    """保存抓取检查点"""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO scrape_checkpoints (source, last_scrape_at, last_post_count, total_scraped)
+           VALUES (?, datetime('now'), ?, ?)
+           ON CONFLICT(source) DO UPDATE SET
+               last_scrape_at = datetime('now'),
+               last_post_count = excluded.last_post_count,
+               total_scraped = scrape_checkpoints.total_scraped + excluded.last_post_count""",
+        (source, post_count, post_count)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_checkpoint(source: str) -> dict | None:
+    """获取抓取检查点"""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT source, last_scrape_at, last_post_count, total_scraped FROM scrape_checkpoints WHERE source = ?",
+        (source,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def get_trend_data(days: int = 30) -> list[dict]:

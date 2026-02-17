@@ -23,12 +23,21 @@
         .mesh-bg {
             background:
                 radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%);
+                radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(16,185,129,0.04) 0%, transparent 50%);
         }
         .need-card {
             background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1));
             border: 1px solid rgba(139,92,246,0.25);
         }
+        .trend-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+        .trend-rising  { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+        .trend-falling { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+        .trend-new     { background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+        .trend-stable  { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
@@ -38,9 +47,12 @@
 </head>
 <body class="min-h-screen mesh-bg">
     <header class="py-5 px-6 border-b border-slate-800/50">
-        <div class="max-w-4xl mx-auto">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
             <a href="/" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition w-fit">
                 <span class="material-icons text-base">arrow_back</span> 返回仪表盘
+            </a>
+            <a href="/trends" class="text-slate-400 hover:text-white text-sm flex items-center gap-1 transition">
+                <span class="material-icons text-base">trending_up</span> 趋势
             </a>
         </div>
     </header>
@@ -49,15 +61,25 @@
         {% if pain_point %}
         <!-- 痛点概览 -->
         <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.05s">
-            <div class="flex items-start justify-between">
-                <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-3">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-3 mb-3 flex-wrap">
                         <span class="text-3xl font-bold mono
                             {% if pain_point.get('rank') == 1 %}text-amber-400
                             {% elif pain_point.get('rank') == 2 %}text-slate-300
                             {% elif pain_point.get('rank') == 3 %}text-amber-600
                             {% else %}text-blue-400{% endif %}">#{{ pain_point.get('rank', '?') }}</span>
                         <h2 class="text-xl font-bold text-white">{{ pain_point.pain_point }}</h2>
+                        <span class="trend-pill
+                            {% if pain_point.get('trend') == 'rising' %}trend-rising
+                            {% elif pain_point.get('trend') == 'falling' %}trend-falling
+                            {% elif pain_point.get('trend') == 'new' %}trend-new
+                            {% else %}trend-stable{% endif %}">
+                            {% if pain_point.get('trend') == 'rising' %}↑ 上升
+                            {% elif pain_point.get('trend') == 'falling' %}↓ 下降
+                            {% elif pain_point.get('trend') == 'new' %}★ 新增
+                            {% else %}→ 稳定{% endif %}
+                        </span>
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <span class="text-xs bg-slate-700/60 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1">
@@ -74,9 +96,9 @@
                         </span>
                     </div>
                 </div>
-                <div class="text-center ml-6">
+                <div class="text-center shrink-0">
                     <div class="w-20 h-20 rounded-full border-3 border-blue-500/30 flex items-center justify-center"
-                         style="background: radial-gradient(circle, rgba(59,130,246,0.1), transparent);">
+                         style="background: radial-gradient(circle, rgba(59,130,246,0.15), transparent);">
                         <p class="text-2xl font-bold mono text-blue-400">{{ pain_point.pphi_score }}</p>
                     </div>
                     <p class="text-xs text-slate-500 mt-1 mono">PPHI</p>
@@ -86,21 +108,114 @@
             {% if pain_point.get('evidence') %}
             <div class="mt-5 p-4 bg-slate-800/40 rounded-xl border-l-3 border-blue-500/60">
                 <p class="text-xs text-slate-500 mb-1 flex items-center gap-1">
-                    <span class="material-icons text-xs">format_quote</span> 证据
+                    <span class="material-icons text-xs">format_quote</span> 证据摘要
                 </p>
                 <p class="text-slate-200 text-sm leading-relaxed">{{ pain_point.evidence }}</p>
             </div>
             {% endif %}
         </div>
 
-        <!-- GPU 产品标签 -->
+        <!-- AI 推理需求（核心价值，提前展示） -->
+        {% if pain_point.get('hidden_need') %}
+        <div class="card need-card p-6 mb-5 animate-in" style="animation-delay: 0.1s">
+            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+                <span class="material-icons text-indigo-400 text-lg">psychology</span> AI 推理需求
+                {% if pain_point.get('confidence', 0) < 0.6 %}
+                <span class="text-xs bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/25 ml-auto">待验证</span>
+                {% endif %}
+            </h3>
+            <p class="text-indigo-200 text-lg leading-relaxed">{{ pain_point.hidden_need }}</p>
+            <div class="mt-3 flex items-center gap-4">
+                <span class="text-xs text-slate-400 mono">置信度: {{ (pain_point.get('confidence', 0) * 100) | int }}%</span>
+                <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full">
+                    <div class="h-1.5 rounded-full
+                        {% if pain_point.get('confidence', 0) >= 0.8 %}bg-gradient-to-r from-emerald-500 to-green-400
+                        {% elif pain_point.get('confidence', 0) >= 0.6 %}bg-gradient-to-r from-indigo-500 to-purple-500
+                        {% else %}bg-gradient-to-r from-amber-500 to-orange-500{% endif %}"
+                         style="width: {{ (pain_point.get('confidence', 0) * 100) | int }}%"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 关联原帖 -->
+        {% if posts %}
+        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.15s">
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                <span class="material-icons text-blue-400 text-lg">forum</span> 关联讨论
+                <span class="text-xs text-slate-500 mono ml-auto">{{ posts | length }} 帖</span>
+            </h3>
+            <div class="space-y-3">
+                {% for post in posts %}
+                <a href="{{ post.url }}" target="_blank" rel="noopener"
+                   class="block p-4 bg-slate-800/30 rounded-xl hover:bg-slate-700/40 transition-all duration-200 group border border-transparent hover:border-slate-600/30">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5
+                            {% if post.source == 'reddit' %}bg-orange-500/15 text-orange-400
+                            {% elif post.source == 'nga' %}bg-emerald-500/15 text-emerald-400
+                            {% elif post.source == 'videocardz' %}bg-purple-500/15 text-purple-400
+                            {% else %}bg-blue-500/15 text-blue-400{% endif %}">
+                            <span class="material-icons text-sm">
+                                {% if post.source == 'reddit' %}reddit
+                                {% elif post.source == 'nga' %}language
+                                {% elif post.source == 'videocardz' %}newspaper
+                                {% else %}article{% endif %}
+                            </span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-white font-medium group-hover:text-blue-300 transition truncate">{{ post.title }}</p>
+                            <div class="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                                <span class="uppercase font-medium
+                                    {% if post.source == 'reddit' %}text-orange-400/70
+                                    {% elif post.source == 'nga' %}text-emerald-400/70
+                                    {% elif post.source == 'videocardz' %}text-purple-400/70
+                                    {% else %}text-blue-400/70{% endif %}">{{ post.source }}</span>
+                                {% if post.replies %}
+                                <span class="flex items-center gap-0.5">
+                                    <span class="material-icons text-xs">chat_bubble_outline</span> {{ post.replies }}
+                                </span>
+                                {% endif %}
+                                {% if post.likes %}
+                                <span class="flex items-center gap-0.5">
+                                    <span class="material-icons text-xs">thumb_up_off_alt</span> {{ post.likes }}
+                                </span>
+                                {% endif %}
+                                {% if post.timestamp %}
+                                <span>{{ post.timestamp[:10] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="material-icons text-slate-600 text-sm group-hover:text-blue-400 transition shrink-0 mt-1">open_in_new</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% elif pain_point.get('source_urls') %}
+        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.15s">
+            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+                <span class="material-icons text-blue-400 text-lg">link</span> 原帖追溯
+            </h3>
+            <div class="space-y-2">
+                {% for url in pain_point.source_urls %}
+                <a href="{{ url }}" target="_blank" rel="noopener"
+                   class="flex items-center gap-2 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-700/40 transition group">
+                    <span class="material-icons text-slate-500 text-sm group-hover:text-blue-400 transition">open_in_new</span>
+                    <span class="text-sm text-blue-400 group-hover:text-blue-300 truncate transition">{{ url }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- GPU 产品标签（辅助信息，放后面） -->
         {% set gpu = pain_point.get('gpu_tags', {}) %}
         {% if gpu.get('brands') or gpu.get('models') or gpu.get('manufacturers') %}
-        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.1s">
+        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.2s">
             <h3 class="font-bold text-white mb-4 flex items-center gap-2">
                 <span class="material-icons text-emerald-400 text-lg">memory</span> GPU 产品关联
             </h3>
-            <div class="space-y-4">
+            <div class="flex flex-wrap gap-x-8 gap-y-4">
                 {% if gpu.get('brands') %}
                 <div>
                     <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider">芯片品牌</p>
@@ -129,48 +244,21 @@
         </div>
         {% endif %}
 
-        <!-- 推理需求 -->
-        {% if pain_point.get('hidden_need') %}
-        <div class="card need-card p-6 mb-5 animate-in" style="animation-delay: 0.15s">
-            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
-                <span class="material-icons text-indigo-400 text-lg">psychology</span> AI 推理需求
-            </h3>
-            <p class="text-indigo-200 text-lg leading-relaxed">{{ pain_point.hidden_need }}</p>
-            <div class="mt-3 flex items-center gap-4">
-                <span class="text-xs text-slate-400 mono">置信度: {{ (pain_point.get('confidence', 0) * 100) | int }}%</span>
-                <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full">
-                    <div class="h-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                         style="width: {{ (pain_point.get('confidence', 0) * 100) | int }}%"></div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- 原帖链接 -->
-        {% if pain_point.get('source_urls') %}
-        <div class="card p-6 mb-5 animate-in" style="animation-delay: 0.2s">
-            <h3 class="font-bold text-white mb-3 flex items-center gap-2">
-                <span class="material-icons text-blue-400 text-lg">link</span> 原帖追溯
-            </h3>
-            <div class="space-y-2">
-                {% for url in pain_point.source_urls %}
-                <a href="{{ url }}" target="_blank" rel="noopener"
-                   class="flex items-center gap-2 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-700/40 transition group">
-                    <span class="material-icons text-slate-500 text-sm group-hover:text-blue-400 transition">open_in_new</span>
-                    <span class="text-sm text-blue-400 group-hover:text-blue-300 truncate transition">{{ url }}</span>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
         {% else %}
-        <div class="card p-12 text-center">
-            <span class="material-icons text-4xl text-slate-600 mb-3">search_off</span>
-            <p class="text-slate-500 mb-3">未找到该痛点</p>
-            <a href="/" class="text-blue-400 hover:text-blue-300 transition">返回仪表盘</a>
+        <!-- 空状态 -->
+        <div class="card p-12 text-center animate-in" style="animation-delay: 0.05s">
+            <span class="material-icons text-5xl text-slate-600 mb-4">search_off</span>
+            <p class="text-slate-400 text-lg mb-2">未找到该痛点</p>
+            <p class="text-slate-600 text-sm mb-5">可能已被合并或排名变动</p>
+            <a href="/" class="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white transition">
+                <span class="material-icons text-sm">arrow_back</span> 返回仪表盘
+            </a>
         </div>
         {% endif %}
     </main>
+
+    <footer class="text-center text-slate-600 text-xs py-6 border-t border-slate-800/30 mt-8">
+        GPU-Insight v1.0 · 显卡用户痛点智能分析系统
+    </footer>
 </body>
 </html>

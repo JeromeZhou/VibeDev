@@ -50,9 +50,9 @@ def run_pipeline(config: dict):
     from src.scrapers import scrape_all_forums
     print("[1] 数据采集...")
     raw_posts = scrape_all_forums(config)
-    print(f"  获取 {len(raw_posts)} 条讨论")
+    print(f"  获取 {len(raw_posts)} 条新讨论")
     if not raw_posts:
-        print("  未获取到数据，跳过本轮")
+        print("  本轮无新数据，使用上轮排名")
         return
     print()
 

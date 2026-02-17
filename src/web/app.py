@@ -125,16 +125,58 @@ async def trends(request: Request):
     })
 
 
+def _load_source_posts(pain_point: dict) -> list[dict]:
+    """根据痛点的 source_urls 从 DB 加载关联原帖"""
+    if not pain_point:
+        return []
+    source_urls = pain_point.get("source_urls", [])
+    if not source_urls:
+        return []
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        posts = []
+        for url in source_urls[:20]:
+            row = conn.execute(
+                "SELECT id, source, title, url, replies, likes, timestamp FROM posts WHERE url = ?",
+                (url,)
+            ).fetchone()
+            if row:
+                posts.append(dict(row))
+        # 如果 URL 匹配不到，尝试用 post id 前缀匹配
+        if not posts:
+            for url in source_urls[:20]:
+                # 从 URL 提取可能的 ID 片段
+                slug = url.rstrip("/").split("/")[-1]
+                rows = conn.execute(
+                    "SELECT id, source, title, url, replies, likes, timestamp FROM posts WHERE id LIKE ? LIMIT 1",
+                    (f"%{slug[:30]}%",)
+                ).fetchall()
+                posts.extend(dict(r) for r in rows)
+        conn.close()
+        # 去重
+        seen = set()
+        unique = []
+        for p in posts:
+            if p["id"] not in seen:
+                seen.add(p["id"])
+                unique.append(p)
+        return unique
+    except Exception:
+        return []
+
+
 @app.get("/pain-point/{rank}")
 async def pain_point_detail(request: Request, rank: int):
     """痛点详情页"""
     data = _load_rankings()
     rankings = data.get("rankings", [])
     pain_point = next((r for r in rankings if r.get("rank") == rank), {})
+    posts = _load_source_posts(pain_point)
     return templates.TemplateResponse("details.html", {
         "request": request,
         "pain_point": pain_point,
-        "posts": [],  # TODO: 从 data/processed 加载关联讨论
+        "posts": posts,
     })
 
 

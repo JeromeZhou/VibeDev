@@ -4,12 +4,13 @@ from src.utils.config import get_enabled_sources
 
 
 def scrape_all_forums(config: dict) -> list[dict]:
-    """串行抓取所有已启用的论坛"""
+    """串行抓取所有已启用的论坛（带增量检查点）"""
     from .chiphell_scraper import ChiphellScraper
     from .reddit_scraper import RedditScraper
     from .tieba_scraper import TiebaScraper
     from .nga_scraper import NGAScraper
     from .videocardz_scraper import VideoCardzScraper
+    from src.utils.db import filter_new_posts, save_posts, save_checkpoint, get_checkpoint
 
     scraper_map = {
         "chiphell": ChiphellScraper,
@@ -25,11 +26,23 @@ def scrape_all_forums(config: dict) -> list[dict]:
     for source_name, source_config in enabled.items():
         scraper_cls = scraper_map.get(source_name)
         if scraper_cls:
-            print(f"  抓取 {source_name}...")
+            cp = get_checkpoint(source_name)
+            cp_info = f"(上次: {cp['last_scrape_at'][:16]}, 累计: {cp['total_scraped']})" if cp else "(首次)"
+            print(f"  抓取 {source_name} {cp_info}...")
+
             scraper = scraper_cls(config)
             posts = scraper.scrape()
-            all_posts.extend(posts)
-            print(f"    获取 {len(posts)} 条")
+            raw_count = len(posts)
+
+            # 增量过滤：只保留新帖（在 save 之前过滤）
+            new_posts = filter_new_posts(posts)
+            # 保存所有帖子（新帖插入，旧帖更新互动数据）
+            save_posts(posts)
+            # 更新检查点
+            save_checkpoint(source_name, len(new_posts))
+
+            all_posts.extend(new_posts)  # 只传新帖给后续分析
+            print(f"    获取 {raw_count} 条, 新增 {len(new_posts)} 条")
         else:
             print(f"  {source_name} 爬虫尚未实现，跳过")
 

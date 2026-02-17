@@ -231,8 +231,19 @@ category 只能是：功能需求、情感需求、社会需求。
         except Exception as e:
             print(f"  [!] 隐藏需求推导失败: {e}")
 
-    _save_results(results, config, "hidden_needs")
-    return results
+    # 过滤低置信度推理（防幻觉）
+    filtered = []
+    for r in results:
+        conf = r.get("confidence", 0)
+        if conf >= 0.4:  # 保留但标记
+            if conf < 0.6:
+                r["_unverified"] = True
+            filtered.append(r)
+        else:
+            print(f"    过滤低置信度推理: {r.get('pain_point', '')[:30]} (conf={conf})")
+
+    _save_results(filtered, config, "hidden_needs")
+    return filtered
 
 
 def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> list[dict]:

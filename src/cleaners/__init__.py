@@ -16,16 +16,14 @@ def clean_data(posts: list[dict], config: dict) -> list[dict]:
     posts = _convert_traditional(posts)
     # 3. 内存去重（同批次内）
     posts = _deduplicate(posts)
-    # 4. 持久化去重（跨运行，SQLite）
+    # 4. 持久化去重（跨运行，SQLite）— 只分析新帖，节省 LLM tokens
     try:
-        from src.utils.db import filter_new_posts, save_posts
+        from src.utils.db import filter_new_posts
         before = len(posts)
         posts = filter_new_posts(posts)
         skipped = before - len(posts)
         if skipped > 0:
-            print(f"  持久化去重: 跳过 {skipped} 条已处理帖子")
-        # 新帖入库
-        save_posts(posts)
+            print(f"  持久化去重: 跳过 {skipped} 条已处理帖子 (节省 LLM tokens)")
     except Exception as e:
         print(f"  [!] 持久化去重失败(继续运行): {e}")
     # 5. 截断长文本
