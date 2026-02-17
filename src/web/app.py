@@ -24,6 +24,67 @@ def _load_rankings() -> dict:
     return {"timestamp": None, "total_pain_points": 0, "rankings": []}
 
 
+def _get_trend_data() -> dict:
+    """从 DB 获取 PPHI 趋势数据"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        rows = conn.execute(
+            """SELECT run_date, pain_point, pphi_score
+               FROM pphi_history ORDER BY run_date ASC"""
+        ).fetchall()
+        conn.close()
+
+        if not rows:
+            return {"labels": [], "datasets": []}
+
+        # 按日期分组
+        dates = sorted(set(r["run_date"] for r in rows))
+        # 取最近 10 次运行
+        dates = dates[-10:]
+
+        # 找出出现频率最高的 top 5 痛点
+        from collections import Counter
+        pp_counter = Counter(r["pain_point"] for r in rows if r["run_date"] in dates)
+        top_pps = [pp for pp, _ in pp_counter.most_common(5)]
+
+        colors = ["#F44336", "#FF9800", "#1976D2", "#4CAF50", "#9C27B0"]
+        datasets = []
+        for i, pp in enumerate(top_pps):
+            scores = []
+            for d in dates:
+                score = next((r["pphi_score"] for r in rows if r["run_date"] == d and r["pain_point"] == pp), None)
+                scores.append(score)
+            datasets.append({
+                "label": pp[:15],
+                "data": scores,
+                "borderColor": colors[i % len(colors)],
+            })
+
+        labels = [d[5:] for d in dates]  # MM-DD HH:MM
+        return {"labels": labels, "datasets": datasets}
+    except Exception:
+        return {"labels": [], "datasets": []}
+
+
+def _get_source_distribution() -> dict:
+    """从 DB 获取来源分布"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT source, COUNT(*) as cnt FROM posts GROUP BY source"
+        ).fetchall()
+        conn.close()
+        labels = [r["source"] for r in rows]
+        data = [r["cnt"] for r in rows]
+        colors = {"reddit": "#FF5722", "nga": "#4CAF50", "tieba": "#FF9800", "chiphell": "#1976D2"}
+        bg = [colors.get(l, "#9C27B0") for l in labels]
+        return {"labels": labels, "data": data, "backgroundColor": bg}
+    except Exception:
+        return {"labels": [], "data": [], "backgroundColor": []}
+
+
 @app.get("/")
 async def dashboard(request: Request):
     """痛点仪表盘"""
@@ -43,6 +104,8 @@ async def trends(request: Request):
     return templates.TemplateResponse("trends.html", {
         "request": request,
         "rankings": data.get("rankings", []),
+        "trend_data_json": json.dumps(_get_trend_data(), ensure_ascii=False),
+        "source_data_json": json.dumps(_get_source_distribution(), ensure_ascii=False),
     })
 
 

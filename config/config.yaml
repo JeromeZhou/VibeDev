@@ -28,7 +28,7 @@ llm:
   # 深度推理任务
   reasoning:
     provider: "zhipu"
-    model: "THUDM/glm-4-9b-chat"
+    model: "Pro/zai-org/GLM-5"
     max_tokens: 4096
     temperature: 0.3
   # 简单任务
@@ -67,7 +67,7 @@ sources:
     url: "https://bbs.nga.cn"
     sections: ["硬件区"]
   tieba:
-    enabled: false  # blocked at night, re-enable daytime
+    enabled: true  # daytime OK
     weight: 0.6
     interval_hours: 6
   rog:

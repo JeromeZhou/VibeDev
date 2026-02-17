@@ -138,8 +138,55 @@ def _aggregate(insights: list[dict]) -> dict:
 
 
 def _detect_trend(pain_point: str, current_score: float) -> str:
-    """检测趋势（简化版：首次运行都是 new）"""
-    return "new"
+    """检测趋势：对比上一轮 PPHI 历史数据"""
+    try:
+        from src.utils.db import get_db
+        conn = get_db()
+        # 获取最近一次运行的数据（排除当前运行）
+        rows = conn.execute(
+            """SELECT DISTINCT run_date FROM pphi_history
+               ORDER BY run_date DESC LIMIT 2"""
+        ).fetchall()
+        if len(rows) < 2:
+            conn.close()
+            return "new"
+
+        prev_date = rows[1]["run_date"]  # 上一轮的日期
+        prev_points = conn.execute(
+            """SELECT pain_point, pphi_score FROM pphi_history
+               WHERE run_date = ?""",
+            (prev_date,)
+        ).fetchall()
+        conn.close()
+
+        if not prev_points:
+            return "new"
+
+        # 模糊匹配：找包含相同关键词的痛点
+        best_match_score = None
+        pp_lower = pain_point.lower()
+        for row in prev_points:
+            prev_pp = row["pain_point"].lower()
+            # 简单关键词重叠检测
+            pp_chars = set(pp_lower)
+            prev_chars = set(prev_pp)
+            overlap = len(pp_chars & prev_chars) / max(len(pp_chars | prev_chars), 1)
+            if overlap > 0.5:
+                best_match_score = row["pphi_score"]
+                break
+
+        if best_match_score is None:
+            return "new"
+
+        diff = current_score - best_match_score
+        if diff > 3:
+            return "rising"
+        elif diff < -3:
+            return "falling"
+        else:
+            return "stable"
+    except Exception:
+        return "new"
 
 
 def _save_rankings(rankings: list[dict], config: dict):
