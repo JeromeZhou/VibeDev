@@ -1,12 +1,29 @@
 # GPU-Insight 共识记忆
 
-> 最后更新：2026-02-17 13:25
-> 更新者：开发团队 v3 端到端验证
-> 轮次：#3（完整 pipeline 端到端通过 + cleaner 去重修复）
+> 最后更新：2026-02-17 14:12
+> 更新者：开发团队 v4 UI改版 + 召回率优化
+> 轮次：#4（Linear/Vercel 设计系统 + 漏斗召回率优化）
 
 ## 当前共识
 
-### v2 团队共识（本轮新增）
+### v4 团队共识（本轮新增）
+
+#### 1. Web UI 全面改版（Linear/Vercel 设计系统）
+- 设计参考：Linear、Vercel Dashboard、Grafana 暗色主题
+- CSS 变量系统：7 层背景色 + 3 层边框 + 3 层文字 + 7 个强调色
+- 字体：Inter + Noto Sans SC + JetBrains Mono（数据用等宽）
+- 克制原则：无 backdrop-filter blur、无 translateY hover、无 glow 效果
+- 排名列表展示全部痛点（不再截断 10 条），>10 条折叠展开
+- API 链接替换为"关于"弹窗，解释 PPHI 算法
+- 三页统一设计 token，视觉一致性 100%
+
+#### 2. 召回率优化
+- 新增 24 个信号词（12 英文 + 12 中文）：throttle, downclock, 降频, 温度墙, 翻车, 掉驱动 等
+- L3 阈值放宽：max_deep 30→50, max_light 20→50
+- L2 prompt 优化：class=2 覆盖技术问题、性能调优、驱动兼容
+- Reddit SSL 容错：httpx.ReadError 自动 verify=False 重试
+
+### v2 团队共识
 
 #### 1. GPU 产品标签方案
 - L0 本地词典正则（零 token）：`config/gpu_products.yaml` + `src/utils/gpu_tagger.py`
@@ -74,28 +91,34 @@ _本轮无否决_
 - [x] 统一错误处理 + 数据 Schema
 - [x] 完整 main.py pipeline 端到端运行（含新结构）✅ 2026-02-17
 - [x] 修复 cleaner 双重去重 bug（爬虫层已去重，cleaner 不再重复过滤）
-- [ ] Chiphell 爬虫修复（需登录 Cookie）
+- [x] Web UI v4 改版（Linear/Vercel 设计系统，3 页全部重写）✅ 2026-02-17
+- [x] 召回率优化（24 信号词 + L3 阈值 + L2 prompt）✅ 2026-02-17
+- [x] Reddit SSL 容错（verify=False fallback）✅ 2026-02-17
+- [ ] Chiphell 爬虫修复（需登录 Cookie 或 Playwright）
 - [ ] auto-loop.sh 实际部署测试
 
 ## Next Action
-- [x] 用真实数据跑完整 pipeline（含 GPU 标签 + URL 追溯 + PainInsight）✅ 2026-02-17
+- [x] UI 全面改版（参考 Linear/Vercel 设计系统）✅ 2026-02-17
+- [x] 召回率优化（信号词 + L3 阈值 + L2 prompt）✅ 2026-02-17
+- [x] Reddit r/amd SSL 错误排查 ✅ 2026-02-17（verify=False fallback）
 - [ ] 部署 Web 界面本地预览（port 8080）
-- [ ] 修复 Chiphell 爬虫（Cookie 或 Playwright 方案）
-- [ ] Reddit r/amd SSL 错误排查
-- [ ] 召回率测试（QA 建议）
+- [ ] 修复 Chiphell 爬虫（Playwright 方案，Data Engineer 已评估）
 - [ ] auto-loop.sh 定时循环部署测试
+- [ ] 大数据量压力测试（>200 帖漏斗表现）
 
 ## 历史趋势
 | 日期 | 数据量 | 痛点数 | 成本 |
 |------|--------|--------|------|
 | 2026-02-16 | 45 条（Reddit） | 5 个 | $0.33 |
 | 2026-02-17 | 12 条（Reddit+NGA） | 5 个 | $0.06 |
+| 2026-02-17 | 3 条（NGA） | 1 个 | $0.003 |
 
 ## 人工备注
 - 使用硅基流动 SiliconFlow 的 GLM-5 作为 LLM
 - 后期可考虑混合模型策略（简单任务用 Qwen3-8B 降成本）
 
 ## Git 提交记录
+- `b4a6db6` feat: v4 UI全面改版(Linear/Vercel设计系统) + 召回率优化(信号词+L3阈值+L2 prompt)
 - `c883fdf` feat: v3 端到端验证通过 + UI改版 + cleaner去重修复 + Reddit SSL容错
 - `待提交` feat: GPU 产品标签 + URL 追溯 + PainInsight 合并结构
 - `12a94de` feat: 三层漏斗 + Reddit v2 + Tieba 爬虫
