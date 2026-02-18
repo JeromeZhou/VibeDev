@@ -43,25 +43,28 @@ echo.
 echo [3/4] Starting server on port %PORT%...
 cd /d %PROJECT%
 start "GPU-Insight-Web" /min "%PYTHON%" -m uvicorn src.web.app:app --host 0.0.0.0 --port %PORT%
-timeout /t 3 /nobreak >nul
+echo   Waiting for server...
+timeout /t 5 /nobreak >nul
 "%PYTHON%" -c "import httpx; r=httpx.get('http://127.0.0.1:%PORT%/api/health',timeout=5); print('  Status:', r.json()['status'])" 2>nul
 if errorlevel 1 (
-    echo   [!] Port %PORT% failed, trying 9000...
-    set PORT=9000
-    start "GPU-Insight-Web" /min "%PYTHON%" -m uvicorn src.web.app:app --host 0.0.0.0 --port 9000
+    echo   Retrying...
     timeout /t 3 /nobreak >nul
+    "%PYTHON%" -c "import httpx; r=httpx.get('http://127.0.0.1:%PORT%/api/health',timeout=5); print('  Status:', r.json()['status'])" 2>nul
+    if errorlevel 1 (
+        echo   [!] Server may still be starting, check browser manually
+    )
 )
 echo.
 echo [4/4] Opening browser...
 start http://localhost:%PORT%
 timeout /t 1 /nobreak >nul
-start http://localhost:%PORT%/history
-timeout /t 1 /nobreak >nul
-start http://localhost:%PORT%/trends
+start http://localhost:%PORT%/admin
 echo.
 echo ==========================================
 echo   Dashboard:  http://localhost:%PORT%
+echo   Admin:      http://localhost:%PORT%/admin
 echo   History:    http://localhost:%PORT%/history
+echo   Trends:     http://localhost:%PORT%/trends
 echo   Trends:     http://localhost:%PORT%/trends
 echo ==========================================
 echo.

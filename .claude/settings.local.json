@@ -90,7 +90,9 @@
       "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" sync_needs.py)",
       "Bash(wc:*)",
       "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && wc -l {}')",
-      "WebFetch(domain:www.mydrivers.com)"
+      "WebFetch(domain:www.mydrivers.com)",
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m uvicorn src.web.app:app --host 0.0.0.0 --port 9000)",
+      "Bash(ping -n 4 127.0.0.)"
     ]
   }
 }
