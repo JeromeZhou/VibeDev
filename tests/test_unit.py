@@ -100,8 +100,9 @@ class TestPPHI:
         from src.utils.config import load_config
         from src.rankers import calculate_pphi
         config = load_config("config/config.yaml")
-        # Mock 掉历史加载，确保纯空输入返回空
-        with patch("src.rankers._load_historical_insights", return_value=[]):
+        # Mock 掉历史加载和文件保存，确保纯空输入返回空
+        with patch("src.rankers._load_historical_insights", return_value=[]), \
+             patch("src.rankers._save_rankings"):
             result = calculate_pphi([], config)
         assert result == []
 
@@ -114,8 +115,9 @@ class TestPPHI:
             {"pain_point": "A", "confidence": 0.9, "_source": "chiphell", "approved": True},
             {"pain_point": "B", "confidence": 0.5, "_source": "reddit", "approved": True},
         ]
-        # Mock 掉历史加载，只测试当轮排名逻辑
-        with patch("src.rankers._load_historical_insights", return_value=[]):
+        # Mock 掉历史加载和文件保存，防止覆盖真实 latest.json
+        with patch("src.rankers._load_historical_insights", return_value=[]), \
+             patch("src.rankers._save_rankings"):
             result = calculate_pphi(data, config)
         assert len(result) == 2
         assert result[0]["rank"] == 1
