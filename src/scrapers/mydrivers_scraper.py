@@ -29,10 +29,9 @@ class MyDriversScraper(BaseScraper):
         posts = []
         seen = set()
 
-        # 快科技显卡频道（多个备用 URL）
+        # 快科技首页（新闻频道 URL 已失效，直接用首页）
         urls_to_try = [
-            "https://news.mydrivers.com/1/list.htm",  # 新闻列表
-            "https://www.mydrivers.com/",  # 首页
+            "https://www.mydrivers.com/",
         ]
 
         for page_url in urls_to_try:

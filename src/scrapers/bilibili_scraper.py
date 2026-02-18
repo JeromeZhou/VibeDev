@@ -2,6 +2,7 @@
 
 import re
 from datetime import datetime
+from urllib.parse import quote
 from .base_scraper import BaseScraper
 from src.utils.gpu_tagger import tag_post
 
@@ -9,10 +10,10 @@ from src.utils.gpu_tagger import tag_post
 class BilibiliScraper(BaseScraper):
     """Bilibili 爬虫 — 通过搜索 API 抓取显卡相关视频"""
 
+    # 精简到 6 个高价值关键词，减少 412 限流风险
     SEARCH_KEYWORDS = [
-        "显卡 问题", "GPU 翻车", "显卡 散热", "显卡 噪音",
-        "RTX 5090", "RTX 5080", "RTX 5070", "RX 9070",
-        "显卡 驱动", "显卡 黑屏", "显卡 崩溃",
+        "显卡 问题", "GPU 翻车", "显卡 散热",
+        "RTX 5090", "RX 9070", "显卡 驱动",
     ]
 
     def __init__(self, config: dict):
@@ -25,20 +26,19 @@ class BilibiliScraper(BaseScraper):
 
         for keyword in self.SEARCH_KEYWORDS:
             try:
-                url = "https://api.bilibili.com/x/web-interface/search/type"
-                params = {
-                    "search_type": "video",
-                    "keyword": keyword,
-                    "order": "pubdate",
-                    "duration": 0,
-                    "page": 1,
-                    "pagesize": 20,
-                }
-                # 手动拼 URL 以便 safe_request 使用
-                qs = "&".join(f"{k}={v}" for k, v in params.items())
-                full_url = f"{url}?{qs}"
+                encoded_kw = quote(keyword)
+                full_url = (
+                    f"https://api.bilibili.com/x/web-interface/search/type"
+                    f"?search_type=video&keyword={encoded_kw}"
+                    f"&order=pubdate&duration=0&page=1&pagesize=20"
+                )
                 resp = self.safe_request(full_url, referer="https://www.bilibili.com",
-                                         delay=(2.5, 4.5))
+                                         delay=(3.0, 5.0))
+
+                # 412 限流 — 立即停止
+                if resp and resp.status_code == 412:
+                    print(f"    [!] Bilibili 被限流(412)，停止搜索")
+                    break
                 if not resp or resp.status_code != 200:
                     continue
 
