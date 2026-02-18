@@ -23,30 +23,76 @@
         .stat-3::before { background: var(--accent-purple); }
         .stat-4::before { background: var(--accent-amber); }
 
-        /* 排名项 */
-        .top-item {
-            position: relative;
-            border-radius: 8px;
-            border: 1px solid transparent;
-            transition: border-color 0.2s, background-color 0.2s;
+        /* ── 排名行 ── */
+        .ranking-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.15s;
         }
-        .top-item:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-default);
-        }
-        .top-1 { border-left: 2px solid var(--accent-amber); }
-        .top-1 .pphi-ring { border-color: var(--accent-amber); }
-        .top-2 { border-left: 2px solid var(--accent-silver); }
-        .top-2 .pphi-ring { border-color: var(--accent-silver); }
-        .top-3 { border-left: 2px solid var(--accent-bronze); }
-        .top-3 .pphi-ring { border-color: var(--accent-bronze); }
+        .ranking-row:last-child { border-bottom: none; }
+        .ranking-row:hover { background: var(--bg-hover); }
+        .ranking-top { padding: 18px 16px; }
 
-        .need-badge {
-            background: rgba(139,92,246,0.08);
-            border: 1px solid rgba(139,92,246,0.15);
-            border-radius: 6px;
-            padding: 4px 8px;
+        .ranking-rank {
+            width: 32px;
+            text-align: center;
+            flex-shrink: 0;
         }
+
+        .ranking-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .ranking-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .ranking-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ranking-top .ranking-name {
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .ranking-cat {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            background: var(--bg-elevated);
+            padding: 1px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+        .ranking-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .ranking-stats {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-left: 4px;
+        }
+
+        .ranking-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+        .ranking-top .ranking-score { font-size: 18px; }
 
         .expand-btn {
             background: var(--bg-elevated);
@@ -56,7 +102,7 @@
         .expand-btn:hover { border-color: var(--border-default); }
 
         .ranking-extra { display: none; }
-        .ranking-extra.show { display: block; }
+        .ranking-extra.show { display: flex; }
 
         /* PPHI tooltip */
         .pphi-tooltip { position: relative; cursor: help; }
@@ -175,68 +221,55 @@
             </div>
 
             {% if rankings %}
-            <div class="space-y-2" id="rankingList">
+            <div id="rankingList">
                 {% for r in rankings %}
                 <a href="/pain-point/{{ r.rank }}"
-                   class="block p-3 top-item
-                          {% if r.rank == 1 %}top-1{% elif r.rank == 2 %}top-2{% elif r.rank == 3 %}top-3{% endif %}
+                   class="ranking-row {% if r.rank <= 3 %}ranking-top{% endif %}
                           {% if r.rank > 10 %}ranking-extra{% endif %}"
                    style="animation: fadeInUp 0.3s ease forwards; animation-delay: {{ r.rank * 0.03 }}s; opacity: 0;">
-                    <div class="flex items-center gap-3">
-                        <div class="pphi-ring">
-                            <span class="text-sm font-semibold mono"
-                                style="color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% elif r.rank == 3 %}var(--accent-bronze){% else %}var(--accent-blue){% endif %};">
-                                {{ r.pphi_score }}
-                            </span>
-                        </div>
 
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 mb-1">
-                                {% if r.rank <= 3 %}
-                                <span class="rank-medal {% if r.rank == 1 %}medal-gold{% elif r.rank == 2 %}medal-silver{% else %}medal-bronze{% endif %}">{{ r.rank }}</span>
-                                {% else %}
-                                <span class="text-xs font-semibold mono" style="color: var(--text-tertiary);">#{{ r.rank }}</span>
-                                {% endif %}
-                                {% if r.get('trend') == 'rising' %}<span class="trend-up text-xs font-semibold">↑</span>
-                                {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-semibold">↓</span>
-                                {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
-                                {% else %}<span class="trend-new text-xs font-semibold">★</span>{% endif %}
-                                <span class="font-medium text-sm truncate">{{ r.pain_point }}</span>
-                            </div>
+                    <!-- 左：排名 -->
+                    <div class="ranking-rank">
+                        {% if r.rank <= 3 %}
+                        <span class="rank-medal {% if r.rank == 1 %}medal-gold{% elif r.rank == 2 %}medal-silver{% else %}medal-bronze{% endif %}">{{ r.rank }}</span>
+                        {% else %}
+                        <span class="mono text-xs font-semibold" style="color: var(--text-tertiary);">#{{ r.rank }}</span>
+                        {% endif %}
+                    </div>
 
-                            <div class="flex flex-wrap gap-1 mb-1">
-                                {% set all_models = r.get('gpu_tags', {}).get('models', []) %}
-                                {% for m in all_models[:6] %}
-                                <span class="gpu-tag">{{ m }}</span>
-                                {% endfor %}
-                                {% if all_models | length > 6 %}
-                                <span class="gpu-tag" style="opacity: 0.6;">+{{ all_models | length - 6 }}</span>
-                                {% endif %}
-                                {% for mfr in r.get('gpu_tags', {}).get('manufacturers', [])[:3] %}
-                                <span class="mfr-tag">{{ mfr }}</span>
-                                {% endfor %}
-                            </div>
-
-                            <div class="flex items-center gap-2 text-xs" style="color: var(--text-tertiary);">
-                                <span class="mono">{{ r.get('mentions', 0) }}</span> 讨论
-                                <span>·</span>
-                                <span>{{ r.get('sources', []) | length }} 个来源</span>
-                                <span>·</span>
-                                <span>{{ all_models | length }} 个型号</span>
-                                {% if r.get('category') %}
-                                <span>·</span>
-                                <span>{{ r.get('category', '') }}</span>
-                                {% endif %}
-                            </div>
-
-                            {% if r.get('hidden_need') %}
-                            <div class="need-badge mt-2 inline-block">
-                                <span class="text-xs" style="color: var(--accent-purple);">💡 {{ r.hidden_need }}</span>
-                            </div>
+                    <!-- 中：内容 -->
+                    <div class="ranking-content">
+                        <div class="ranking-header">
+                            {% if r.get('trend') == 'rising' %}<span class="trend-up text-xs font-semibold">↑</span>
+                            {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-semibold">↓</span>
+                            {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
+                            {% else %}<span class="trend-new text-xs font-semibold">★</span>{% endif %}
+                            <span class="ranking-name">{{ r.pain_point }}</span>
+                            {% if r.get('category') %}
+                            <span class="ranking-cat">{{ r.category }}</span>
                             {% endif %}
                         </div>
+                        <div class="ranking-meta">
+                            {% set all_models = r.get('gpu_tags', {}).get('models', []) %}
+                            {% for m in all_models[:4] %}
+                            <span class="gpu-tag">{{ m }}</span>
+                            {% endfor %}
+                            {% if all_models | length > 4 %}
+                            <span class="gpu-tag" style="opacity: 0.5;">+{{ all_models | length - 4 }}</span>
+                            {% endif %}
+                            <span class="ranking-stats">
+                                {{ r.get('mentions', 0) }} 讨论 · {{ r.get('sources', []) | length }} 来源
+                            </span>
+                        </div>
+                    </div>
 
-                        <span class="material-icons" style="color: var(--text-tertiary); font-size: 20px; flex-shrink: 0;">chevron_right</span>
+                    <!-- 右：PPHI 分数 -->
+                    <div class="ranking-score">
+                        <span class="mono font-semibold"
+                            style="color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% elif r.rank == 3 %}var(--accent-bronze){% else %}var(--accent-blue){% endif %};">
+                            {{ r.pphi_score }}
+                        </span>
+                        <span class="material-icons" style="color: var(--text-tertiary); font-size: 18px;">chevron_right</span>
                     </div>
                 </a>
                 {% endfor %}
