@@ -9,10 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.utils.db import get_db, filter_new_posts, save_posts, get_post_count
 
 # 清理测试数据
-conn = get_db()
-conn.execute("DELETE FROM posts WHERE id LIKE 'test_%'")
-conn.commit()
-conn.close()
+with get_db() as conn:
+    conn.execute("DELETE FROM posts WHERE id LIKE 'test_%'")
 
 # 模拟帖子
 posts = [
@@ -45,9 +43,7 @@ new4 = filter_new_posts(dup)
 print(f"内容去重: {len(new4)}/1 条新帖 (应为 0, 内容hash相同)")
 
 # 清理
-conn = get_db()
-conn.execute("DELETE FROM posts WHERE id LIKE 'test_%'")
-conn.commit()
-conn.close()
+with get_db() as conn:
+    conn.execute("DELETE FROM posts WHERE id LIKE 'test_%'")
 
 print("\n全部通过!")
