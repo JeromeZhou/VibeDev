@@ -206,7 +206,8 @@ def _normalize_pain_point(pain_point: str) -> tuple[str, str]:
     规则：
     1. 去掉括号内的分类标签，如 "(散热)"、"(驱动)"、"(生态)"
     2. 去掉 "显卡" 前缀（如果去掉后仍有意义，即剩余长度 >= 2）
-    3. 统一为最短有意义的名称
+    3. 去掉常见后缀 "问题"、"不足"、"困难"（如果去掉后仍有意义）
+    4. 统一为最短有意义的名称
     """
     import re
 
@@ -219,7 +220,13 @@ def _normalize_pain_point(pain_point: str) -> tuple[str, str]:
     if normalized.startswith("显卡") and len(normalized) > 3:
         normalized = normalized[2:]
 
-    # 3. 去掉多余空格
+    # 3. 去掉常见后缀（如果去掉后剩余长度 >= 2）
+    for suffix in ["问题", "不足", "困难", "不好"]:
+        if normalized.endswith(suffix) and len(normalized) - len(suffix) >= 2:
+            normalized = normalized[:-len(suffix)]
+            break
+
+    # 4. 去掉多余空格
     normalized = re.sub(r'\s+', '', normalized)
 
     return normalized, pain_point
