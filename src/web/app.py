@@ -30,12 +30,11 @@ def _get_trend_data() -> dict:
     """从 DB 获取 PPHI 趋势数据"""
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        rows = conn.execute(
-            """SELECT run_date, pain_point, pphi_score
-               FROM pphi_history ORDER BY run_date ASC"""
-        ).fetchall()
-        conn.close()
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT run_date, pain_point, pphi_score
+                   FROM pphi_history ORDER BY run_date ASC"""
+            ).fetchall()
 
         if not rows:
             return {"labels": [], "datasets": []}
@@ -73,11 +72,10 @@ def _get_source_distribution() -> dict:
     """从 DB 获取来源分布"""
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        rows = conn.execute(
-            "SELECT source, COUNT(*) as cnt FROM posts GROUP BY source"
-        ).fetchall()
-        conn.close()
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT source, COUNT(*) as cnt FROM posts GROUP BY source"
+            ).fetchall()
         labels = [r["source"] for r in rows]
         data = [r["cnt"] for r in rows]
         colors = {"reddit": "#FF5722", "nga": "#4CAF50", "tieba": "#FF9800", "chiphell": "#1976D2"}
@@ -91,12 +89,11 @@ def _get_cumulative_stats() -> dict:
     """从 DB 获取累计统计"""
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        total_posts = conn.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
-        total_runs = conn.execute("SELECT COUNT(DISTINCT run_date) as c FROM pphi_history").fetchone()["c"]
-        total_pains = conn.execute("SELECT COUNT(DISTINCT pain_point) as c FROM pphi_history").fetchone()["c"]
-        total_sources = conn.execute("SELECT COUNT(DISTINCT source) as c FROM posts").fetchone()["c"]
-        conn.close()
+        with get_db() as conn:
+            total_posts = conn.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
+            total_runs = conn.execute("SELECT COUNT(DISTINCT run_date) as c FROM pphi_history").fetchone()["c"]
+            total_pains = conn.execute("SELECT COUNT(DISTINCT pain_point) as c FROM pphi_history").fetchone()["c"]
+            total_sources = conn.execute("SELECT COUNT(DISTINCT source) as c FROM posts").fetchone()["c"]
         return {"total_posts": total_posts, "total_runs": total_runs, "total_pains": total_pains, "total_sources": total_sources}
     except Exception:
         return {"total_posts": 0, "total_runs": 0, "total_pains": 0, "total_sources": 0}
@@ -106,24 +103,21 @@ def _get_run_delta() -> dict:
     """对比最新两轮 pphi_history，计算新增痛点数和新增 GPU 型号数"""
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        dates = conn.execute(
-            "SELECT DISTINCT run_date FROM pphi_history ORDER BY run_date DESC LIMIT 2"
-        ).fetchall()
-        if len(dates) < 2:
-            conn.close()
-            return {"new_pains": 0, "new_models": 0, "prev_date": ""}
+        with get_db() as conn:
+            dates = conn.execute(
+                "SELECT DISTINCT run_date FROM pphi_history ORDER BY run_date DESC LIMIT 2"
+            ).fetchall()
+            if len(dates) < 2:
+                return {"new_pains": 0, "new_models": 0, "prev_date": ""}
 
-        curr_date, prev_date = dates[0]["run_date"], dates[1]["run_date"]
+            curr_date, prev_date = dates[0]["run_date"], dates[1]["run_date"]
 
-        # Current run pain points and models
-        curr_rows = conn.execute(
-            "SELECT pain_point, gpu_tags FROM pphi_history WHERE run_date = ?", (curr_date,)
-        ).fetchall()
-        prev_rows = conn.execute(
-            "SELECT pain_point, gpu_tags FROM pphi_history WHERE run_date = ?", (prev_date,)
-        ).fetchall()
-        conn.close()
+            curr_rows = conn.execute(
+                "SELECT pain_point, gpu_tags FROM pphi_history WHERE run_date = ?", (curr_date,)
+            ).fetchall()
+            prev_rows = conn.execute(
+                "SELECT pain_point, gpu_tags FROM pphi_history WHERE run_date = ?", (prev_date,)
+            ).fetchall()
 
         curr_pains = set(r["pain_point"] for r in curr_rows)
         prev_pains = set(r["pain_point"] for r in prev_rows)
@@ -150,18 +144,16 @@ def _get_pain_trend(pain_point_name: str) -> dict:
         return {"labels": [], "scores": [], "mentions": []}
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        # 模糊匹配：去掉括号后的分类标签进行匹配
         import re
         base_name = re.sub(r'[（(][^）)]*[）)]', '', pain_point_name).strip()
-        rows = conn.execute(
-            """SELECT run_date, pphi_score, mentions
-               FROM pphi_history
-               WHERE pain_point LIKE ?
-               ORDER BY run_date ASC""",
-            (f"%{base_name}%",)
-        ).fetchall()
-        conn.close()
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT run_date, pphi_score, mentions
+                   FROM pphi_history
+                   WHERE pain_point LIKE ?
+                   ORDER BY run_date ASC""",
+                (f"%{base_name}%",)
+            ).fetchall()
 
         # 每个 run_date 取最高分（可能有多条匹配）
         by_date = {}
@@ -221,26 +213,25 @@ def _load_source_posts(pain_point: dict) -> list[dict]:
         return []
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        posts = []
-        for url in source_urls[:20]:
-            row = conn.execute(
-                "SELECT id, source, title, url, replies, likes, timestamp FROM posts WHERE url = ?",
-                (url,)
-            ).fetchone()
-            if row:
-                posts.append(dict(row))
-        # 如果 URL 匹配不到，尝试用 post id 前缀匹配
-        if not posts:
+        with get_db() as conn:
+            posts = []
             for url in source_urls[:20]:
-                # 从 URL 提取可能的 ID 片段
-                slug = url.rstrip("/").split("/")[-1]
-                rows = conn.execute(
-                    "SELECT id, source, title, url, replies, likes, timestamp FROM posts WHERE id LIKE ? LIMIT 1",
-                    (f"%{slug[:30]}%",)
-                ).fetchall()
-                posts.extend(dict(r) for r in rows)
-        conn.close()
+                row = conn.execute(
+                    "SELECT id, source, title, url, replies, likes, timestamp FROM posts WHERE url = ?",
+                    (url,)
+                ).fetchone()
+                if row:
+                    posts.append(dict(row))
+            # 如果 URL 匹配不到，尝试用 post id 前缀匹配
+            if not posts:
+                for url in source_urls[:20]:
+                    # 从 URL 提取可能的 ID 片段
+                    slug = url.rstrip("/").split("/")[-1]
+                    rows = conn.execute(
+                        "SELECT id, source, title, url, replies, likes, timestamp FROM posts WHERE id LIKE ? LIMIT 1",
+                        (f"%{slug[:30]}%",)
+                    ).fetchall()
+                    posts.extend(dict(r) for r in rows)
         # 去重
         seen = set()
         unique = []
@@ -293,40 +284,39 @@ async def admin(request: Request):
     # 1. 数据源健康
     sources = []
     try:
-        conn = get_db()
-        rows = conn.execute(
-            "SELECT source, last_scrape_at, last_post_count, total_scraped FROM scrape_checkpoints ORDER BY source"
-        ).fetchall()
-        for r in rows:
-            last_at = r["last_scrape_at"] or ""
-            # 计算距今多久
-            status = "green"
-            ago = ""
-            if last_at:
-                from datetime import datetime
-                try:
-                    last_dt = datetime.strptime(last_at, "%Y-%m-%d %H:%M:%S")
-                    diff = (datetime.now() - last_dt).total_seconds()
-                    if diff < 3600:
-                        ago = f"{int(diff/60)}分钟前"
-                    elif diff < 86400:
-                        ago = f"{int(diff/3600)}小时前"
-                    else:
-                        ago = f"{int(diff/86400)}天前"
-                    if diff > 14400:  # >4h
-                        status = "red"
-                    elif diff > 7200:  # >2h
-                        status = "yellow"
-                except (ValueError, TypeError):
-                    ago = last_at[:16]
-            sources.append({
-                "name": r["source"],
-                "status": status,
-                "last_at": ago or "从未",
-                "last_count": r["last_post_count"],
-                "total": r["total_scraped"],
-            })
-        conn.close()
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT source, last_scrape_at, last_post_count, total_scraped FROM scrape_checkpoints ORDER BY source"
+            ).fetchall()
+            for r in rows:
+                last_at = r["last_scrape_at"] or ""
+                # 计算距今多久
+                status = "green"
+                ago = ""
+                if last_at:
+                    from datetime import datetime
+                    try:
+                        last_dt = datetime.strptime(last_at, "%Y-%m-%d %H:%M:%S")
+                        diff = (datetime.now() - last_dt).total_seconds()
+                        if diff < 3600:
+                            ago = f"{int(diff/60)}分钟前"
+                        elif diff < 86400:
+                            ago = f"{int(diff/3600)}小时前"
+                        else:
+                            ago = f"{int(diff/86400)}天前"
+                        if diff > 14400:  # >4h
+                            status = "red"
+                        elif diff > 7200:  # >2h
+                            status = "yellow"
+                    except (ValueError, TypeError):
+                        ago = last_at[:16]
+                sources.append({
+                    "name": r["source"],
+                    "status": status,
+                    "last_at": ago or "从未",
+                    "last_count": r["last_post_count"],
+                    "total": r["total_scraped"],
+                })
     except Exception:
         pass
 
@@ -350,33 +340,31 @@ async def admin(request: Request):
     # 3. 异常告警
     alerts = []
     try:
-        conn = get_db()
-        # 检查最新一轮
-        latest = conn.execute("SELECT MAX(run_date) as rd FROM pphi_history").fetchone()
-        if latest and latest["rd"]:
-            rd = latest["rd"]
-            pain_count = conn.execute(
-                "SELECT COUNT(*) as c FROM pphi_history WHERE run_date = ?", (rd,)
-            ).fetchone()["c"]
-            if pain_count == 0:
-                alerts.append({"level": "error", "msg": f"最新轮次 {rd} 痛点数为 0"})
+        with get_db() as conn:
+            # 检查最新一轮
+            latest = conn.execute("SELECT MAX(run_date) as rd FROM pphi_history").fetchone()
+            if latest and latest["rd"]:
+                rd = latest["rd"]
+                pain_count = conn.execute(
+                    "SELECT COUNT(*) as c FROM pphi_history WHERE run_date = ?", (rd,)
+                ).fetchone()["c"]
+                if pain_count == 0:
+                    alerts.append({"level": "error", "msg": f"最新轮次 {rd} 痛点数为 0"})
 
-            # 检查隐藏需求是否全空
-            needs = conn.execute(
-                "SELECT COUNT(*) as c FROM pphi_history WHERE run_date = ? AND hidden_need != '' AND hidden_need IS NOT NULL", (rd,)
-            ).fetchone()["c"]
-            if needs == 0 and pain_count > 0:
-                alerts.append({"level": "warning", "msg": f"最新轮次隐藏需求全部为空"})
+                # 检查隐藏需求是否全空
+                needs = conn.execute(
+                    "SELECT COUNT(*) as c FROM pphi_history WHERE run_date = ? AND hidden_need != '' AND hidden_need IS NOT NULL", (rd,)
+                ).fetchone()["c"]
+                if needs == 0 and pain_count > 0:
+                    alerts.append({"level": "warning", "msg": f"最新轮次隐藏需求全部为空"})
 
-        # 检查爬虫超时（>8h 未更新）
-        stale = conn.execute(
-            """SELECT source FROM scrape_checkpoints
-               WHERE last_scrape_at < datetime('now', '-8 hours')"""
-        ).fetchall()
-        for r in stale:
-            alerts.append({"level": "warning", "msg": f"数据源 {r['source']} 超过 8 小时未更新"})
-
-        conn.close()
+            # 检查爬虫超时（>8h 未更新）
+            stale = conn.execute(
+                """SELECT source FROM scrape_checkpoints
+                   WHERE last_scrape_at < datetime('now', '-8 hours')"""
+            ).fetchall()
+            for r in stale:
+                alerts.append({"level": "warning", "msg": f"数据源 {r['source']} 超过 8 小时未更新"})
     except Exception:
         pass
 
@@ -445,17 +433,16 @@ async def history(request: Request):
     """历史轮次浏览"""
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        # 获取所有运行轮次
-        runs = conn.execute(
-            """SELECT run_date, COUNT(*) as pain_count,
-                      ROUND(MAX(pphi_score), 1) as top_pphi,
-                      GROUP_CONCAT(DISTINCT pain_point) as pain_list
-               FROM pphi_history
-               GROUP BY run_date
-               ORDER BY run_date DESC"""
-        ).fetchall()
-        conn.close()
+        with get_db() as conn:
+            # 获取所有运行轮次
+            runs = conn.execute(
+                """SELECT run_date, COUNT(*) as pain_count,
+                          ROUND(MAX(pphi_score), 1) as top_pphi,
+                          GROUP_CONCAT(DISTINCT pain_point) as pain_list
+                   FROM pphi_history
+                   GROUP BY run_date
+                   ORDER BY run_date DESC"""
+            ).fetchall()
         run_list = []
         for r in runs:
             run_list.append({
@@ -481,15 +468,14 @@ async def history_detail(request: Request, run_date: str = ""):
         return RedirectResponse("/history")
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        rows = conn.execute(
-            """SELECT rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need
-               FROM pphi_history
-               WHERE run_date = ?
-               ORDER BY rank ASC""",
-            (run_date,)
-        ).fetchall()
-        conn.close()
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need
+                   FROM pphi_history
+                   WHERE run_date = ?
+                   ORDER BY rank ASC""",
+                (run_date,)
+            ).fetchall()
         rankings = []
         for r in rows:
             rankings.append({
@@ -558,13 +544,12 @@ def _get_evolution_data() -> dict:
     """获取痛点排名演变数据（Bump Chart 用）"""
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        rows = conn.execute(
-            """SELECT run_date, pain_point, rank, pphi_score
-               FROM pphi_history
-               ORDER BY run_date ASC, rank ASC"""
-        ).fetchall()
-        conn.close()
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT run_date, pain_point, rank, pphi_score
+                   FROM pphi_history
+                   ORDER BY run_date ASC, rank ASC"""
+            ).fetchall()
 
         if not rows:
             return {"dates": [], "series": []}

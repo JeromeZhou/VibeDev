@@ -116,6 +116,9 @@ def run_pipeline(config: dict):
     light_pains = [pp for pp in pain_points if pp not in deep_pains]
     # 最多推导 5 个（deep 优先，不足用 light 补）
     pains_for_inference = (deep_pains + light_pains)[:5]
+    # 给每个痛点加索引，用于后续 merge 时精确关联（不依赖 LLM 回显文本）
+    for idx, pp in enumerate(pains_for_inference):
+        pp["_inference_idx"] = idx
     print(f"[6] 隐藏需求推导（{len(pains_for_inference)} 个痛点：{len(deep_pains)} 深度 + {len(light_pains)} 轻度）...")
     status = cost_tracker.enforce_budget(llm)
     if status == "pause":

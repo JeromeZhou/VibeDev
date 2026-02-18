@@ -3,20 +3,29 @@
 import sqlite3
 import json
 import hashlib
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
 DB_PATH = Path("data/gpu_insight.db")
 
 
+@contextmanager
 def get_db() -> sqlite3.Connection:
-    """获取数据库连接（自动建表）"""
+    """获取数据库连接（context manager，自动关闭）"""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     _init_tables(conn)
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def _init_tables(conn: sqlite3.Connection):
@@ -114,24 +123,21 @@ def filter_new_posts(posts: list[dict]) -> list[dict]:
     if not posts:
         return []
 
-    conn = get_db()
-    new_posts = []
+    with get_db() as conn:
+        new_posts = []
+        for post in posts:
+            post_id = post.get("id", "")
+            text = post.get("content", "") or post.get("title", "")
+            h = content_hash(text)
 
-    for post in posts:
-        post_id = post.get("id", "")
-        text = post.get("content", "") or post.get("title", "")
-        h = content_hash(text)
+            row = conn.execute(
+                "SELECT id FROM posts WHERE id = ? OR content_hash = ?",
+                (post_id, h)
+            ).fetchone()
 
-        # 检查 id 或 content_hash 是否已存在
-        row = conn.execute(
-            "SELECT id FROM posts WHERE id = ? OR content_hash = ?",
-            (post_id, h)
-        ).fetchone()
+            if not row:
+                new_posts.append(post)
 
-        if not row:
-            new_posts.append(post)
-
-    conn.close()
     return new_posts
 
 
@@ -140,38 +146,35 @@ def save_posts(posts: list[dict]):
     if not posts:
         return
 
-    conn = get_db()
-    for post in posts:
-        text = post.get("content", "") or post.get("title", "")
-        h = content_hash(text)
-        gpu_tags = json.dumps(post.get("_gpu_tags", {}), ensure_ascii=False)
+    with get_db() as conn:
+        for post in posts:
+            text = post.get("content", "") or post.get("title", "")
+            h = content_hash(text)
+            gpu_tags = json.dumps(post.get("_gpu_tags", {}), ensure_ascii=False)
 
-        try:
-            conn.execute(
-                """INSERT INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp, comments)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(id) DO UPDATE SET
-                       replies = MAX(posts.replies, excluded.replies),
-                       likes = MAX(posts.likes, excluded.likes),
-                       comments = COALESCE(excluded.comments, posts.comments)""",
-                (
-                    post.get("id", ""),
-                    post.get("source", ""),
-                    h,
-                    post.get("title", ""),
-                    post.get("url", ""),
-                    post.get("replies", 0),
-                    post.get("likes", 0),
-                    gpu_tags,
-                    post.get("timestamp", ""),
-                    post.get("comments", ""),
+            try:
+                conn.execute(
+                    """INSERT INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp, comments)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(id) DO UPDATE SET
+                           replies = MAX(posts.replies, excluded.replies),
+                           likes = MAX(posts.likes, excluded.likes),
+                           comments = COALESCE(excluded.comments, posts.comments)""",
+                    (
+                        post.get("id", ""),
+                        post.get("source", ""),
+                        h,
+                        post.get("title", ""),
+                        post.get("url", ""),
+                        post.get("replies", 0),
+                        post.get("likes", 0),
+                        gpu_tags,
+                        post.get("timestamp", ""),
+                        post.get("comments", ""),
+                    )
                 )
-            )
-        except sqlite3.IntegrityError:
-            pass
-
-    conn.commit()
-    conn.close()
+            except sqlite3.IntegrityError:
+                pass
 
 
 def save_rankings(rankings: list[dict]):
@@ -179,29 +182,26 @@ def save_rankings(rankings: list[dict]):
     if not rankings:
         return
 
-    conn = get_db()
-    run_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with get_db() as conn:
+        run_date = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    for r in rankings:
-        conn.execute(
-            """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                run_date,
-                r.get("rank", 0),
-                r.get("pain_point", ""),
-                r.get("pphi_score", 0),
-                r.get("mentions", 0),
-                json.dumps(r.get("gpu_tags", {}), ensure_ascii=False),
-                json.dumps(r.get("source_urls", []), ensure_ascii=False),
-                r.get("hidden_need", ""),
-                r.get("total_replies", 0),
-                r.get("total_likes", 0),
+        for r in rankings:
+            conn.execute(
+                """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    run_date,
+                    r.get("rank", 0),
+                    r.get("pain_point", ""),
+                    r.get("pphi_score", 0),
+                    r.get("mentions", 0),
+                    json.dumps(r.get("gpu_tags", {}), ensure_ascii=False),
+                    json.dumps(r.get("source_urls", []), ensure_ascii=False),
+                    r.get("hidden_need", ""),
+                    r.get("total_replies", 0),
+                    r.get("total_likes", 0),
+                )
             )
-        )
-
-    conn.commit()
-    conn.close()
 
 
 def save_pain_points(pain_points: list[dict]):
@@ -209,94 +209,82 @@ def save_pain_points(pain_points: list[dict]):
     if not pain_points:
         return
 
-    conn = get_db()
-    run_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with get_db() as conn:
+        run_date = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    for pp in pain_points:
-        # 从 source_post_ids 提取来源列表
-        source_post_ids = pp.get("source_post_ids", [])
-        sources = list(set(pid.split("_")[0] for pid in source_post_ids if "_" in pid))
+        for pp in pain_points:
+            source_post_ids = pp.get("source_post_ids", [])
+            sources = list(set(pid.split("_")[0] for pid in source_post_ids if "_" in pid))
+            mentions = len(source_post_ids)
 
-        # mentions = 关联帖子数
-        mentions = len(source_post_ids)
+            inferred_need = pp.get("inferred_need") or {}
+            hidden_need = inferred_need.get("hidden_need", "") if isinstance(inferred_need, dict) else ""
+            confidence = inferred_need.get("confidence", 0) if isinstance(inferred_need, dict) else 0
 
-        # 从 inferred_need 对象中提取 hidden_need 和 confidence
-        inferred_need = pp.get("inferred_need") or {}
-        hidden_need = inferred_need.get("hidden_need", "") if isinstance(inferred_need, dict) else ""
-        confidence = inferred_need.get("confidence", 0) if isinstance(inferred_need, dict) else 0
-
-        conn.execute(
-            """INSERT INTO pain_points (run_date, pain_point, category, mentions, sources, gpu_tags, source_urls, evidence, hidden_need, confidence, pphi_score, total_replies, total_likes, earliest_timestamp)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                run_date,
-                pp.get("pain_point", ""),
-                pp.get("category", ""),
-                mentions,
-                json.dumps(sources, ensure_ascii=False),
-                json.dumps(pp.get("gpu_tags", {}), ensure_ascii=False),
-                json.dumps(pp.get("source_urls", []), ensure_ascii=False),
-                pp.get("evidence", ""),
-                hidden_need,
-                confidence,
-                pp.get("pphi_score", 0),
-                pp.get("total_replies", 0),
-                pp.get("total_likes", 0),
-                pp.get("earliest_timestamp", ""),
+            conn.execute(
+                """INSERT INTO pain_points (run_date, pain_point, category, mentions, sources, gpu_tags, source_urls, evidence, hidden_need, confidence, pphi_score, total_replies, total_likes, earliest_timestamp)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    run_date,
+                    pp.get("pain_point", ""),
+                    pp.get("category", ""),
+                    mentions,
+                    json.dumps(sources, ensure_ascii=False),
+                    json.dumps(pp.get("gpu_tags", {}), ensure_ascii=False),
+                    json.dumps(pp.get("source_urls", []), ensure_ascii=False),
+                    pp.get("evidence", ""),
+                    hidden_need,
+                    confidence,
+                    pp.get("pphi_score", 0),
+                    pp.get("total_replies", 0),
+                    pp.get("total_likes", 0),
+                    pp.get("earliest_timestamp", ""),
+                )
             )
-        )
-
-    conn.commit()
-    conn.close()
 
 
 def get_post_count() -> dict:
     """获取帖子统计"""
-    conn = get_db()
-    total = conn.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
-    by_source = {}
-    for row in conn.execute("SELECT source, COUNT(*) as cnt FROM posts GROUP BY source"):
-        by_source[row["source"]] = row["cnt"]
-    conn.close()
+    with get_db() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
+        by_source = {}
+        for row in conn.execute("SELECT source, COUNT(*) as cnt FROM posts GROUP BY source"):
+            by_source[row["source"]] = row["cnt"]
     return {"total": total, "by_source": by_source}
 
 
 def save_checkpoint(source: str, post_count: int):
     """保存抓取检查点"""
-    conn = get_db()
-    conn.execute(
-        """INSERT INTO scrape_checkpoints (source, last_scrape_at, last_post_count, total_scraped)
-           VALUES (?, datetime('now'), ?, ?)
-           ON CONFLICT(source) DO UPDATE SET
-               last_scrape_at = datetime('now'),
-               last_post_count = excluded.last_post_count,
-               total_scraped = scrape_checkpoints.total_scraped + excluded.last_post_count""",
-        (source, post_count, post_count)
-    )
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        conn.execute(
+            """INSERT INTO scrape_checkpoints (source, last_scrape_at, last_post_count, total_scraped)
+               VALUES (?, datetime('now'), ?, ?)
+               ON CONFLICT(source) DO UPDATE SET
+                   last_scrape_at = datetime('now'),
+                   last_post_count = excluded.last_post_count,
+                   total_scraped = scrape_checkpoints.total_scraped + excluded.last_post_count""",
+            (source, post_count, post_count)
+        )
 
 
 def get_checkpoint(source: str) -> dict | None:
     """获取抓取检查点"""
-    conn = get_db()
-    row = conn.execute(
-        "SELECT source, last_scrape_at, last_post_count, total_scraped FROM scrape_checkpoints WHERE source = ?",
-        (source,)
-    ).fetchone()
-    conn.close()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT source, last_scrape_at, last_post_count, total_scraped FROM scrape_checkpoints WHERE source = ?",
+            (source,)
+        ).fetchone()
     return dict(row) if row else None
 
 
 def get_trend_data(days: int = 30) -> list[dict]:
     """获取最近 N 天的 PPHI 趋势数据"""
-    conn = get_db()
-    rows = conn.execute(
-        """SELECT run_date, rank, pain_point, pphi_score
-           FROM pphi_history
-           ORDER BY run_date DESC, rank ASC
-           LIMIT ?""",
-        (days * 10,)
-    ).fetchall()
-    conn.close()
+    with get_db() as conn:
+        rows = conn.execute(
+            """SELECT run_date, rank, pain_point, pphi_score
+               FROM pphi_history
+               ORDER BY run_date DESC, rank ASC
+               LIMIT ?""",
+            (days * 10,)
+        ).fetchall()
     return [dict(r) for r in rows]

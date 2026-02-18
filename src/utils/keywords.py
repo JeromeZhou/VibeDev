@@ -19,11 +19,16 @@ GPU_PRODUCTS_PATH = Path("config/gpu_products.yaml")
 def _file_lock(path: Path):
     """跨平台文件锁（写 keywords.yaml 时防并发损坏）"""
     lock_path = path.with_suffix(path.suffix + ".lock")
-    lock_fd = open(lock_path, "w")
+    lock_fd = None
     try:
+        lock_fd = open(lock_path, "w")
+        # 写入占位内容，确保文件非空（Windows msvcrt 需要）
+        lock_fd.write("lock")
+        lock_fd.flush()
         if sys.platform == "win32":
             import msvcrt
-            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+            lock_fd.seek(0)
+            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 4)
         else:
             import fcntl
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -33,16 +38,18 @@ def _file_lock(path: Path):
         print("  [!] keywords.yaml 写锁获取失败，跳过本次更新")
         yield
     finally:
-        try:
-            if sys.platform == "win32":
-                import msvcrt
-                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                import fcntl
-                fcntl.flock(lock_fd, fcntl.LOCK_UN)
-        except Exception:
-            pass
-        lock_fd.close()
+        if lock_fd:
+            try:
+                if sys.platform == "win32":
+                    import msvcrt
+                    lock_fd.seek(0)
+                    msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 4)
+                else:
+                    import fcntl
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            except Exception:
+                pass
+            lock_fd.close()
         try:
             lock_path.unlink(missing_ok=True)
         except Exception:
@@ -57,6 +64,8 @@ STOPWORDS_ZH = {
     "自己", "他们", "我们", "你们", "还是", "比较", "非常", "特别", "一直",
     "终于", "居然", "竟然", "到底", "是不是", "有没有", "能不能", "会不会",
     "视频", "评测", "开箱", "分享", "推荐", "教程", "合集", "盘点", "对比",
+    # 太泛的中性词（不是痛点信号）
+    "性能", "价格", "显卡", "产品", "用户", "体验", "效果", "功能", "支持",
 }
 STOPWORDS_EN = {
     "this", "that", "what", "which", "where", "when", "with", "from", "have",
@@ -271,6 +280,40 @@ def _calc_decay_score(item: dict) -> float:
     return round(freshness * (0.5 + 0.5 * frequency), 3)
 
 
+def _is_existing_keyword(word: str, existing_words: set, existing_phrases: set) -> bool:
+    """检查词是否已存在于关键词库（支持子串匹配）
+
+    - "散热" 匹配 "显卡 散热"（子串包含）
+    - "黑屏" 匹配 "显卡 黑屏"（子串包含）
+    - 精确匹配优先，再检查是否被任何已有短语包含
+    """
+    w = word.lower()
+    if w in existing_words:
+        return True
+    # 子串检查：如果任何已有短语包含这个词，视为已存在
+    for phrase in existing_phrases:
+        if w in phrase:
+            return True
+    return False
+
+
+def _dedup_similar_words(words: list[str]) -> list[str]:
+    """语义去重：去掉字符重叠度 > 80% 的近义词（如 "崩溃闪退" vs "闪退崩溃"）"""
+    result = []
+    for w in words:
+        is_dup = False
+        w_chars = set(w)
+        for existing in result:
+            e_chars = set(existing)
+            overlap = len(w_chars & e_chars) / max(len(w_chars | e_chars), 1)
+            if overlap > 0.8:
+                is_dup = True
+                break
+        if not is_dup:
+            result.append(w)
+    return result
+
+
 def discover_hot_words(posts: list[dict], min_freq: int = 2,
                        insights: list[dict] = None) -> dict:
     """从帖子 + AI 分析结果中发现高频新词
@@ -280,12 +323,19 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
     2. 原始帖子（辅）：只提取英文技术术语（单词级别）
     中文热词完全依赖 AI 输出，不做正则切词。
     """
-    existing = set()
     config = _load_keywords_config()
+    # 构建两级索引：单词级 + 短语级（支持子串匹配）
+    existing_words = set()
+    existing_phrases = set()
     for lang in ("zh", "en"):
         for cat in ("pain", "models", "brands"):
-            existing.update(w.lower() for w in config.get("search", {}).get(lang, {}).get(cat, []))
-        existing.update(w.lower() for w in config.get("signals", {}).get(lang, []))
+            for w in config.get("search", {}).get(lang, {}).get(cat, []):
+                existing_phrases.add(w.lower())
+                # 拆分短语中的每个词也加入
+                for part in w.split():
+                    existing_words.add(part.lower())
+        for w in config.get("signals", {}).get(lang, []):
+            existing_words.add(w.lower())
 
     zh_counter = Counter()
     en_counter = Counter()
@@ -311,7 +361,7 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
                 seg = seg.strip()
                 # 只保留纯中文或中文+数字的段（2-6字）
                 if re.match(r'^[\u4e00-\u9fffA-Za-z0-9]{2,6}$', seg):
-                    if seg not in STOPWORDS_ZH and seg.lower() not in existing:
+                    if seg not in STOPWORDS_ZH and not _is_existing_keyword(seg, existing_words, existing_phrases):
                         zh_counter[seg] += 1
 
             # 隐藏需求中的关键词（同样按段提取）
@@ -322,7 +372,7 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
             for seg in zh_need_segments:
                 seg = seg.strip()
                 if re.match(r'^[\u4e00-\u9fffA-Za-z0-9]{2,6}$', seg):
-                    if seg not in STOPWORDS_ZH and seg.lower() not in existing:
+                    if seg not in STOPWORDS_ZH and not _is_existing_keyword(seg, existing_words, existing_phrases):
                         zh_counter[seg] += 1
 
             # 英文关键词（从痛点和需求中提取单词）
@@ -330,7 +380,7 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
                 en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', text)
                 for w in en_words:
                     w = w.lower()
-                    if w not in STOPWORDS_EN and w not in existing:
+                    if w not in STOPWORDS_EN and not _is_existing_keyword(w, existing_words, existing_phrases):
                         en_counter[w] += 1
 
     # ── 来源 2：原始帖子（辅助，只提取英文技术术语）──
@@ -342,11 +392,15 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
         en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', title)
         for w in en_words:
             w = w.lower()
-            if w not in STOPWORDS_EN and w not in existing and len(w) >= 4:
+            if w not in STOPWORDS_EN and not _is_existing_keyword(w, existing_words, existing_phrases) and len(w) >= 4:
                 en_counter[w] += 1
 
-    new_zh = [w for w, c in zh_counter.most_common(MAX_DISCOVERED_ZH) if c >= min_freq]
-    new_en = [w for w, c in en_counter.most_common(MAX_DISCOVERED_EN) if c >= min_freq]
+    new_zh = [w for w, c in zh_counter.most_common(MAX_DISCOVERED_ZH * 2) if c >= min_freq]
+    new_en = [w for w, c in en_counter.most_common(MAX_DISCOVERED_EN * 2) if c >= min_freq]
+
+    # 语义去重（去掉 "崩溃闪退" vs "闪退崩溃" 这类）
+    new_zh = _dedup_similar_words(new_zh)[:MAX_DISCOVERED_ZH]
+    new_en = _dedup_similar_words(new_en)[:MAX_DISCOVERED_EN]
 
     return {"zh": new_zh, "en": new_en}
 
@@ -357,68 +411,78 @@ def discover_from_db(min_mentions: int = 2) -> dict:
     扫描 pain_points 表，提取用户真实痛点表达（闪退、卡死、黑屏重启等）。
     同时统计 GPU 型号讨论热度，返回供搜索关键词排序用。
     """
-    import sqlite3
     db_path = Path("data/gpu_insight.db")
     if not db_path.exists():
         return {"zh": [], "en": [], "model_ranks": []}
 
-    conn = sqlite3.connect(str(db_path))
+    from src.utils.db import get_db
 
     # 1. 从痛点名称中提取表达词
     config = _load_keywords_config()
-    existing = set()
+    existing_words = set()
+    existing_phrases = set()
     for lang in ("zh", "en"):
         for cat in ("pain", "models", "brands"):
-            existing.update(w.lower() for w in config.get("search", {}).get(lang, {}).get(cat, []))
-        existing.update(w.lower() for w in config.get("signals", {}).get(lang, []))
+            for w in config.get("search", {}).get(lang, {}).get(cat, []):
+                existing_phrases.add(w.lower())
+                for part in w.split():
+                    existing_words.add(part.lower())
+        for w in config.get("signals", {}).get(lang, []):
+            existing_words.add(w.lower())
 
     zh_counter = Counter()
     en_counter = Counter()
 
-    pain_rows = conn.execute("SELECT pain_point, hidden_need FROM pain_points").fetchall()
-    for pain_point, hidden_need in pain_rows:
-        for text in [pain_point or "", hidden_need or ""]:
-            # 按标点分段
-            segments = re.split(r'[，。、；！？\s,.:;!?/\-—()（）\[\]【】]', text)
-            for seg in segments:
-                seg = seg.strip()
-                # 去掉"显卡"前缀
-                for prefix in ["显卡", "GPU"]:
-                    if seg.startswith(prefix):
-                        seg = seg[len(prefix):]
-                for suffix in ["问题", "不足", "困难"]:
-                    if seg.endswith(suffix) and len(seg) > len(suffix) + 1:
-                        seg = seg[:-len(suffix)]
-                seg = seg.strip()
-                if not seg:
-                    continue
+    with get_db() as conn:
+        pain_rows = conn.execute("SELECT pain_point, hidden_need FROM pain_points").fetchall()
+        for row in pain_rows:
+            pain_point = row["pain_point"] if isinstance(row, dict) or hasattr(row, "keys") else row[0]
+            hidden_need = row["hidden_need"] if isinstance(row, dict) or hasattr(row, "keys") else row[1]
+            for text in [pain_point or "", hidden_need or ""]:
+                # 按标点分段
+                segments = re.split(r'[，。、；！？\s,.:;!?/\-—()（）\[\]【】]', text)
+                for seg in segments:
+                    seg = seg.strip()
+                    # 去掉"显卡"前缀
+                    for prefix in ["显卡", "GPU"]:
+                        if seg.startswith(prefix):
+                            seg = seg[len(prefix):]
+                    for suffix in ["问题", "不足", "困难"]:
+                        if seg.endswith(suffix) and len(seg) > len(suffix) + 1:
+                            seg = seg[:-len(suffix)]
+                    seg = seg.strip()
+                    if not seg:
+                        continue
 
-                # 中文 2-6 字
-                if re.match(r'^[\u4e00-\u9fff]{2,6}$', seg):
-                    if seg not in STOPWORDS_ZH and seg.lower() not in existing:
-                        zh_counter[seg] += 1
+                    # 中文 2-6 字
+                    if re.match(r'^[\u4e00-\u9fff]{2,6}$', seg):
+                        if seg not in STOPWORDS_ZH and not _is_existing_keyword(seg, existing_words, existing_phrases):
+                            zh_counter[seg] += 1
 
-                # 英文 4-15 字母
-                en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', seg)
-                for w in en_words:
-                    w = w.lower()
-                    if w not in STOPWORDS_EN and w not in existing:
-                        en_counter[w] += 1
+                    # 英文 4-15 字母
+                    en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', seg)
+                    for w in en_words:
+                        w = w.lower()
+                        if w not in STOPWORDS_EN and not _is_existing_keyword(w, existing_words, existing_phrases):
+                            en_counter[w] += 1
 
-    # 2. 统计 GPU 型号讨论热度
-    from src.utils.gpu_tagger import tag_post
-    model_counter = Counter()
-    title_rows = conn.execute("SELECT title FROM posts").fetchall()
-    for (title,) in title_rows:
-        post = {"title": title, "content": title}
-        tag_post(post)
-        for m in post.get("_gpu_tags", {}).get("models", []):
-            model_counter[m] += 1
+        # 2. 统计 GPU 型号讨论热度
+        from src.utils.gpu_tagger import tag_post
+        model_counter = Counter()
+        title_rows = conn.execute("SELECT title FROM posts").fetchall()
+        for row in title_rows:
+            title = row["title"] if isinstance(row, dict) or hasattr(row, "keys") else row[0]
+            post = {"title": title, "content": title}
+            tag_post(post)
+            for m in post.get("_gpu_tags", {}).get("models", []):
+                model_counter[m] += 1
 
-    conn.close()
+    new_zh = [w for w, c in zh_counter.most_common(MAX_DISCOVERED_ZH * 2) if c >= min_mentions]
+    new_en = [w for w, c in en_counter.most_common(MAX_DISCOVERED_EN * 2) if c >= min_mentions]
 
-    new_zh = [w for w, c in zh_counter.most_common(MAX_DISCOVERED_ZH) if c >= min_mentions]
-    new_en = [w for w, c in en_counter.most_common(MAX_DISCOVERED_EN) if c >= min_mentions]
+    # 语义去重
+    new_zh = _dedup_similar_words(new_zh)[:MAX_DISCOVERED_ZH]
+    new_en = _dedup_similar_words(new_en)[:MAX_DISCOVERED_EN]
     model_ranks = [m for m, c in model_counter.most_common(10)]
 
     return {"zh": new_zh, "en": new_en, "model_ranks": model_ranks}
@@ -479,9 +543,22 @@ def update_discovered_keywords(new_words: dict):
                 continue
             active.append(item)
 
-        # 按 decay_score 降序，容量控制
+        # 按 decay_score 降序，语义去重 + 容量控制
         active.sort(key=lambda x: x.get("decay_score", 0), reverse=True)
-        discovered[lang] = active[:max_cap]
+        # 去重：字符重叠度 > 80% 的只保留 decay_score 更高的
+        deduped = []
+        for item in active:
+            is_dup = False
+            w_chars = set(item["word"])
+            for existing_item in deduped:
+                e_chars = set(existing_item["word"])
+                overlap = len(w_chars & e_chars) / max(len(w_chars | e_chars), 1)
+                if overlap > 0.8:
+                    is_dup = True
+                    break
+            if not is_dup:
+                deduped.append(item)
+        discovered[lang] = deduped[:max_cap]
 
     discovered["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     config["discovered"] = discovered

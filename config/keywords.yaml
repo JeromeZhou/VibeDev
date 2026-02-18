@@ -180,17 +180,7 @@ discovered:
     last_seen: '2026-02-18'
     total_mentions: 1
     decay_score: 0.6
-  - word: 性能
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
-    total_mentions: 1
-    decay_score: 0.6
   - word: 卡死
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
-    total_mentions: 1
-    decay_score: 0.6
-  - word: 散热
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1
@@ -211,11 +201,6 @@ discovered:
     total_mentions: 1
     decay_score: 0.6
   - word: 崩溃闪退
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
-    total_mentions: 1
-    decay_score: 0.6
-  - word: 闪退崩溃
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1

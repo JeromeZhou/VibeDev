@@ -240,6 +240,9 @@ category 只能是：功能需求、情感需求、社会需求。
             response = llm.call_reasoning(prompt, system_prompt)
             for parsed in _extract_json(response):
                 if parsed.get("hidden_need"):
+                    # 传递索引和原始痛点名，用于 merge 时精确关联
+                    parsed["_inference_idx"] = pp.get("_inference_idx")
+                    parsed["_original_pain"] = pp.get("pain_point", "")
                     results.append(parsed)
                     break
         except Exception as e:
@@ -369,25 +372,72 @@ def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> li
 
     pain_points: analyze_pain_points 的输出
     hidden_needs: infer_hidden_needs 的输出（可能只有部分痛点有）
-    """
-    # 建立痛点→需求的映射
-    need_map = {}
-    for hn in hidden_needs:
-        key = hn.get("pain_point", "")
-        if key:
-            need_map[key] = {
-                "hidden_need": hn["hidden_need"],
-                "reasoning_chain": hn.get("reasoning_chain", []),
-                "confidence": hn.get("confidence", 0.0),
-                "category": hn.get("category", "功能需求"),
-                "munger_review": hn.get("munger_review"),  # 传递 Munger 审查结果
-                "munger_rejected": hn.get("munger_rejected", False),
-                "_needs_verification": hn.get("_needs_verification", False),
-            }
 
+    匹配策略（三级 fallback）：
+    1. _inference_idx 索引匹配（最可靠，main.py 注入）
+    2. pain_point 精确匹配
+    3. pain_point 模糊匹配（字符重叠 > 60%）
+    """
+    # 建立需求对象列表
+    need_objects = []
+    for hn in hidden_needs:
+        need_objects.append({
+            "_inference_idx": hn.get("_inference_idx"),
+            "_original_pain": hn.get("_original_pain", ""),
+            "hidden_need": hn.get("hidden_need", ""),
+            "reasoning_chain": hn.get("reasoning_chain", []),
+            "confidence": hn.get("confidence", 0.0),
+            "category": hn.get("category", "功能需求"),
+            "munger_review": hn.get("munger_review"),
+            "munger_rejected": hn.get("munger_rejected", False),
+            "_needs_verification": hn.get("_needs_verification", False),
+        })
+
+    # 建立多级映射
+    idx_map = {}  # _inference_idx → need
+    exact_map = {}  # pain_point 精确 → need
+    for obj in need_objects:
+        if obj["_inference_idx"] is not None:
+            idx_map[obj["_inference_idx"]] = obj
+        key = obj.get("_original_pain", "") or obj.get("hidden_need", "")
+        if key:
+            exact_map[key] = obj
+
+    def _fuzzy_match(text: str) -> dict | None:
+        """模糊匹配：字符重叠 > 60%"""
+        text_chars = set(text.lower())
+        if not text_chars:
+            return None
+        best_score, best_obj = 0, None
+        for obj in need_objects:
+            for candidate in [obj.get("_original_pain", ""), obj.get("hidden_need", "")]:
+                if not candidate:
+                    continue
+                cand_chars = set(candidate.lower())
+                overlap = len(text_chars & cand_chars) / max(len(text_chars | cand_chars), 1)
+                if overlap > best_score:
+                    best_score = overlap
+                    best_obj = obj
+        return best_obj if best_score > 0.6 else None
+
+    matched_count = 0
     insights = []
     for pp in pain_points:
         pain_text = pp.get("pain_point", "")
+        inference_idx = pp.get("_inference_idx")
+
+        # 三级 fallback 匹配
+        need = None
+        if inference_idx is not None and inference_idx in idx_map:
+            need = idx_map[inference_idx]
+        elif pain_text in exact_map:
+            need = exact_map[pain_text]
+        elif pain_text:
+            need = _fuzzy_match(pain_text)
+
+        if need:
+            matched_count += 1
+
         insight = {
             "pain_point": pain_text,
             "category": pp.get("category", "其他"),
@@ -400,9 +450,12 @@ def merge_pain_insights(pain_points: list[dict], hidden_needs: list[dict]) -> li
             "total_replies": pp.get("total_replies", 0),
             "total_likes": pp.get("total_likes", 0),
             "earliest_timestamp": pp.get("earliest_timestamp", ""),
-            "inferred_need": need_map.get(pain_text),  # None if no need inferred
+            "inferred_need": need,
         }
         insights.append(insight)
+
+    if hidden_needs:
+        print(f"  需求匹配: {matched_count}/{len(hidden_needs)} 个隐藏需求已关联")
 
     return insights
 

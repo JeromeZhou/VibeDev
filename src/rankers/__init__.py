@@ -51,14 +51,18 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
         # 5. Freshness 新鲜度加成（7天内有额外分数，替代 time_decay）
         freshness_score = max(0, (7 - days_old) / 7) * 100
 
-        # 新权重：frequency 0.30, source_quality 0.20, interaction 0.15, cross_platform 0.15, freshness 0.20
-        # freshness 提升到 20% 防止老数据长期霸榜，frequency 降到 30% 平衡
+        # 新权重从配置读取（5 维模型）
+        w_freq = weights.get("frequency", 0.30)
+        w_src = weights.get("source_quality", 0.20)
+        w_int = weights.get("interaction", 0.15)
+        w_cross = weights.get("cross_platform", 0.15)
+        w_fresh = weights.get("freshness", 0.20)
         pphi = (
-            0.30 * frequency_score
-            + 0.20 * source_quality_score
-            + 0.15 * interaction_score
-            + 0.15 * cross_platform_score
-            + 0.20 * freshness_score
+            w_freq * frequency_score
+            + w_src * source_quality_score
+            + w_int * interaction_score
+            + w_cross * cross_platform_score
+            + w_fresh * freshness_score
         )
         pphi = max(0, round(pphi, 1))
 
@@ -101,98 +105,96 @@ def _load_historical_insights() -> list[dict]:
     """
     try:
         from src.utils.db import get_db
-        conn = get_db()
+        with get_db() as conn:
 
-        # 取最新一轮的累积排名数据（已包含历史合并的 GPU 标签）
-        latest_run = conn.execute(
-            "SELECT MAX(run_date) as rd FROM pphi_history"
-        ).fetchone()
-        if not latest_run or not latest_run["rd"]:
-            conn.close()
-            return []
+            # 取最新一轮的累积排名数据（已包含历史合并的 GPU 标签）
+            latest_run = conn.execute(
+                "SELECT MAX(run_date) as rd FROM pphi_history"
+            ).fetchone()
+            if not latest_run or not latest_run["rd"]:
+                return []
 
-        latest_date = latest_run["rd"]
-        rows = conn.execute(
-            """SELECT pain_point, pphi_score, mentions, gpu_tags,
-                      source_urls, hidden_need, total_replies, total_likes
-               FROM pphi_history
-               WHERE run_date = ?
-               ORDER BY rank ASC""",
-            (latest_date,)
-        ).fetchall()
+            latest_date = latest_run["rd"]
+            rows = conn.execute(
+                """SELECT pain_point, pphi_score, mentions, gpu_tags,
+                          source_urls, hidden_need, total_replies, total_likes
+                   FROM pphi_history
+                   WHERE run_date = ?
+                   ORDER BY rank ASC""",
+                (latest_date,)
+            ).fetchall()
 
-        insights = []
-        for r in rows:
-            gpu_tags = json.loads(r["gpu_tags"]) if r["gpu_tags"] else {}
-            source_urls = json.loads(r["source_urls"]) if r["source_urls"] else []
+            insights = []
+            for r in rows:
+                gpu_tags = json.loads(r["gpu_tags"]) if r["gpu_tags"] else {}
+                source_urls = json.loads(r["source_urls"]) if r["source_urls"] else []
 
-            # 从 source_urls 推断来源，构造 source_post_ids
-            source_post_ids = []
-            for url in source_urls:
-                if "reddit" in url:
-                    slug = url.rstrip("/").split("/")[-1]
-                    source_post_ids.append(f"reddit_{slug}")
-                elif "nga" in url:
-                    tid = url.split("tid=")[-1].split("&")[0] if "tid=" in url else ""
-                    if tid:
-                        source_post_ids.append(f"nga_{tid}")
-                elif "bilibili" in url:
-                    bv = url.rstrip("/").split("/")[-1]
-                    source_post_ids.append(f"bilibili_{bv}")
-                elif "v2ex" in url:
-                    tid = url.rstrip("/").split("/")[-1]
-                    source_post_ids.append(f"v2ex_{tid}")
-                elif "mydrivers" in url:
-                    slug = url.rstrip("/").split("/")[-1]
-                    source_post_ids.append(f"mydrivers_{slug}")
-                elif "techpowerup" in url:
-                    slug = url.rstrip("/").split("/")[-1]
-                    source_post_ids.append(f"techpowerup_{slug}")
-                else:
-                    source_post_ids.append(f"unknown_{url[-20:]}")
+                # 从 source_urls 推断来源，构造 source_post_ids
+                source_post_ids = []
+                for url in source_urls:
+                    if "reddit" in url:
+                        slug = url.rstrip("/").split("/")[-1]
+                        source_post_ids.append(f"reddit_{slug}")
+                    elif "nga" in url:
+                        tid = url.split("tid=")[-1].split("&")[0] if "tid=" in url else ""
+                        if tid:
+                            source_post_ids.append(f"nga_{tid}")
+                    elif "bilibili" in url:
+                        bv = url.rstrip("/").split("/")[-1]
+                        source_post_ids.append(f"bilibili_{bv}")
+                    elif "v2ex" in url:
+                        tid = url.rstrip("/").split("/")[-1]
+                        source_post_ids.append(f"v2ex_{tid}")
+                    elif "mydrivers" in url:
+                        slug = url.rstrip("/").split("/")[-1]
+                        source_post_ids.append(f"mydrivers_{slug}")
+                    elif "techpowerup" in url:
+                        slug = url.rstrip("/").split("/")[-1]
+                        source_post_ids.append(f"techpowerup_{slug}")
+                    else:
+                        source_post_ids.append(f"unknown_{url[-20:]}")
 
-            # 互动数据：优先用 pphi_history 存储的累积值，fallback 到 posts 表查询
-            total_replies = r["total_replies"] or 0
-            total_likes = r["total_likes"] or 0
-            earliest_timestamp = ""
-            if total_replies == 0 and total_likes == 0 and source_post_ids:
-                placeholders = ",".join("?" * len(source_post_ids))
-                post_rows = conn.execute(
-                    f"""SELECT replies, likes, timestamp FROM posts
-                        WHERE id IN ({placeholders})""",
-                    source_post_ids
-                ).fetchall()
-                total_replies = sum(row["replies"] or 0 for row in post_rows)
-                total_likes = sum(row["likes"] or 0 for row in post_rows)
-                timestamps = [row["timestamp"] for row in post_rows if row["timestamp"]]
-                if timestamps:
-                    earliest_timestamp = min(timestamps)
+                # 互动数据：优先用 pphi_history 存储的累积值，fallback 到 posts 表查询
+                total_replies = r["total_replies"] or 0
+                total_likes = r["total_likes"] or 0
+                earliest_timestamp = ""
+                if total_replies == 0 and total_likes == 0 and source_post_ids:
+                    placeholders = ",".join("?" * len(source_post_ids))
+                    post_rows = conn.execute(
+                        f"""SELECT replies, likes, timestamp FROM posts
+                            WHERE id IN ({placeholders})""",
+                        source_post_ids
+                    ).fetchall()
+                    total_replies = sum(row["replies"] or 0 for row in post_rows)
+                    total_likes = sum(row["likes"] or 0 for row in post_rows)
+                    timestamps = [row["timestamp"] for row in post_rows if row["timestamp"]]
+                    if timestamps:
+                        earliest_timestamp = min(timestamps)
 
-            hidden_need_obj = None
-            if r["hidden_need"]:
-                hidden_need_obj = {
-                    "hidden_need": r["hidden_need"],
-                    "confidence": 0.5,
-                    "reasoning_chain": [],
-                    "munger_review": None,
-                }
+                hidden_need_obj = None
+                if r["hidden_need"]:
+                    hidden_need_obj = {
+                        "hidden_need": r["hidden_need"],
+                        "confidence": 0.5,
+                        "reasoning_chain": [],
+                        "munger_review": None,
+                    }
 
-            insights.append({
-                "pain_point": r["pain_point"],
-                "category": "",
-                "affected_users": "",
-                "evidence": "",
-                "source_post_ids": source_post_ids,
-                "source_urls": source_urls,
-                "gpu_tags": gpu_tags,
-                "inferred_need": hidden_need_obj,
-                "total_replies": total_replies,
-                "total_likes": total_likes,
-                "earliest_timestamp": earliest_timestamp,
-                "_hist_mentions": r["mentions"] or 0,  # 历史累积的 mentions 数
-            })
+                insights.append({
+                    "pain_point": r["pain_point"],
+                    "category": "",
+                    "affected_users": "",
+                    "evidence": "",
+                    "source_post_ids": source_post_ids,
+                    "source_urls": source_urls,
+                    "gpu_tags": gpu_tags,
+                    "inferred_need": hidden_need_obj,
+                    "total_replies": total_replies,
+                    "total_likes": total_likes,
+                    "earliest_timestamp": earliest_timestamp,
+                    "_hist_mentions": r["mentions"] or 0,  # 历史累积的 mentions 数
+                })
 
-        conn.close()
         print(f"  [历史] 从 pphi_history 加载 {len(insights)} 个累积痛点 (run: {latest_date})")
         return insights
     except Exception as e:
@@ -338,23 +340,21 @@ def _detect_trend(pain_point: str, current_score: float) -> str:
     """检测趋势：对比上一轮 PPHI 历史数据"""
     try:
         from src.utils.db import get_db
-        conn = get_db()
-        # 获取最近一次运行的数据（排除当前运行）
-        rows = conn.execute(
-            """SELECT DISTINCT run_date FROM pphi_history
-               ORDER BY run_date DESC LIMIT 2"""
-        ).fetchall()
-        if len(rows) < 2:
-            conn.close()
-            return "new"
+        with get_db() as conn:
+            # 获取最近一次运行的数据（排除当前运行）
+            rows = conn.execute(
+                """SELECT DISTINCT run_date FROM pphi_history
+                   ORDER BY run_date DESC LIMIT 2"""
+            ).fetchall()
+            if len(rows) < 2:
+                return "new"
 
-        prev_date = rows[1]["run_date"]  # 上一轮的日期
-        prev_points = conn.execute(
-            """SELECT pain_point, pphi_score FROM pphi_history
-               WHERE run_date = ?""",
-            (prev_date,)
-        ).fetchall()
-        conn.close()
+            prev_date = rows[1]["run_date"]  # 上一轮的日期
+            prev_points = conn.execute(
+                """SELECT pain_point, pphi_score FROM pphi_history
+                   WHERE run_date = ?""",
+                (prev_date,)
+            ).fetchall()
 
         if not prev_points:
             return "new"

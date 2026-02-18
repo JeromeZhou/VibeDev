@@ -29,10 +29,11 @@ def get_enabled_sources(config: dict) -> dict:
 
 
 def get_pphi_weights(config: dict) -> dict:
-    """获取 PPHI 权重配置"""
+    """获取 PPHI 权重配置（5 维模型）"""
     return config.get("pphi", {}).get("weights", {
-        "frequency": 0.3,
-        "source_quality": 0.4,
-        "interaction": 0.2,
-        "time_decay": 0.1,
+        "frequency": 0.30,
+        "source_quality": 0.20,
+        "interaction": 0.15,
+        "cross_platform": 0.15,
+        "freshness": 0.20,
     })

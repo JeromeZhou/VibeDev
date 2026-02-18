@@ -104,13 +104,14 @@ sources:
     weight: 0.85
     interval_hours: 4
 
-# PPHI 算法权重
+# PPHI 算法权重（5 维模型）
 pphi:
   weights:
-    frequency: 0.3
-    source_quality: 0.4
-    interaction: 0.2
-    time_decay: 0.1
+    frequency: 0.30
+    source_quality: 0.20
+    interaction: 0.15
+    cross_platform: 0.15
+    freshness: 0.20
   decay_rate_per_day: 0.05
 
 # 数据路径
