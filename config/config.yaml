@@ -68,7 +68,7 @@ sources:
     sections: ["硬件区"]
   tieba:
     enabled: false
-    daytime_only: true  # 8:00-22:00 自动启用
+    daytime_only: false  # 百度贴吧反爬严格(403)，暂时完全禁用
     weight: 0.6
     interval_hours: 6
   rog:

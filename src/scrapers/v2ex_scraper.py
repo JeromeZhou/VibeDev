@@ -9,8 +9,8 @@ from src.utils.gpu_tagger import tag_post
 class V2EXScraper(BaseScraper):
     """V2EX 爬虫 — 通过官方 API 抓取硬件相关话题"""
 
-    # GPU/硬件相关节点（gpu 节点不存在，已移除）
-    NODES = ["hardware", "computer", "apple", "gamer"]
+    # V2EX 有效节点（hardware + apple 已验证可用）
+    NODES = ["hardware", "apple"]
     # 搜索关键词（补充节点外的显卡讨论）
     SEARCH_KEYWORDS = ["显卡", "GPU", "RTX", "RX", "NVIDIA", "AMD"]
 
