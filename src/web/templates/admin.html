@@ -4,40 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPU-Insight 后台管理</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="/static/base.css" rel="stylesheet">
     <style>
-        :root {
-            --bg-base:     #0b0d14;
-            --bg-surface:  #111318;
-            --bg-elevated: #161922;
-            --bg-hover:    #1c1f2b;
-            --border-subtle:  rgba(255,255,255,0.06);
-            --border-default: rgba(255,255,255,0.09);
-            --border-strong:  rgba(255,255,255,0.14);
-            --text-primary:   #ececf1;
-            --text-secondary: #8b8fa3;
-            --text-tertiary:  #565869;
-            --accent-blue:    #5b8def;
-            --accent-purple:  #9d8abf;
-            --accent-green:   #5ec49e;
-            --accent-red:     #e5534b;
-            --accent-amber:   #d4a04a;
-        }
-        body {
-            font-family: 'Inter', 'Noto Sans SC', sans-serif;
-            background: var(--bg-base);
-            color: var(--text-primary);
-            font-weight: 400;
-        }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .card {
-            background: var(--bg-surface);
-            border-radius: 12px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-        }
         .status-green { color: var(--accent-green); }
         .status-yellow { color: var(--accent-amber); }
         .status-red { color: var(--accent-red); }
@@ -65,27 +35,20 @@
         .progress-fill {
             height: 100%; border-radius: 4px; transition: width 0.3s;
         }
-        nav a { color: var(--text-secondary); text-decoration: none; padding: 8px 16px; border-radius: 6px; }
-        nav a:hover { color: var(--text-primary); background: var(--bg-hover); }
-        nav a.active { color: var(--accent-blue); background: rgba(91,141,239,0.08); }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; color: var(--text-tertiary); font-weight: 500; font-size: 12px; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
-        td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 14px; }
-        .section-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
     </style>
 </head>
 <body>
     <!-- 导航 -->
-    <nav style="background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); padding: 12px 24px; display: flex; align-items: center; gap: 8px;">
-        <span style="font-weight: 600; margin-right: 24px;">GPU-Insight</span>
-        <a href="/">仪表盘</a>
-        <a href="/trends">趋势</a>
-        <a href="/history">历史</a>
-        <a href="/report">报告</a>
-        <a href="/admin" class="active">管理</a>
+    <nav class="site-nav">
+        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
+        <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
+        <a href="/trends"><span class="material-icons">trending_up</span> 趋势</a>
+        <a href="/history"><span class="material-icons">history</span> 历史</a>
+        <a href="/report"><span class="material-icons">description</span> 报告</a>
+        <a href="/admin" class="active"><span class="material-icons">admin_panel_settings</span> 管理</a>
     </nav>
 
-    <div style="max-width: 1200px; margin: 0 auto; padding: 24px;">
+    <div class="page-container">
         <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px;">
             <span class="material-icons" style="vertical-align: middle; font-size: 22px; color: var(--accent-blue);">admin_panel_settings</span>
             后台管理
@@ -252,5 +215,7 @@
             </div>
         </div>
     </div>
+
+    <footer class="site-footer">GPU-Insight · 显卡用户痛点智能分析系统</footer>
 </body>
 </html>

@@ -64,6 +64,11 @@ STOPWORDS_EN = {
     "they", "them", "than", "then", "just", "also", "very", "much", "more",
     "some", "like", "into", "over", "after", "before", "between", "under",
     "here", "your", "does", "nvidia", "radeon", "geforce",  # 品牌词不算热词
+    # 论坛模板词
+    "reply", "post", "topic", "comment", "thread", "edit", "deleted",
+    "removed", "submitted", "score", "points", "permalink", "save",
+    "report", "hide", "load", "more", "comments", "share", "best",
+    "controversial", "gilded", "wiki", "flair", "self", "link",
 }
 
 # 热词容量上限
@@ -266,8 +271,15 @@ def _calc_decay_score(item: dict) -> float:
     return round(freshness * (0.5 + 0.5 * frequency), 3)
 
 
-def discover_hot_words(posts: list[dict], min_freq: int = 2) -> dict:
-    """从帖子标题中发现高频新词（带停用词过滤）"""
+def discover_hot_words(posts: list[dict], min_freq: int = 2,
+                       insights: list[dict] = None) -> dict:
+    """从帖子 + AI 分析结果中发现高频新词
+
+    双来源策略：
+    1. AI 输出（主）：从痛点名称、隐藏需求中提取关键词（高质量）
+    2. 原始帖子（辅）：只提取英文技术术语（单词级别）
+    中文热词完全依赖 AI 输出，不做正则切词。
+    """
     existing = set()
     config = _load_keywords_config()
     for lang in ("zh", "en"):
@@ -278,28 +290,132 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2) -> dict:
     zh_counter = Counter()
     en_counter = Counter()
 
+    # ── 来源 1：AI 分析结果（主路径）──
+    if insights:
+        for insight in insights:
+            # 痛点名称：去掉"显卡"前缀和"问题"后缀，提取核心词
+            pain = insight.get("pain_point", "")
+            for prefix in ["显卡", "GPU"]:
+                if pain.startswith(prefix):
+                    pain = pain[len(prefix):]
+            for suffix in ["问题", "不足", "困难"]:
+                if pain.endswith(suffix):
+                    pain = pain[:-len(suffix)]
+            pain = pain.strip()
+
+            # 中文：按标点/逗号/空格分段，每段作为候选词（2-6字）
+            zh_segments = re.split(r'[，。、；！？\s,.:;!?/\-—()（）\[\]【】]', pain)
+            for seg in zh_segments:
+                seg = seg.strip()
+                # 只保留纯中文或中文+数字的段（2-6字）
+                if re.match(r'^[\u4e00-\u9fffA-Za-z0-9]{2,6}$', seg):
+                    if seg not in STOPWORDS_ZH and seg.lower() not in existing:
+                        zh_counter[seg] += 1
+
+            # 隐藏需求中的关键词（同样按段提取）
+            need = insight.get("hidden_need", "") or insight.get("inferred_need", "") or ""
+            zh_need_segments = re.split(r'[，。、；！？\s,.:;!?/\-—()（）\[\]【】]', need)
+            for seg in zh_need_segments:
+                seg = seg.strip()
+                if re.match(r'^[\u4e00-\u9fffA-Za-z0-9]{2,6}$', seg):
+                    if seg not in STOPWORDS_ZH and seg.lower() not in existing:
+                        zh_counter[seg] += 1
+
+            # 英文关键词（从痛点和需求中提取单词）
+            for text in [pain, need]:
+                en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', text)
+                for w in en_words:
+                    w = w.lower()
+                    if w not in STOPWORDS_EN and w not in existing:
+                        en_counter[w] += 1
+
+    # ── 来源 2：原始帖子（辅助，只提取英文技术术语）──
     for post in posts:
         title = post.get("title", "")
-        comments = post.get("comments", "")
-        text = f"{title} {comments}"
-
-        # 中文：2-4 字连续中文，过滤停用词
-        zh_words = re.findall(r'[\u4e00-\u9fff]{2,4}', text)
-        for w in zh_words:
-            if w not in STOPWORDS_ZH and w.lower() not in existing:
-                zh_counter[w] += 1
-
-        # 英文：有意义的词组，过滤停用词
-        en_words = re.findall(r'[a-zA-Z][a-zA-Z\s]{3,20}', text)
+        # 英文：只匹配独立单词（4-15 字母），不匹配短语
+        en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', title)
         for w in en_words:
-            w = w.strip().lower()
-            if w not in STOPWORDS_EN and w not in existing and len(w) > 3:
+            w = w.lower()
+            if w not in STOPWORDS_EN and w not in existing and len(w) >= 4:
                 en_counter[w] += 1
 
     new_zh = [w for w, c in zh_counter.most_common(MAX_DISCOVERED_ZH) if c >= min_freq]
     new_en = [w for w, c in en_counter.most_common(MAX_DISCOVERED_EN) if c >= min_freq]
 
     return {"zh": new_zh, "en": new_en}
+
+
+def discover_from_db(min_mentions: int = 2) -> dict:
+    """从 DB 历史数据中提取高频痛点表达词 → 补充到 discovered 热词
+
+    扫描 pain_points 表，提取用户真实痛点表达（闪退、卡死、黑屏重启等）。
+    同时统计 GPU 型号讨论热度，返回供搜索关键词排序用。
+    """
+    import sqlite3
+    db_path = Path("data/gpu_insight.db")
+    if not db_path.exists():
+        return {"zh": [], "en": [], "model_ranks": []}
+
+    conn = sqlite3.connect(str(db_path))
+
+    # 1. 从痛点名称中提取表达词
+    config = _load_keywords_config()
+    existing = set()
+    for lang in ("zh", "en"):
+        for cat in ("pain", "models", "brands"):
+            existing.update(w.lower() for w in config.get("search", {}).get(lang, {}).get(cat, []))
+        existing.update(w.lower() for w in config.get("signals", {}).get(lang, []))
+
+    zh_counter = Counter()
+    en_counter = Counter()
+
+    pain_rows = conn.execute("SELECT pain_point, hidden_need FROM pain_points").fetchall()
+    for pain_point, hidden_need in pain_rows:
+        for text in [pain_point or "", hidden_need or ""]:
+            # 按标点分段
+            segments = re.split(r'[，。、；！？\s,.:;!?/\-—()（）\[\]【】]', text)
+            for seg in segments:
+                seg = seg.strip()
+                # 去掉"显卡"前缀
+                for prefix in ["显卡", "GPU"]:
+                    if seg.startswith(prefix):
+                        seg = seg[len(prefix):]
+                for suffix in ["问题", "不足", "困难"]:
+                    if seg.endswith(suffix) and len(seg) > len(suffix) + 1:
+                        seg = seg[:-len(suffix)]
+                seg = seg.strip()
+                if not seg:
+                    continue
+
+                # 中文 2-6 字
+                if re.match(r'^[\u4e00-\u9fff]{2,6}$', seg):
+                    if seg not in STOPWORDS_ZH and seg.lower() not in existing:
+                        zh_counter[seg] += 1
+
+                # 英文 4-15 字母
+                en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', seg)
+                for w in en_words:
+                    w = w.lower()
+                    if w not in STOPWORDS_EN and w not in existing:
+                        en_counter[w] += 1
+
+    # 2. 统计 GPU 型号讨论热度
+    from src.utils.gpu_tagger import tag_post
+    model_counter = Counter()
+    title_rows = conn.execute("SELECT title FROM posts").fetchall()
+    for (title,) in title_rows:
+        post = {"title": title, "content": title}
+        tag_post(post)
+        for m in post.get("_gpu_tags", {}).get("models", []):
+            model_counter[m] += 1
+
+    conn.close()
+
+    new_zh = [w for w, c in zh_counter.most_common(MAX_DISCOVERED_ZH) if c >= min_mentions]
+    new_en = [w for w, c in en_counter.most_common(MAX_DISCOVERED_EN) if c >= min_mentions]
+    model_ranks = [m for m, c in model_counter.most_common(10)]
+
+    return {"zh": new_zh, "en": new_en, "model_ranks": model_ranks}
 
 
 def update_discovered_keywords(new_words: dict):

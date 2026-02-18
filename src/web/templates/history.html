@@ -4,86 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>历史轮次 — GPU-Insight</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="/static/base.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-base:     #0b0d14;
-            --bg-surface:  #111318;
-            --bg-elevated: #161922;
-            --bg-hover:    #1c1f2b;
-            --border-subtle:  rgba(255,255,255,0.06);
-            --border-default: rgba(255,255,255,0.09);
-            --border-strong:  rgba(255,255,255,0.14);
-            --text-primary:   #ececf1;
-            --text-secondary: #8b8fa3;
-            --text-tertiary:  #565869;
-            --accent-blue:    #5b8def;
-            --accent-purple:  #9d8abf;
-            --accent-green:   #5ec49e;
-            --accent-red:     #e5534b;
-            --accent-amber:   #d4a04a;
+        .run-icon {
+            width: 40px; height: 40px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            background: rgba(91,141,239,0.10);
         }
-        body {
-            font-family: 'Inter', 'Noto Sans SC', sans-serif;
-            background: var(--bg-base);
+        .search-wrap {
+            position: relative;
+        }
+        .search-wrap .material-icons {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-tertiary);
+            font-size: 18px;
+        }
+        .search-wrap input {
+            padding: 6px 12px 6px 32px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
             color: var(--text-primary);
-            font-weight: 400;
+            outline: none;
+            width: 180px;
         }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .card {
-            background: var(--bg-surface);
-            border-radius: 12px;
+        .search-wrap input:focus {
+            border-color: var(--accent-blue);
+        }
+        .run-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-radius: 8px;
+            background: var(--bg-elevated);
             border: 1px solid var(--border-subtle);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
             transition: border-color 0.2s ease;
         }
-        .card:hover { border-color: var(--border-default); }
-        .mesh-bg {
-            background:
-                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.04) 0%, transparent 50%),
-                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.03) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.03) 0%, transparent 50%);
+        .run-item:hover {
+            border-color: var(--border-default);
         }
-        .nav-link {
-            color: var(--text-secondary);
-            font-size: 14px;
-            display: flex; align-items: center; gap: 4px;
-            transition: color 0.15s ease;
-        }
-        .nav-link:hover { color: var(--text-primary); }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-in { animation: fadeInUp 0.3s ease forwards; opacity: 0; }
     </style>
 </head>
-<body class="min-h-screen mesh-bg">
-    <header class="py-4 px-6 border-b" style="border-color: var(--border-subtle);">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--accent-amber);">
-                    <span class="material-icons text-white text-base">history</span>
-                </div>
-                <div>
-                    <h1 class="text-lg font-semibold" style="color: var(--text-primary);">历史轮次</h1>
-                    <p class="text-xs" style="color: var(--text-tertiary);">GPU-Insight · 全部分析记录</p>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <a href="/" class="nav-link">
-                    <span class="material-icons text-base">dashboard</span> 仪表盘
-                </a>
-                <a href="/trends" class="nav-link">
-                    <span class="material-icons text-base">trending_up</span> 趋势
-                </a>
-            </div>
-        </div>
-    </header>
+<body class="mesh-bg">
+    <nav class="site-nav">
+        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
+        <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
+        <a href="/trends"><span class="material-icons">trending_up</span> 趋势</a>
+        <a href="/history" class="active"><span class="material-icons">history</span> 历史</a>
+        <a href="/report"><span class="material-icons">description</span> 报告</a>
+        <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
+    </nav>
 
-    <main class="max-w-6xl mx-auto py-6 px-4">
+    <main class="page-container">
         <div class="card p-6 animate-in">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
@@ -91,13 +72,9 @@
                     分析轮次列表
                 </h2>
                 <div class="flex items-center gap-3">
-                    <div class="relative">
-                        <span class="material-icons absolute left-2.5 top-1/2 -translate-y-1/2" style="color: var(--text-tertiary); font-size: 18px;">search</span>
-                        <input type="text" id="searchBox" placeholder="搜索痛点..."
-                               class="pl-8 pr-3 py-1.5 rounded-lg text-xs"
-                               style="background: var(--bg-elevated); border: 1px solid var(--border-default); color: var(--text-primary); outline: none; width: 180px;"
-                               onfocus="this.style.borderColor='var(--accent-blue)'"
-                               onblur="this.style.borderColor='var(--border-default)'">
+                    <div class="search-wrap">
+                        <span class="material-icons">search</span>
+                        <input type="text" id="searchBox" placeholder="搜索痛点...">
                     </div>
                     <span class="text-xs mono" style="color: var(--text-tertiary);">共 {{ runs | length }} 轮</span>
                 </div>
@@ -107,20 +84,18 @@
             <div class="space-y-2">
                 {% for run in runs %}
                 <a href="/history/detail?run_date={{ run.run_date | urlencode }}"
-                   class="run-item flex items-center justify-between p-4 rounded-lg transition-all duration-200"
-                   style="background: var(--bg-elevated); border: 1px solid var(--border-subtle); animation: fadeInUp 0.3s ease forwards; animation-delay: {{ loop.index * 0.03 }}s; opacity: 0;"
-                   onmouseenter="this.style.borderColor='var(--border-default)'"
-                   onmouseleave="this.style.borderColor='var(--border-subtle)'">
+                   class="run-item animate-in"
+                   style="animation-delay: {{ loop.index * 0.03 }}s;">
                     <div class="flex items-center gap-4 min-w-0">
-                        <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style="background: rgba(91,141,239,0.10);">
+                        <div class="run-icon">
                             <span class="material-icons" style="color: var(--accent-blue);">analytics</span>
                         </div>
                         <div class="min-w-0">
                             <p class="text-sm font-medium mono" style="color: var(--text-primary);">{{ run.run_date }}</p>
-                            <p class="text-xs truncate mt-0.5" style="color: var(--text-tertiary);">{{ run.pain_list }}</p>
+                            <p class="text-xs truncate mt-2" style="color: var(--text-tertiary);">{{ run.pain_list }}</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-4 shrink-0 ml-4">
+                    <div class="flex items-center gap-4" style="flex-shrink: 0; margin-left: 16px;">
                         <div class="text-center">
                             <p class="text-sm font-semibold mono" style="color: var(--accent-purple);">{{ run.pain_count }}</p>
                             <p class="text-xs" style="color: var(--text-tertiary);">痛点</p>
@@ -135,17 +110,15 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-12">
-                <span class="material-icons text-4xl mb-2" style="color: var(--text-tertiary);">hourglass_empty</span>
+            <div class="text-center" style="padding: 48px 0;">
+                <span class="material-icons mb-2" style="color: var(--text-tertiary); font-size: 36px;">hourglass_empty</span>
                 <p style="color: var(--text-secondary);">暂无历史数据</p>
             </div>
             {% endif %}
         </div>
     </main>
 
-    <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
-        GPU-Insight v1.0 · 显卡用户痛点智能分析系统
-    </footer>
+    <footer class="site-footer">GPU-Insight · 显卡用户痛点智能分析系统</footer>
 
     <script>
     document.getElementById('searchBox').addEventListener('input', function(e) {

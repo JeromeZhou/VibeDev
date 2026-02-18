@@ -4,76 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPU-Insight 痛点仪表盘</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="/static/base.css" rel="stylesheet">
     <style>
-        :root {
-            --bg-base:     #0b0d14;
-            --bg-surface:  #111318;
-            --bg-elevated: #161922;
-            --bg-hover:    #1c1f2b;
-            --border-subtle:  rgba(255,255,255,0.06);
-            --border-default: rgba(255,255,255,0.09);
-            --border-strong:  rgba(255,255,255,0.14);
-            --text-primary:   #ececf1;
-            --text-secondary: #8b8fa3;
-            --text-tertiary:  #565869;
-            --accent-blue:    #5b8def;
-            --accent-purple:  #9d8abf;
-            --accent-green:   #5ec49e;
-            --accent-red:     #e5534b;
-            --accent-amber:   #d4a04a;
-            --accent-silver:  #9ba3b0;
-            --accent-bronze:  #b08952;
-        }
-
-        body {
-            font-family: 'Inter', 'Noto Sans SC', sans-serif;
-            background: var(--bg-base);
-            color: var(--text-primary);
-            font-weight: 400;
-        }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        .card {
-            background: var(--bg-surface);
-            border-radius: 12px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            transition: border-color 0.2s ease;
-        }
-        .card:hover { border-color: var(--border-default); }
-
-        .gpu-tag {
-            background: rgba(139,92,246,0.10);
-            color: #a78bcc;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            border: 1px solid rgba(139,92,246,0.15);
-        }
-        .mfr-tag {
-            background: rgba(80,200,150,0.08);
-            color: #7bc4a5;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            border: 1px solid rgba(80,200,150,0.12);
-        }
-        .brand-tag {
-            background: rgba(220,150,60,0.08);
-            color: #c4a06b;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            border: 1px solid rgba(220,150,60,0.12);
-        }
-
-        /* Stat cards — left 2px color bar instead of top 4px */
+        /* 统计卡片左色条 */
         .stat-card { position: relative; overflow: hidden; }
         .stat-card::before {
             content: '';
@@ -83,52 +18,27 @@
             border-radius: 12px 0 0 12px;
         }
         .stat-1::before { background: var(--accent-blue); }
-        .stat-2::before { background: var(--accent-purple); }
-        .stat-3::before { background: #8b5cf6; }
-        .stat-4::before { background: var(--accent-green); }
+        .stat-2::before { background: var(--accent-green); }
+        .stat-3::before { background: var(--accent-purple); }
+        .stat-4::before { background: var(--accent-amber); }
 
-        /* PPHI ring — 44px, no glow, plain */
-        .pphi-ring {
-            width: 44px; height: 44px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            border: 2px solid var(--border-strong);
-            background: transparent;
-        }
-
+        /* 排名项 */
         .top-item {
             position: relative;
             border-radius: 8px;
             border: 1px solid transparent;
-            transition: border-color 0.2s ease, background-color 0.2s ease;
+            transition: border-color 0.2s, background-color 0.2s;
         }
         .top-item:hover {
             background: var(--bg-hover);
             border-color: var(--border-default);
         }
-
-        /* Top 1/2/3 — left 2px bar, low-saturation colors, no glow */
         .top-1 { border-left: 2px solid var(--accent-amber); }
         .top-1 .pphi-ring { border-color: var(--accent-amber); }
         .top-2 { border-left: 2px solid var(--accent-silver); }
         .top-2 .pphi-ring { border-color: var(--accent-silver); }
         .top-3 { border-left: 2px solid var(--accent-bronze); }
         .top-3 .pphi-ring { border-color: var(--accent-bronze); }
-
-        .rank-medal {
-            width: 24px; height: 24px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: 600;
-        }
-        .medal-gold   { background: var(--accent-amber); color: #1a1400; }
-        .medal-silver { background: var(--accent-silver); color: #111318; }
-        .medal-bronze { background: var(--accent-bronze); color: #1a1400; }
-
-        .trend-up     { color: var(--accent-green); }
-        .trend-down   { color: var(--accent-red); }
-        .trend-new    { color: var(--accent-blue); }
-        .trend-stable { color: var(--text-tertiary); }
 
         .need-badge {
             background: rgba(139,92,246,0.08);
@@ -137,33 +47,34 @@
             padding: 4px 8px;
         }
 
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-in { animation: fadeInUp 0.3s ease forwards; opacity: 0; }
-        .delay-1 { animation-delay: 0.05s; }
-        .delay-2 { animation-delay: 0.1s; }
-        .delay-3 { animation-delay: 0.15s; }
-        .delay-4 { animation-delay: 0.2s; }
-
-        .mesh-bg {
-            background:
-                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.04) 0%, transparent 50%),
-                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.03) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.03) 0%, transparent 50%);
-        }
-
         .expand-btn {
             background: var(--bg-elevated);
             border: 1px solid var(--border-subtle);
-            transition: border-color 0.2s ease;
+            transition: border-color 0.2s;
         }
         .expand-btn:hover { border-color: var(--border-default); }
 
         .ranking-extra { display: none; }
         .ranking-extra.show { display: block; }
 
+        /* PPHI tooltip */
+        .pphi-tooltip { position: relative; cursor: help; }
+        .pphi-tooltip .pphi-tip-text {
+            visibility: hidden; opacity: 0;
+            position: absolute; top: calc(100% + 8px); left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px; font-weight: 400;
+            color: var(--text-secondary);
+            white-space: nowrap; z-index: 10;
+            transition: opacity 0.15s;
+        }
+        .pphi-tooltip:hover .pphi-tip-text { visibility: visible; opacity: 1; }
+
+        /* 关于弹窗 */
         .modal-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.6);
@@ -177,112 +88,62 @@
             border: 1px solid var(--border-default);
             border-radius: 12px;
             max-width: 480px; width: 90%;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
-
-        /* PPHI tooltip */
-        .pphi-tooltip {
-            position: relative;
-            cursor: help;
-        }
-        .pphi-tooltip .pphi-tip-text {
-            visibility: hidden;
-            opacity: 0;
-            position: absolute;
-            top: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-default);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: 400;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            z-index: 10;
-            transition: opacity 0.15s ease;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-        }
-        .pphi-tooltip:hover .pphi-tip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        /* Nav link */
-        .nav-link {
-            color: var(--text-secondary);
-            font-size: 14px;
-            display: flex; align-items: center; gap: 4px;
-            transition: color 0.15s ease;
-        }
-        .nav-link:hover { color: var(--text-primary); }
     </style>
 </head>
-<body class="min-h-screen mesh-bg">
-    <header class="py-4 px-6 border-b" style="border-color: var(--border-subtle);">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--accent-blue);">
-                    <span class="material-icons text-white text-base">insights</span>
-                </div>
-                <div>
-                    <h1 class="text-lg font-semibold" style="color: var(--text-primary);">GPU-Insight</h1>
-                    <p class="text-xs" style="color: var(--text-tertiary);">显卡用户痛点智能分析 · {{ updated_at }}</p>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <a href="/report" class="nav-link">
-                    <span class="material-icons text-base">description</span> 报告
-                </a>
-                <a href="/trends" class="nav-link">
-                    <span class="material-icons text-base">trending_up</span> 趋势
-                </a>
-                <a href="/history" class="nav-link">
-                    <span class="material-icons text-base">history</span> 历史
-                </a>
-                <button onclick="document.getElementById('aboutModal').classList.add('active')" class="nav-link">
-                    <span class="material-icons text-base">info_outline</span> 关于
-                </button>
-            </div>
-        </div>
-    </header>
+<body class="mesh-bg">
+    <!-- 导航 -->
+    <nav class="site-nav">
+        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
+        <a href="/" class="active"><span class="material-icons">dashboard</span> 仪表盘</a>
+        <a href="/trends"><span class="material-icons">trending_up</span> 趋势</a>
+        <a href="/history"><span class="material-icons">history</span> 历史</a>
+        <a href="/report"><span class="material-icons">description</span> 报告</a>
+        <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
+        <a href="javascript:void(0)" onclick="document.getElementById('aboutModal').classList.add('active')"><span class="material-icons">info_outline</span> 关于</a>
+    </nav>
 
-    <main class="max-w-6xl mx-auto py-6 px-4">
+    <div class="page-container">
+        <!-- 更新时间 -->
+        <div class="flex items-center justify-between mb-4" style="margin-top: 4px;">
+            <div></div>
+            <span class="text-xs" style="color: var(--text-tertiary);">{{ updated_at }}</span>
+        </div>
+
         <!-- 统计卡片 -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-4 gap-4 mb-6">
             <div class="card stat-card stat-1 p-4 animate-in delay-1">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-icons text-base" style="color: var(--accent-blue);">bug_report</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">当前痛点</p>
+                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">当前痛点</span>
                 </div>
-                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ data.total_pain_points }}</p>
+                <span class="text-2xl font-semibold mono">{{ data.total_pain_points }}</span>
             </div>
             <div class="card stat-card stat-2 p-4 animate-in delay-2">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-icons text-base" style="color: var(--accent-green);">article</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">累计帖子</p>
+                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">累计帖子</span>
                 </div>
-                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_posts }}</p>
+                <span class="text-2xl font-semibold mono">{{ stats.total_posts }}</span>
             </div>
             <div class="card stat-card stat-3 p-4 animate-in delay-3">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-icons text-base" style="color: var(--accent-purple);">replay</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">分析轮次</p>
+                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">分析轮次</span>
                 </div>
-                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_runs }}</p>
+                <span class="text-2xl font-semibold mono">{{ stats.total_runs }}</span>
             </div>
             <div class="card stat-card stat-4 p-4 animate-in delay-4">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="material-icons text-base" style="color: var(--accent-amber);">language</span>
-                    <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-tertiary);">数据源</p>
+                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">数据源</span>
                 </div>
-                <p class="text-2xl font-semibold mono" style="color: var(--text-primary);">{{ stats.total_sources }}</p>
+                <span class="text-2xl font-semibold mono">{{ stats.total_sources }}</span>
             </div>
         </div>
 
         {% if delta.new_pains > 0 or delta.new_models > 0 %}
-        <div class="flex items-center gap-3 mb-6 px-1 text-xs" style="color: var(--text-tertiary);">
+        <div class="flex items-center gap-3 mb-4 px-1 text-xs" style="color: var(--text-tertiary);">
             <span class="material-icons" style="font-size: 14px; color: var(--accent-green);">trending_up</span>
             <span>本轮变化：</span>
             {% if delta.new_pains > 0 %}
@@ -294,19 +155,20 @@
         </div>
         {% endif %}
 
-        <!-- Top 痛点排名 -->
-        <div class="card p-6">
+        <!-- 痛点排名 -->
+        <div class="card p-5">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                <div class="section-title" style="margin-bottom: 0;">
                     <span class="material-icons" style="color: var(--accent-blue);">leaderboard</span>
                     痛点排名
                     <span class="pphi-tooltip">
-                        <span class="material-icons text-sm" style="color: var(--text-tertiary);">help_outline</span>
+                        <span class="material-icons" style="font-size: 14px; color: var(--text-tertiary);">help_outline</span>
                         <span class="pphi-tip-text">PPHI = Pain Point Heat Index，综合讨论量、情感强度、传播范围加权计算</span>
                     </span>
-                </h2>
+                </div>
                 <span class="text-xs mono" style="color: var(--text-tertiary);">PPHI Index · 共 {{ rankings | length }} 项</span>
             </div>
+
             {% if rankings %}
             <div class="space-y-2" id="rankingList">
                 {% for r in rankings %}
@@ -316,18 +178,13 @@
                           {% if r.rank > 10 %}ranking-extra{% endif %}"
                    style="animation: fadeInUp 0.3s ease forwards; animation-delay: {{ r.rank * 0.03 }}s; opacity: 0;">
                     <div class="flex items-center gap-3">
-                        <!-- PPHI Ring -->
-                        <div class="pphi-ring shrink-0">
-                            <span class="text-sm font-semibold mono
-                                {% if r.rank == 1 %}" style="color: var(--accent-amber);
-                                {% elif r.rank == 2 %}" style="color: var(--accent-silver);
-                                {% elif r.rank == 3 %}" style="color: var(--accent-bronze);
-                                {% else %}" style="color: var(--accent-blue);{% endif %}">
+                        <div class="pphi-ring">
+                            <span class="text-sm font-semibold mono"
+                                style="color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% elif r.rank == 3 %}var(--accent-bronze){% else %}var(--accent-blue){% endif %};">
                                 {{ r.pphi_score }}
                             </span>
                         </div>
 
-                        <!-- Content -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1">
                                 {% if r.rank <= 3 %}
@@ -339,10 +196,9 @@
                                 {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-semibold">↓</span>
                                 {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
                                 {% else %}<span class="trend-new text-xs font-semibold">★</span>{% endif %}
-                                <h3 class="font-medium text-sm truncate" style="color: var(--text-primary);">{{ r.pain_point }}</h3>
+                                <span class="font-medium text-sm truncate">{{ r.pain_point }}</span>
                             </div>
 
-                            <!-- Tags: show more models to reflect accumulation -->
                             <div class="flex flex-wrap gap-1 mb-1">
                                 {% set all_models = r.get('gpu_tags', {}).get('models', []) %}
                                 {% for m in all_models[:6] %}
@@ -375,8 +231,7 @@
                             {% endif %}
                         </div>
 
-                        <!-- Chevron -->
-                        <span class="material-icons shrink-0" style="color: var(--text-tertiary); font-size: 20px;">chevron_right</span>
+                        <span class="material-icons" style="color: var(--text-tertiary); font-size: 20px; flex-shrink: 0;">chevron_right</span>
                     </div>
                 </a>
                 {% endfor %}
@@ -384,49 +239,45 @@
 
             {% if rankings | length > 10 %}
             <button id="expandBtn" onclick="toggleExpand()"
-                    class="expand-btn w-full mt-4 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-pointer"
-                    style="color: var(--accent-blue);">
+                    class="expand-btn w-full mt-4 py-3 rounded-lg text-sm font-medium flex items-center cursor-pointer"
+                    style="color: var(--accent-blue); justify-content: center; gap: 8px;">
                 <span class="material-icons text-base" id="expandIcon">expand_more</span>
                 <span id="expandText">查看全部 {{ rankings | length }} 个痛点</span>
             </button>
             {% endif %}
 
             {% else %}
-            <div class="text-center py-12">
-                <span class="material-icons text-4xl mb-2" style="color: var(--text-tertiary);">hourglass_empty</span>
-                <p style="color: var(--text-secondary);">等待首次数据采集...</p>
+            <div class="text-center" style="padding: 48px 0;">
+                <span class="material-icons" style="font-size: 36px; color: var(--text-tertiary);">hourglass_empty</span>
+                <p class="mt-2" style="color: var(--text-secondary);">等待首次数据采集...</p>
             </div>
             {% endif %}
         </div>
-    </main>
+    </div>
 
-    <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
-        GPU-Insight v1.0 · 显卡用户痛点智能分析系统
-    </footer>
+    <footer class="site-footer">GPU-Insight · 显卡用户痛点智能分析系统</footer>
 
     <!-- About Modal -->
     <div id="aboutModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-content p-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                <div class="section-title" style="margin-bottom: 0;">
                     <span class="material-icons" style="color: var(--accent-blue);">info</span> 关于 GPU-Insight
-                </h3>
-                <button onclick="document.getElementById('aboutModal').classList.remove('active')"
-                        class="nav-link">
-                    <span class="material-icons">close</span>
-                </button>
+                </div>
+                <span class="material-icons cursor-pointer" style="color: var(--text-secondary);"
+                      onclick="document.getElementById('aboutModal').classList.remove('active')">close</span>
             </div>
-            <div class="space-y-3 text-sm leading-relaxed" style="color: var(--text-secondary);">
+            <div class="space-y-3 text-sm" style="color: var(--text-secondary); line-height: 1.6;">
                 <p>GPU-Insight 是一个显卡用户痛点智能分析系统，每 4 小时自动采集全球显卡论坛讨论，通过 AI 提取痛点并推导隐藏需求。</p>
                 <div class="p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
                     <p class="text-xs mb-1" style="color: var(--text-tertiary);">核心指标</p>
-                    <p class="font-medium" style="color: var(--text-primary);">PPHI (Pain Point Heat Index) — 痛点热度指数</p>
-                    <p class="text-xs mt-1" style="color: var(--text-tertiary);">综合讨论量、情感强度、传播范围等维度加权计算</p>
+                    <p class="font-medium">PPHI (Pain Point Heat Index) — 痛点热度指数</p>
+                    <p class="text-xs mt-2" style="color: var(--text-tertiary);">综合讨论量、情感强度、传播范围等维度加权计算</p>
                 </div>
                 <div class="flex flex-wrap gap-2 text-xs">
-                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">Reddit / NGA / Bilibili / V2EX / TechPowerUp / MyDrivers</span>
-                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">AI: SiliconFlow GLM</span>
-                    <span class="px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">更新: 每 4 小时</span>
+                    <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">Reddit / NGA / Bilibili / V2EX / TechPowerUp / MyDrivers</span>
+                    <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">AI: SiliconFlow GLM</span>
+                    <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">更新: 每 4 小时</span>
                 </div>
             </div>
         </div>
@@ -435,11 +286,9 @@
     <script>
     function toggleExpand() {
         const extras = document.querySelectorAll('.ranking-extra');
-        const btn = document.getElementById('expandBtn');
         const icon = document.getElementById('expandIcon');
         const text = document.getElementById('expandText');
         const isExpanded = extras[0]?.classList.contains('show');
-
         extras.forEach((el, i) => {
             if (isExpanded) {
                 el.classList.remove('show');
@@ -449,14 +298,8 @@
                 el.style.animationDelay = `${i * 0.03}s`;
             }
         });
-
-        if (isExpanded) {
-            icon.textContent = 'expand_more';
-            text.textContent = '查看全部 {{ rankings | length }} 个痛点';
-        } else {
-            icon.textContent = 'expand_less';
-            text.textContent = '收起列表';
-        }
+        icon.textContent = isExpanded ? 'expand_more' : 'expand_less';
+        text.textContent = isExpanded ? '查看全部 {{ rankings | length }} 个痛点' : '收起列表';
     }
     </script>
 </body>

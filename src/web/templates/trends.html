@@ -4,55 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>趋势分析 — GPU-Insight</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="/static/base.css" rel="stylesheet">
     <style>
-        :root {
-            --bg-base:     #0b0d14;
-            --bg-surface:  #111318;
-            --bg-elevated: #161922;
-            --bg-hover:    #1c1f2b;
-            --border-subtle:  rgba(255,255,255,0.06);
-            --border-default: rgba(255,255,255,0.09);
-            --border-strong:  rgba(255,255,255,0.14);
-            --text-primary:   #ececf1;
-            --text-secondary: #8b8fa3;
-            --text-tertiary:  #565869;
-            --accent-blue:    #5b8def;
-            --accent-purple:  #9d8abf;
-            --accent-green:   #5ec49e;
-            --accent-red:     #e5534b;
-            --accent-amber:   #d4a04a;
-            --accent-silver:  #9ba3b0;
-            --accent-bronze:  #b08952;
-        }
-
-        body {
-            font-family: 'Inter', 'Noto Sans SC', sans-serif;
-            background: var(--bg-base);
-            color: var(--text-primary);
-            font-weight: 400;
-        }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        .card {
-            background: var(--bg-surface);
-            border-radius: 12px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            transition: border-color 0.2s ease;
-        }
-        .card:hover { border-color: var(--border-default); }
-
-        .mesh-bg {
-            background:
-                radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.04) 0%, transparent 50%),
-                radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.03) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.03) 0%, transparent 50%);
-        }
-
         .trend-pill {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600;
@@ -62,52 +18,43 @@
         .trend-new     { background: rgba(91,141,239,0.10); color: var(--accent-blue); border: 1px solid rgba(91,141,239,0.18); }
         .trend-stable  { background: rgba(86,88,105,0.12); color: var(--text-tertiary); border: 1px solid rgba(86,88,105,0.20); }
 
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
+        .rank-change-list {
+            max-height: 280px;
+            overflow-y: auto;
+            padding-right: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.06) transparent;
         }
-        .animate-in { animation: fadeInUp 0.3s ease forwards; opacity: 0; }
-
-        .nav-link {
-            color: var(--text-secondary);
-            font-size: 14px;
-            display: flex; align-items: center; gap: 4px;
-            transition: color 0.15s ease;
+        .rank-change-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px; border-radius: 8px;
+            border: 1px solid transparent;
+            transition: background 0.2s, border-color 0.2s;
         }
-        .nav-link:hover { color: var(--text-primary); }
+        .rank-change-item:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-default);
+        }
+        .summary-card {
+            text-align: center; padding: 16px; border-radius: 8px;
+        }
     </style>
 </head>
-<body class="min-h-screen mesh-bg">
-    <header class="py-4 px-6 border-b" style="border-color: var(--border-subtle);">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--accent-purple);">
-                    <span class="material-icons text-white text-base">trending_up</span>
-                </div>
-                <div>
-                    <h1 class="text-lg font-semibold" style="color: var(--text-primary);">趋势分析</h1>
-                    <p class="text-xs" style="color: var(--text-tertiary);">GPU-Insight · 痛点趋势追踪</p>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <a href="/" class="nav-link">
-                    <span class="material-icons text-base">dashboard</span> 仪表盘
-                </a>
-                <a href="/report" class="nav-link">
-                    <span class="material-icons text-base">description</span> 报告
-                </a>
-                <a href="/history" class="nav-link">
-                    <span class="material-icons text-base">history</span> 历史
-                </a>
-            </div>
-        </div>
-    </header>
+<body class="mesh-bg">
+    <nav class="site-nav">
+        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
+        <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
+        <a href="/trends" class="active"><span class="material-icons">trending_up</span> 趋势</a>
+        <a href="/history"><span class="material-icons">history</span> 历史</a>
+        <a href="/report"><span class="material-icons">description</span> 报告</a>
+        <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
+    </nav>
 
-    <main class="max-w-6xl mx-auto py-6 px-4">
+    <main class="page-container">
         <!-- PPHI 趋势图 -->
-        <div class="card p-6 mb-6 animate-in" style="animation-delay: 0.05s">
+        <div class="card p-6 mb-6 animate-in delay-1">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                <h2 class="text-base font-semibold flex items-center gap-2">
                     <span class="material-icons" style="color: var(--accent-purple);">show_chart</span>
                     Top 5 痛点 PPHI 趋势
                 </h2>
@@ -119,9 +66,9 @@
         </div>
 
         <!-- 排名演变 Bump Chart -->
-        <div class="card p-6 mb-6 animate-in" style="animation-delay: 0.07s">
+        <div class="card p-6 mb-6 animate-in delay-2">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                <h2 class="text-base font-semibold flex items-center gap-2">
                     <span class="material-icons" style="color: var(--accent-amber);">swap_vert</span>
                     痛点排名演变
                 </h2>
@@ -132,10 +79,10 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="grid grid-2 gap-4 mb-6">
             <!-- 论坛分布 -->
-            <div class="card p-6 animate-in" style="animation-delay: 0.1s">
-                <h2 class="text-base font-semibold mb-4 flex items-center gap-2" style="color: var(--text-primary);">
+            <div class="card p-6 animate-in delay-3">
+                <h2 class="text-base font-semibold mb-4 flex items-center gap-2">
                     <span class="material-icons" style="color: var(--accent-green);">pie_chart</span>
                     数据源分布
                 </h2>
@@ -145,20 +92,16 @@
             </div>
 
             <!-- 趋势变化列表 -->
-            <div class="card p-6 animate-in" style="animation-delay: 0.15s">
-                <h2 class="text-base font-semibold mb-4 flex items-center gap-2" style="color: var(--text-primary);">
+            <div class="card p-6 animate-in delay-4">
+                <h2 class="text-base font-semibold mb-4 flex items-center gap-2">
                     <span class="material-icons" style="color: var(--accent-blue);">swap_vert</span>
                     排名变动
                 </h2>
-                <div class="space-y-1 max-h-[280px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.06) transparent;">
+                <div class="rank-change-list space-y-1">
                     {% for r in rankings %}
-                    <a href="/pain-point/{{ r.rank }}"
-                       class="flex justify-between items-center p-3 rounded-lg transition-all duration-200 group"
-                       style="border: 1px solid transparent;"
-                       onmouseenter="this.style.background='var(--bg-hover)';this.style.borderColor='var(--border-default)'"
-                       onmouseleave="this.style.background='transparent';this.style.borderColor='transparent'">
+                    <a href="/pain-point/{{ r.rank }}" class="rank-change-item">
                         <div class="flex items-center gap-3 min-w-0">
-                            <span class="text-xs font-semibold mono w-5 text-right" style="color: var(--text-tertiary);">#{{ r.rank }}</span>
+                            <span class="text-xs font-semibold mono" style="color: var(--text-tertiary); width: 20px; text-align: right;">#{{ r.rank }}</span>
                             <span class="trend-pill
                                 {% if r.get('trend') == 'rising' %}trend-rising
                                 {% elif r.get('trend') == 'falling' %}trend-falling
@@ -171,15 +114,15 @@
                             </span>
                             <span class="text-sm truncate" style="color: var(--text-secondary);">{{ r.pain_point }}</span>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0 ml-3">
+                        <div class="flex items-center gap-2" style="flex-shrink: 0; margin-left: 12px;">
                             <span class="text-sm font-semibold mono" style="color: var(--accent-blue);">{{ r.pphi_score }}</span>
                             <span class="material-icons" style="color: var(--text-tertiary); font-size: 18px;">chevron_right</span>
                         </div>
                     </a>
                     {% endfor %}
                     {% if not rankings %}
-                    <div class="text-center py-8">
-                        <span class="material-icons text-3xl mb-2" style="color: var(--text-tertiary);">hourglass_empty</span>
+                    <div class="text-center py-6">
+                        <span class="material-icons" style="color: var(--text-tertiary); font-size: 32px; margin-bottom: 8px; display: block;">hourglass_empty</span>
                         <p class="text-sm" style="color: var(--text-secondary);">等待数据采集...</p>
                     </div>
                     {% endif %}
@@ -189,11 +132,11 @@
 
         <!-- 分析摘要 -->
         <div class="card p-6 animate-in" style="animation-delay: 0.2s">
-            <h2 class="text-base font-semibold mb-4 flex items-center gap-2" style="color: var(--text-primary);">
+            <h2 class="text-base font-semibold mb-4 flex items-center gap-2">
                 <span class="material-icons" style="color: var(--accent-amber);">analytics</span>
                 趋势摘要
             </h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-4 gap-4">
                 {% set ns = namespace(rising=0, falling=0, new=0, stable=0) %}
                 {% for r in rankings %}
                     {% if r.get('trend') == 'rising' %}{% set ns.rising = ns.rising + 1 %}
@@ -201,19 +144,19 @@
                     {% elif r.get('trend') == 'new' %}{% set ns.new = ns.new + 1 %}
                     {% else %}{% set ns.stable = ns.stable + 1 %}{% endif %}
                 {% endfor %}
-                <div class="text-center p-4 rounded-lg" style="background: rgba(94,196,158,0.06); border: 1px solid rgba(94,196,158,0.12);">
+                <div class="summary-card" style="background: rgba(94,196,158,0.06); border: 1px solid rgba(94,196,158,0.12);">
                     <p class="text-2xl font-semibold mono" style="color: var(--accent-green);">{{ ns.rising }}</p>
                     <p class="text-xs mt-1" style="color: var(--text-tertiary);">上升 ↑</p>
                 </div>
-                <div class="text-center p-4 rounded-lg" style="background: rgba(229,83,75,0.06); border: 1px solid rgba(229,83,75,0.12);">
+                <div class="summary-card" style="background: rgba(229,83,75,0.06); border: 1px solid rgba(229,83,75,0.12);">
                     <p class="text-2xl font-semibold mono" style="color: var(--accent-red);">{{ ns.falling }}</p>
                     <p class="text-xs mt-1" style="color: var(--text-tertiary);">下降 ↓</p>
                 </div>
-                <div class="text-center p-4 rounded-lg" style="background: rgba(91,141,239,0.06); border: 1px solid rgba(91,141,239,0.12);">
+                <div class="summary-card" style="background: rgba(91,141,239,0.06); border: 1px solid rgba(91,141,239,0.12);">
                     <p class="text-2xl font-semibold mono" style="color: var(--accent-blue);">{{ ns.new }}</p>
                     <p class="text-xs mt-1" style="color: var(--text-tertiary);">新增 ★</p>
                 </div>
-                <div class="text-center p-4 rounded-lg" style="background: rgba(86,88,105,0.06); border: 1px solid rgba(86,88,105,0.12);">
+                <div class="summary-card" style="background: rgba(86,88,105,0.06); border: 1px solid rgba(86,88,105,0.12);">
                     <p class="text-2xl font-semibold mono" style="color: var(--text-tertiary);">{{ ns.stable }}</p>
                     <p class="text-xs mt-1" style="color: var(--text-tertiary);">稳定 →</p>
                 </div>
@@ -221,9 +164,7 @@
         </div>
     </main>
 
-    <footer class="text-center text-xs py-6 mt-8" style="color: var(--text-tertiary); border-top: 1px solid var(--border-subtle);">
-        GPU-Insight v1.0 · 显卡用户痛点智能分析系统
-    </footer>
+    <footer class="site-footer">GPU-Insight · 显卡用户痛点智能分析系统</footer>
 
     <script>
     const trendData = {{ trend_data_json | safe }};
@@ -289,7 +230,7 @@
             }
         });
     } else {
-        trendCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-sm" style="color: var(--text-tertiary);"><span class="material-icons mr-2">hourglass_empty</span>需要至少 2 轮数据</div>';
+        trendCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center" style="height:100%;color:var(--text-tertiary);font-size:14px;"><span class="material-icons" style="margin-right:8px;">hourglass_empty</span>需要至少 2 轮数据</div>';
     }
 
     // 数据源分布环形图
@@ -340,7 +281,7 @@
             }
         });
     } else {
-        sourceCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-sm" style="color: var(--text-tertiary);"><span class="material-icons mr-2">hourglass_empty</span>等待数据采集</div>';
+        sourceCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center" style="height:100%;color:var(--text-tertiary);font-size:14px;"><span class="material-icons" style="margin-right:8px;">hourglass_empty</span>等待数据采集</div>';
     }
 
     // 排名演变 Bump Chart（Y 轴反转，排名 1 在顶部）
@@ -410,7 +351,7 @@
             }
         });
     } else {
-        bumpCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-sm" style="color: var(--text-tertiary);"><span class="material-icons mr-2">hourglass_empty</span>需要至少 2 轮数据才能显示排名演变</div>';
+        bumpCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center" style="height:100%;color:var(--text-tertiary);font-size:14px;"><span class="material-icons" style="margin-right:8px;">hourglass_empty</span>需要至少 2 轮数据才能显示排名演变</div>';
     }
     </script>
 </body>
