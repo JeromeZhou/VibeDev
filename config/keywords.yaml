@@ -175,55 +175,105 @@ signals:
   - 背刺
 discovered:
   zh:
+  - word: 深层需求
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: '85'
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 'False'
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 物理因果
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 直接影响
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 用户行为
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: '65'
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
   - word: 运行不稳定
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1
-    decay_score: 0.6
+    decay_score: 0.557
   - word: 卡死
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1
-    decay_score: 0.6
+    decay_score: 0.557
   - word: 风扇噪音大
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1
-    decay_score: 0.6
+    decay_score: 0.557
   - word: 游戏帧数低
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1
-    decay_score: 0.6
+    decay_score: 0.557
   - word: 画面模糊
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1
-    decay_score: 0.6
-  - word: 崩溃闪退
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
-    total_mentions: 1
-    decay_score: 0.6
-  - word: 黑屏变砖
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
-    total_mentions: 1
-    decay_score: 0.6
-  - word: 黑屏重启
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
-    total_mentions: 1
-    decay_score: 0.6
-  - word: 蓝屏死机
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
-    total_mentions: 1
-    decay_score: 0.6
+    decay_score: 0.557
   en:
-  - word: dlss
-    first_seen: '2026-02-18'
-    last_seen: '2026-02-18'
+  - word: multi
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
     total_mentions: 1
     decay_score: 0.6
-  last_updated: 2026-02-18 14:11
+  - word: frame
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 'false'
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: generation
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: xess
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: memory
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: gpus
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: confidence
+    first_seen: '2026-02-19'
+    last_seen: '2026-02-19'
+    total_mentions: 1
+    decay_score: 0.6
+  last_updated: 2026-02-19 00:20
