@@ -12,7 +12,7 @@ runtime:
 
 # 轻量模式（低峰时段降级运行）
 lite_mode:
-  enabled: true
+  enabled: false  # DeepSeek-V3 夜间稳定，暂不需要
   hours: [0, 1, 2, 3, 4, 5, 6]  # 00:00-06:59 自动启用
   skip_sources: ["bilibili", "reddit"]  # 跳过不稳定源
   skip_steps: ["ai_filter", "hidden_needs", "munger"]  # 跳过高成本 AI 步骤
@@ -33,13 +33,13 @@ agent_teams:
 
 # LLM 配置
 llm:
-  # 深度推理任务
+  # 深度推理任务（痛点提取、隐藏需求推导、Munger审查）
   reasoning:
     provider: "zhipu"
-    model: "Pro/zai-org/GLM-5"
+    model: "deepseek-ai/DeepSeek-V3"
     max_tokens: 4096
     temperature: 0.3
-  # 简单任务
+  # 简单任务（分类、过滤、语义去重）
   simple:
     provider: "zhipu"
     model: "THUDM/glm-4-9b-chat"

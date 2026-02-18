@@ -104,7 +104,13 @@
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m pytest:*)",
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe tests/test_db.py)",
       "Bash(git checkout:*)",
-      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" tests/test_v9_filter.py)"
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" tests/test_v9_filter.py)",
+      "WebFetch(domain:www.siliconflow.com)",
+      "WebFetch(domain:api-docs.deepseek.com)",
+      "WebFetch(domain:www.siliconflowcn.com)",
+      "WebFetch(domain:help.aliyun.com)",
+      "WebFetch(domain:www.eesel.ai)",
+      "Bash(\"C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe\" -X utf8 -c:*)"
     ]
   }
 }

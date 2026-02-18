@@ -124,9 +124,18 @@ class LLMClient:
             # 主模型短超时，fallback 长超时（晚上 API 慢，需要更长超时）
             fallback_chain = [
                 (model, 30.0 * self._timeout_mult),
+                ("deepseek-ai/DeepSeek-V3", 60.0 * self._timeout_mult),
                 ("THUDM/glm-4-9b-chat", 120.0 * self._timeout_mult),
                 ("Qwen/Qwen2.5-7B-Instruct", 120.0 * self._timeout_mult),
             ]
+            # 去重：如果主模型已在 chain 中，跳过重复
+            seen = set()
+            unique_chain = []
+            for item in fallback_chain:
+                if item[0] not in seen:
+                    seen.add(item[0])
+                    unique_chain.append(item)
+            fallback_chain = unique_chain
 
             for i, (m, timeout) in enumerate(fallback_chain):
                 try:
@@ -181,6 +190,8 @@ class LLMClient:
             "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B": {"input": 0.0, "output": 0.0},  # 免费
             "Qwen/Qwen2.5-72B-Instruct": {"input": 4.13, "output": 4.13},
             "THUDM/glm-4-plus": {"input": 0.5, "output": 0.5},
+            "deepseek-ai/DeepSeek-V3": {"input": 1.27, "output": 1.27},
+            "deepseek-ai/DeepSeek-R1": {"input": 4.13, "output": 16.52},
         }
         # 未知模型默认用低价估算（SiliconFlow 大部分模型很便宜）
         p = prices.get(model, {"input": 0.1, "output": 0.1})
