@@ -1,203 +1,184 @@
-# GPU-Insight 关键词配置 — 统一管理搜索词 + 信号词
-# 每轮 pipeline 结束后，热词发现模块会自动补充 discovered 区域
-
-# ============================================================
-# 搜索关键词（爬虫用）
-# ============================================================
 search:
-  # 中文论坛（Bilibili, V2EX, NGA 热帖筛选）
   zh:
-    # 痛点导向词（核心）
     pain:
-      - "显卡 问题"
-      - "显卡 翻车"
-      - "显卡 散热"
-      - "显卡 驱动"
-      - "显卡 黑屏"
-      - "显卡 花屏"
-      - "显卡 噪音"
-      - "GPU 翻车"
-      - "GPU 问题"
-    # 热门型号词（从 gpu_products.yaml 自动生成，也可手动补充）
+    - 显卡 问题
+    - 显卡 翻车
+    - 显卡 散热
+    - 显卡 驱动
+    - 显卡 黑屏
+    - 显卡 花屏
+    - 显卡 噪音
+    - GPU 翻车
+    - GPU 问题
     models:
-      - "RTX 5090"
-      - "RTX 5080"
-      - "RTX 5070 Ti"
-      - "RTX 5070"
-      - "RX 9070 XT"
-      - "RX 9070"
-      - "Arc B580"
-    # 品牌通用词
+    - RTX 5090
+    - RTX 5080
+    - RTX 5070 Ti
+    - RTX 5070
+    - RX 9070 XT
+    - RX 9070
+    - Arc B580
     brands:
-      - "显卡"
-      - "GPU"
-      - "NVIDIA"
-      - "AMD"
-      - "RTX"
-      - "RX"
-
-  # 英文论坛（Reddit, TechPowerUp）
+    - 显卡
+    - GPU
+    - NVIDIA
+    - AMD
+    - RTX
+    - RX
   en:
     pain:
-      - "problem"
-      - "issue"
-      - "crash"
-      - "overheat"
-      - "throttle"
-      - "artifact"
-      - "black screen"
-      - "coil whine"
-      - "RMA"
-      - "driver issue"
+    - problem
+    - issue
+    - crash
+    - overheat
+    - throttle
+    - artifact
+    - black screen
+    - coil whine
+    - RMA
+    - driver issue
     models:
-      - "RTX 5090"
-      - "RTX 5080"
-      - "RTX 5070 Ti"
-      - "RTX 5070"
-      - "RX 9070 XT"
-      - "RX 9070"
-      - "Arc B580"
+    - RTX 5090
+    - RTX 5080
+    - RTX 5070 Ti
+    - RTX 5070
+    - RX 9070 XT
+    - RX 9070
+    - Arc B580
     brands:
-      - "GPU"
-      - "NVIDIA"
-      - "AMD"
-      - "Intel Arc"
-
-# ============================================================
-# 痛点信号词（漏斗 L1 用）
-# ============================================================
+    - GPU
+    - NVIDIA
+    - AMD
+    - Intel Arc
 signals:
   en:
-    - "problem"
-    - "issue"
-    - "crash"
-    - "bug"
-    - "broken"
-    - "bad"
-    - "worst"
-    - "hate"
-    - "disappointed"
-    - "regret"
-    - "overheat"
-    - "loud"
-    - "noise"
-    - "expensive"
-    - "rip"
-    - "dead"
-    - "fail"
-    - "error"
-    - "freeze"
-    - "stutter"
-    - "lag"
-    - "artifact"
-    - "coil whine"
-    - "black screen"
-    - "blue screen"
-    - "bsod"
-    - "rma"
-    - "refund"
-    - "waste"
-    - "scam"
-    - "overpriced"
-    - "underpowered"
-    - "bottleneck"
-    - "throttle"
-    - "downclock"
-    - "unstable"
-    - "compatibility"
-    - "screen tearing"
-    - "microstutter"
-    - "fps drop"
-    - "memory leak"
-    - "thermal throttle"
-    - "vrm"
-    - "artifacting"
-    - "stuttering"
-
+  - problem
+  - issue
+  - crash
+  - bug
+  - broken
+  - bad
+  - worst
+  - hate
+  - disappointed
+  - regret
+  - overheat
+  - loud
+  - noise
+  - expensive
+  - rip
+  - dead
+  - fail
+  - error
+  - freeze
+  - stutter
+  - lag
+  - artifact
+  - coil whine
+  - black screen
+  - blue screen
+  - bsod
+  - rma
+  - refund
+  - waste
+  - scam
+  - overpriced
+  - underpowered
+  - bottleneck
+  - throttle
+  - downclock
+  - unstable
+  - compatibility
+  - screen tearing
+  - microstutter
+  - fps drop
+  - memory leak
+  - thermal throttle
+  - vrm
+  - artifacting
+  - stuttering
   zh:
-    - "爆显存"
-    - "崩溃"
-    - "黑屏"
-    - "花屏"
-    - "噪音"
-    - "发热"
-    - "功耗"
-    - "太贵"
-    - "后悔"
-    - "翻车"
-    - "缩水"
-    - "虚标"
-    - "矿卡"
-    - "售后"
-    - "卡顿"
-    - "掉帧"
-    - "温度高"
-    - "过热"
-    - "烧了"
-    - "坏了"
-    - "死机"
-    - "蓝屏"
-    - "闪退"
-    - "不兼容"
-    - "驱动"
-    - "啸叫"
-    - "电子噪音"
-    - "漏电"
-    - "供电不足"
-    - "降频"
-    - "锁功耗"
-    - "溢价"
-    - "加价"
-    - "智商税"
-    - "割韭菜"
-    - "性价比低"
-    - "不值"
-    - "坑"
-    - "画面撕裂"
-    - "拖影"
-    - "延迟"
-    - "帧数低"
-    - "吃显存"
-    - "显存不够"
-    - "散热差"
-    - "风扇声音大"
-    - "积热"
-    - "热管"
-    - "均热板"
-    - "做工差"
-    - "用料缩"
-    - "品控"
-    - "质量问题"
-    - "返修"
-    - "保修"
-    - "不稳定"
-    - "温度墙"
-    - "功耗墙"
-    - "体质"
-    - "掉驱动"
-    # 网络热梗/流行语
-    - "49年入国军"
-    - "等等党"
-    - "刀法精准"
-    - "牙膏厂"
-    - "核弹"
-    - "煤气灶"
-    - "电老虎"
-    - "战未来"
-    - "智商检测卡"
-    - "丐版"
-    - "乞丐版"
-    - "电子垃圾"
-    - "大冤种"
-    - "韭菜"
-    - "背刺"
-
-# ============================================================
-# 热词自动发现（pipeline 自动更新区域）
-# ============================================================
+  - 爆显存
+  - 崩溃
+  - 黑屏
+  - 花屏
+  - 噪音
+  - 发热
+  - 功耗
+  - 太贵
+  - 后悔
+  - 翻车
+  - 缩水
+  - 虚标
+  - 矿卡
+  - 售后
+  - 卡顿
+  - 掉帧
+  - 温度高
+  - 过热
+  - 烧了
+  - 坏了
+  - 死机
+  - 蓝屏
+  - 闪退
+  - 不兼容
+  - 驱动
+  - 啸叫
+  - 电子噪音
+  - 漏电
+  - 供电不足
+  - 降频
+  - 锁功耗
+  - 溢价
+  - 加价
+  - 智商税
+  - 割韭菜
+  - 性价比低
+  - 不值
+  - 坑
+  - 画面撕裂
+  - 拖影
+  - 延迟
+  - 帧数低
+  - 吃显存
+  - 显存不够
+  - 散热差
+  - 风扇声音大
+  - 积热
+  - 热管
+  - 均热板
+  - 做工差
+  - 用料缩
+  - 品控
+  - 质量问题
+  - 返修
+  - 保修
+  - 不稳定
+  - 温度墙
+  - 功耗墙
+  - 体质
+  - 掉驱动
+  - 49年入国军
+  - 等等党
+  - 刀法精准
+  - 牙膏厂
+  - 核弹
+  - 煤气灶
+  - 电老虎
+  - 战未来
+  - 智商检测卡
+  - 丐版
+  - 乞丐版
+  - 电子垃圾
+  - 大冤种
+  - 韭菜
+  - 背刺
 discovered:
-  # 自动发现的高频新词（pipeline step 10.5 更新）
-  # 格式：{word: count, first_seen: date}
   zh: []
-  en: []
-  last_updated: null
+  en:
+  - word: reply to reply post b
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  last_updated: 2026-02-18 12:28

@@ -21,18 +21,23 @@ class RedditScraper(BaseScraper):
         seen_ids = set()
 
         for sub in self.subreddits:
+            sub_count = 0
             for ep in ["hot", "new"]:
                 for p in self._fetch_reddit(sub, ep, limit=25):
                     if p["id"] not in seen_ids:
                         seen_ids.add(p["id"])
                         posts.append(p)
+                        sub_count += 1
 
-            for query in self.search_queries:
+            # 搜索只用前 4 个关键词（减少请求量）
+            for query in self.search_queries[:4]:
                 qs = f"search.json?q={query}&restrict_sr=on&sort=relevance&t=week&limit=10"
                 for p in self._fetch_reddit(sub, qs):
                     if p["id"] not in seen_ids:
                         seen_ids.add(p["id"])
                         posts.append(p)
+                        sub_count += 1
+            print(f"    r/{sub}: {sub_count} 条")
 
         # 信号分数排序
         for p in posts:
@@ -54,7 +59,7 @@ class RedditScraper(BaseScraper):
         return posts
 
     def _fetch_reddit(self, subreddit: str, path: str, limit: int = None) -> list[dict]:
-        """统一 Reddit 请求 — www → old.reddit 域名降级，单次尝试"""
+        """统一 Reddit 请求 — www → old.reddit 域名降级，跳过 SSL 验证"""
         if limit and "?" not in path:
             path = f"{path}.json?limit={limit}"
 
@@ -64,9 +69,10 @@ class RedditScraper(BaseScraper):
         ]
 
         for url in urls:
-            # max_retries=1 避免重复重试（域名降级已经是重试机制）
+            # max_retries=1 + verify=False（Reddit SSL 持续不稳定）
             resp = self.safe_request(url, referer="https://www.reddit.com/",
-                                     delay=(2.0, 3.5), timeout=15, max_retries=1)
+                                     delay=(2.0, 3.5), timeout=10, max_retries=1,
+                                     verify_ssl=False)
             if resp and resp.status_code == 200:
                 try:
                     return self._parse_listing(resp.json(), subreddit)
@@ -86,7 +92,8 @@ class RedditScraper(BaseScraper):
 
         for url in urls:
             resp = self.safe_request(url, referer="https://www.reddit.com/",
-                                     delay=(0.5, 1.5), timeout=10, max_retries=1)
+                                     delay=(0.5, 1.5), timeout=10, max_retries=1,
+                                     verify_ssl=False)
             if not resp or resp.status_code != 200:
                 continue
             try:

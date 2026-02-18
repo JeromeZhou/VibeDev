@@ -15,11 +15,13 @@ class BilibiliScraper(BaseScraper):
         super().__init__("bilibili", config)
         # 从配置动态加载关键词
         self.search_keywords = get_bilibili_keywords(max_count=8)
+        self._rate_limited = False  # 412 限流标记
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """搜索 Bilibili 显卡相关视频"""
         posts = []
         seen_ids = set()
+        self._rate_limited = False
 
         for keyword in self.search_keywords:
             try:
@@ -35,6 +37,7 @@ class BilibiliScraper(BaseScraper):
                 # 412 限流 — 立即停止
                 if resp and resp.status_code == 412:
                     print(f"    [!] Bilibili 被限流(412)，停止搜索")
+                    self._rate_limited = True
                     break
                 if not resp or resp.status_code != 200:
                     continue
@@ -43,6 +46,7 @@ class BilibiliScraper(BaseScraper):
                 if data.get("code") != 0:
                     if data.get("code") == -412:
                         print(f"    [!] Bilibili 被限流(-412)，停止搜索")
+                        self._rate_limited = True
                         break
                     continue
 
@@ -63,17 +67,22 @@ class BilibiliScraper(BaseScraper):
         for p in posts:
             tag_post(p)
 
-        # 热门视频评论区抓取（评论>5 的视频，最多 15 条）
-        hot_posts = [p for p in posts if p.get("replies", 0) > 5][:15]
-        if hot_posts:
-            print(f"    抓取 {len(hot_posts)} 条热门视频评论...", end=" ")
-            fetched = 0
-            for p in hot_posts:
-                comments = self._fetch_comments(p)
-                if comments:
-                    p["comments"] = comments[:2000]
-                    fetched += 1
-            print(f"成功 {fetched} 条")
+        # 热门视频评论区抓取（被限流时跳过）
+        if self._rate_limited:
+            print(f"    跳过评论抓取（限流中）")
+        else:
+            hot_posts = [p for p in posts if p.get("replies", 0) > 5][:15]
+            if hot_posts:
+                print(f"    抓取 {len(hot_posts)} 条热门视频评论...", end=" ")
+                fetched = 0
+                for p in hot_posts:
+                    comments = self._fetch_comments(p)
+                    if comments:
+                        p["comments"] = comments[:2000]
+                        fetched += 1
+                    elif self._rate_limited:
+                        break  # 评论 API 也被限流，停止
+                print(f"成功 {fetched} 条")
 
         return posts
 
@@ -86,6 +95,9 @@ class BilibiliScraper(BaseScraper):
             info_url = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
             resp = self.safe_request(info_url, referer=f"https://www.bilibili.com/video/{bvid}",
                                      delay=(1.0, 2.0), max_retries=1)
+            if resp and resp.status_code == 412:
+                self._rate_limited = True
+                return None
             if not resp or resp.status_code != 200:
                 return None
             info_data = resp.json()
@@ -102,9 +114,10 @@ class BilibiliScraper(BaseScraper):
             )
             resp = self.safe_request(reply_url, referer=f"https://www.bilibili.com/video/{bvid}",
                                      delay=(1.5, 3.0), max_retries=1)
-            if not resp or resp.status_code != 200:
+            if resp and resp.status_code == 412:
+                self._rate_limited = True
                 return None
-            if resp.status_code == 412:
+            if not resp or resp.status_code != 200:
                 return None
 
             reply_data = resp.json()

@@ -102,8 +102,12 @@ class BaseScraper(ABC):
 
     def safe_request(self, url: str, referer: str = None, timeout: int = 30,
                      delay: tuple = (2.0, 4.5), extra_headers: dict = None,
-                     cookies: dict = None, max_retries: int = 2) -> httpx.Response | None:
+                     cookies: dict = None, max_retries: int = 2,
+                     verify_ssl: bool = None) -> httpx.Response | None:
         """统一安全请求 — 自动处理 403/429/SSL 错误
+
+        Args:
+            verify_ssl: True/False 强制指定，None 则自动（首次 True，重试 False）
 
         Returns:
             httpx.Response on success, None on failure (已打印错误日志)
@@ -111,7 +115,10 @@ class BaseScraper(ABC):
         headers = self.get_headers(referer=referer, extra=extra_headers)
 
         for attempt in range(max_retries):
-            verify = attempt == 0  # 第二次尝试禁用 SSL 验证
+            if verify_ssl is not None:
+                verify = verify_ssl
+            else:
+                verify = attempt == 0  # 第二次尝试禁用 SSL 验证
             try:
                 self.random_delay(*delay)
                 resp = httpx.get(url, headers=headers, timeout=timeout,
