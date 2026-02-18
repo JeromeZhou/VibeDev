@@ -122,6 +122,7 @@ def _migrate_tables(conn: sqlite3.Connection):
         ("pain_points", "earliest_timestamp", "TEXT"),
         ("pphi_history", "total_replies", "INTEGER DEFAULT 0"),
         ("pphi_history", "total_likes", "INTEGER DEFAULT 0"),
+        ("pphi_history", "inferred_need_json", "TEXT"),  # v9.5: 完整推理对象（reasoning_chain + munger_review）
         ("posts", "comments", "TEXT"),
         # v9: AI 相关性过滤结果
         ("posts", "relevance_class", "INTEGER DEFAULT -1"),
@@ -213,8 +214,8 @@ def save_rankings(rankings: list[dict]):
 
         for r in rankings:
             conn.execute(
-                """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes, inferred_need_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_date,
                     r.get("rank", 0),
@@ -226,6 +227,7 @@ def save_rankings(rankings: list[dict]):
                     r.get("hidden_need", ""),
                     r.get("total_replies", 0),
                     r.get("total_likes", 0),
+                    json.dumps(r.get("inferred_need"), ensure_ascii=False) if r.get("inferred_need") else None,
                 )
             )
 

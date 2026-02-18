@@ -117,7 +117,8 @@ def _load_historical_insights() -> list[dict]:
             latest_date = latest_run["rd"]
             rows = conn.execute(
                 """SELECT pain_point, pphi_score, mentions, gpu_tags,
-                          source_urls, hidden_need, total_replies, total_likes
+                          source_urls, hidden_need, total_replies, total_likes,
+                          inferred_need_json
                    FROM pphi_history
                    WHERE run_date = ?
                    ORDER BY rank ASC""",
@@ -172,7 +173,15 @@ def _load_historical_insights() -> list[dict]:
                         earliest_timestamp = min(timestamps)
 
                 hidden_need_obj = None
-                if r["hidden_need"]:
+                # 优先从完整 JSON 加载（含 reasoning_chain + munger_review）
+                inferred_json = r["inferred_need_json"] if "inferred_need_json" in r.keys() else None
+                if inferred_json:
+                    try:
+                        hidden_need_obj = json.loads(inferred_json)
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                # fallback: 只有 hidden_need 文本
+                if not hidden_need_obj and r["hidden_need"]:
                     hidden_need_obj = {
                         "hidden_need": r["hidden_need"],
                         "confidence": 0.5,
