@@ -174,11 +174,71 @@ signals:
   - 韭菜
   - 背刺
 discovered:
-  zh: []
-  en:
-  - word: reply to reply post b
+  zh:
+  - word: 运行不稳定
     first_seen: '2026-02-18'
     last_seen: '2026-02-18'
     total_mentions: 1
     decay_score: 0.6
-  last_updated: 2026-02-18 12:28
+  - word: 性能
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 卡死
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 散热
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 风扇噪音大
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 游戏帧数低
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 画面模糊
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 崩溃闪退
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 闪退崩溃
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 黑屏变砖
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 黑屏重启
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  - word: 蓝屏死机
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  en:
+  - word: dlss
+    first_seen: '2026-02-18'
+    last_seen: '2026-02-18'
+    total_mentions: 1
+    decay_score: 0.6
+  last_updated: 2026-02-18 14:11
