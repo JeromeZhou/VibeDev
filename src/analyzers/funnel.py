@@ -1,4 +1,4 @@
-"""GPU-Insight 三层漏斗筛选器 — 团队共识方案"""
+"""GPU-Insight 三层漏斗筛选器 — v9 整合 AI 相关性过滤"""
 
 import re
 import json
@@ -128,21 +128,25 @@ def l3_select(posts: list[dict], max_deep: int = 50, max_light: int = 50) -> tup
 
 
 def run_funnel(posts: list[dict], llm: LLMClient) -> tuple[list[dict], list[dict]]:
-    """执行完整三层漏斗，返回 (deep_list, light_list)"""
+    """执行完整三层漏斗，返回 (deep_list, light_list)
+
+    v9 改进：无信号帖子也送 L2 判断，不再直接标 class=0
+    （防止漏掉"标题无信号但内容有痛点"的帖子）
+    """
     print(f"  漏斗输入: {len(posts)} 条")
 
-    # L1
+    # L1: 信号排序（所有帖子都参与，不丢弃）
     posts = l1_local_filter(posts)
     pain_posts = [p for p in posts if p.get("_pain_signals", 0) > 0]
     no_signal = [p for p in posts if p.get("_pain_signals", 0) == 0]
     print(f"  L1 信号排序: {len(pain_posts)} 条有痛点信号, {len(no_signal)} 条无信号")
 
-    # L2：只对有信号的帖子做 LLM 分类，无信号帖子直接标记 class=0
-    for p in no_signal:
-        p["_l2_class"] = 0
-    if pain_posts:
-        pain_posts = l2_batch_classify(pain_posts, llm)
-    posts = pain_posts + no_signal
+    # v9: 所有帖子都送 L2（有信号的优先排在前面，无信号的排后面）
+    # 不再对无信号帖子直接标 class=0
+    all_for_l2 = pain_posts + no_signal
+    if all_for_l2:
+        all_for_l2 = l2_batch_classify(all_for_l2, llm)
+    posts = all_for_l2
 
     # L3
     deep, light = l3_select(posts)

@@ -104,6 +104,9 @@ def _migrate_tables(conn: sqlite3.Connection):
         ("pphi_history", "total_replies", "INTEGER DEFAULT 0"),
         ("pphi_history", "total_likes", "INTEGER DEFAULT 0"),
         ("posts", "comments", "TEXT"),
+        # v9: AI 相关性过滤结果
+        ("posts", "relevance_class", "INTEGER DEFAULT -1"),
+        ("posts", "relevance_reason", "TEXT"),
     ]
     for table, column, col_type in migrations:
         try:
@@ -154,12 +157,14 @@ def save_posts(posts: list[dict]):
 
             try:
                 conn.execute(
-                    """INSERT INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp, comments)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """INSERT INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp, comments, relevance_class, relevance_reason)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                        ON CONFLICT(id) DO UPDATE SET
                            replies = MAX(posts.replies, excluded.replies),
                            likes = MAX(posts.likes, excluded.likes),
-                           comments = COALESCE(excluded.comments, posts.comments)""",
+                           comments = COALESCE(excluded.comments, posts.comments),
+                           relevance_class = CASE WHEN excluded.relevance_class >= 0 THEN excluded.relevance_class ELSE posts.relevance_class END,
+                           relevance_reason = COALESCE(excluded.relevance_reason, posts.relevance_reason)""",
                     (
                         post.get("id", ""),
                         post.get("source", ""),
@@ -171,6 +176,8 @@ def save_posts(posts: list[dict]):
                         gpu_tags,
                         post.get("timestamp", ""),
                         post.get("comments", ""),
+                        post.get("_relevance_class", -1),
+                        post.get("_relevance_reason", ""),
                     )
                 )
             except sqlite3.IntegrityError:

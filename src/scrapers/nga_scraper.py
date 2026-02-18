@@ -17,15 +17,6 @@ class NGAScraper(BaseScraper):
         436: "消费电子IT新闻",
     }
 
-    # fid=436 是大杂烩，需要关键词过滤只保留显卡相关帖子
-    _GPU_KEYWORDS = (
-        "显卡", "GPU", "RTX", "GTX", "RX ", "Arc ", "NVIDIA", "AMD", "Intel",
-        "驱动", "帧", "FPS", "光追", "DLSS", "FSR", "4K", "2K", "显存",
-        "散热", "功耗", "TDP", "PCIe", "GDDR", "HBM", "矿卡",
-        "5090", "5080", "5070", "5060", "9070", "B580", "4090", "4080", "4070",
-        "游戏性能", "跑分", "benchmark", "渲染", "CUDA", "OpenCL",
-    )
-
     def __init__(self, config: dict):
         super().__init__("nga", config)
         self.cookies = self._load_cookies()
@@ -137,12 +128,6 @@ class NGAScraper(BaseScraper):
         title = re.sub(r'<[^>]+>', '', title).strip()
         if not title:
             return None
-
-        # fid=436 (消费电子) 过滤：只保留显卡/GPU 相关帖子
-        if fid == 436:
-            title_upper = title.upper()
-            if not any(kw.upper() in title_upper for kw in self._GPU_KEYWORDS):
-                return None
 
         # 时间过滤
         postdate = thread.get("postdate", 0)

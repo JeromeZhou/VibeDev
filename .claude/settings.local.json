@@ -101,7 +101,9 @@
       "Bash(done)",
       "Bash(for path in \"/\" \"/trends\" \"/history\" \"/admin\" \"/pain-point/1\")",
       "WebFetch(domain:videocardz.com)",
-      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m pytest:*)"
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m pytest:*)",
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe tests/test_db.py)",
+      "Bash(git checkout:*)"
     ]
   }
 }

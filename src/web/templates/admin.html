@@ -213,9 +213,61 @@
                 </div>
                 <div>
                     <span style="color: var(--text-tertiary);">版本</span>
-                    <span class="mono">v8</span>
+                    <span class="mono">v9</span>
                 </div>
             </div>
+        </div>
+
+        <!-- AI 相关性过滤 -->
+        <div class="card" style="padding: 20px; margin-top: 16px;">
+            <div class="section-title">
+                <span class="material-icons" style="font-size: 16px;">filter_alt</span>
+                AI 相关性过滤
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;">
+                <div style="text-align: center;">
+                    <div style="color: var(--text-tertiary); font-size: 12px;">已判断</div>
+                    <div class="mono" style="font-size: 24px; font-weight: 600;">{{ filter_stats.total }}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--text-tertiary); font-size: 12px;">保留</div>
+                    <div class="mono" style="font-size: 24px; font-weight: 600; color: var(--accent-green);">{{ filter_stats.kept }}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--text-tertiary); font-size: 12px;">排除</div>
+                    <div class="mono" style="font-size: 24px; font-weight: 600; color: var(--accent-red);">{{ filter_stats.dropped }}</div>
+                </div>
+            </div>
+            {% if filter_stats.total > 0 %}
+            <div class="progress-bar" style="margin-bottom: 12px;">
+                <div class="progress-fill" style="width: {{ (filter_stats.kept / filter_stats.total * 100) | round(1) if filter_stats.total > 0 else 0 }}%; background: var(--accent-green);"></div>
+            </div>
+            <div style="color: var(--text-tertiary); font-size: 11px; margin-bottom: 16px;">
+                保留率 {{ (filter_stats.kept / filter_stats.total * 100) | round(1) if filter_stats.total > 0 else 0 }}%
+            </div>
+            {% endif %}
+
+            {% if filter_stats.recent_drops %}
+            <div style="margin-top: 8px;">
+                <div style="color: var(--text-tertiary); font-size: 12px; margin-bottom: 8px;">
+                    最近排除的帖子（人工复查）
+                    <span class="mono" style="font-size: 11px;">共 {{ filter_stats.recent_drops|length }} 条</span>
+                </div>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    {% for drop in filter_stats.recent_drops %}
+                    <div style="padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font-size: 12px;">
+                        <span class="tag tag-model" style="font-size: 10px;">{{ drop.source }}</span>
+                        <span style="color: var(--text-secondary);">{{ drop.title[:60] }}</span>
+                        {% if drop.relevance_reason %}
+                        <span style="color: var(--text-tertiary); font-size: 10px; margin-left: 4px;">{{ drop.relevance_reason[:40] }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div style="color: var(--text-tertiary); font-size: 12px;">暂无过滤数据（等待首次 pipeline 运行）</div>
+            {% endif %}
         </div>
     </main>
 

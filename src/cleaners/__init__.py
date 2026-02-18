@@ -1,6 +1,7 @@
 """GPU-Insight 数据清洗模块"""
 
 import json
+import re
 import hashlib
 from datetime import datetime
 from pathlib import Path

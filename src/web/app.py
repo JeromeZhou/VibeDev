@@ -387,6 +387,35 @@ async def admin(request: Request):
     # 5. 累计统计
     stats = _get_cumulative_stats()
 
+    # 6. AI 过滤统计
+    filter_stats = {"total": 0, "kept": 0, "dropped": 0, "recent_drops": []}
+    try:
+        with get_db() as conn:
+            # 统计已判断的帖子
+            total_judged = conn.execute(
+                "SELECT COUNT(*) as c FROM posts WHERE relevance_class >= 0"
+            ).fetchone()["c"]
+            kept = conn.execute(
+                "SELECT COUNT(*) as c FROM posts WHERE relevance_class > 0"
+            ).fetchone()["c"]
+            dropped = conn.execute(
+                "SELECT COUNT(*) as c FROM posts WHERE relevance_class = 0"
+            ).fetchone()["c"]
+            # 最近被排除的帖子（方便人工复查是否误杀）
+            recent_drops = conn.execute(
+                """SELECT title, source, relevance_reason, created_at
+                   FROM posts WHERE relevance_class = 0
+                   ORDER BY created_at DESC LIMIT 20"""
+            ).fetchall()
+            filter_stats = {
+                "total": total_judged,
+                "kept": kept,
+                "dropped": dropped,
+                "recent_drops": [dict(r) for r in recent_drops],
+            }
+    except Exception:
+        pass
+
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "sources": sources,
@@ -394,6 +423,7 @@ async def admin(request: Request):
         "alerts": alerts,
         "keywords": keywords_info,
         "stats": stats,
+        "filter_stats": filter_stats,
     })
 
 
