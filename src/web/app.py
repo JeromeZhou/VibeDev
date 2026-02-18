@@ -42,8 +42,8 @@ def _get_trend_data() -> dict:
 
         # 按日期分组
         dates = sorted(set(r["run_date"] for r in rows))
-        # 取最近 10 次运行
-        dates = dates[-10:]
+        # 取最近 30 次运行（覆盖约 5 天）
+        dates = dates[-30:]
 
         # 找出出现频率最高的 top 5 痛点
         from collections import Counter

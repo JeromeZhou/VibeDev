@@ -52,7 +52,26 @@ def run_pipeline(config: dict):
     raw_posts = scrape_all_forums(config)
     print(f"  获取 {len(raw_posts)} 条新讨论")
     if not raw_posts:
-        print("  本轮无新数据，使用上轮排名")
+        print("  本轮无新数据，重新计算历史排名（PPHI 时间衰减）")
+        print()
+        # 即使无新数据，也重新计算排名（PPHI 有时间衰减）
+        try:
+            from src.rankers import calculate_pphi
+            from src.utils.db import save_rankings, get_post_count
+            from src.reporters import generate_report, update_consensus
+            rankings = calculate_pphi([], config)
+            if rankings:
+                save_rankings(rankings)
+                report_path = generate_report(rankings, config)
+                cost_info = {
+                    "round_cost": 0, "round_tokens": 0,
+                    "monthly_cost": cost_tracker.get_monthly_cost(),
+                    "budget": cost_tracker.budget,
+                }
+                update_consensus(rankings, cost_info, config)
+                print(f"  更新 {len(rankings)} 个排名（纯历史数据）")
+        except Exception as e:
+            print(f"  [!] 历史排名更新失败: {e}")
         return
     print()
 

@@ -295,6 +295,8 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
         for insight in insights:
             # 痛点名称：去掉"显卡"前缀和"问题"后缀，提取核心词
             pain = insight.get("pain_point", "")
+            if not isinstance(pain, str):
+                pain = str(pain) if pain else ""
             for prefix in ["显卡", "GPU"]:
                 if pain.startswith(prefix):
                     pain = pain[len(prefix):]
@@ -314,6 +316,8 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
 
             # 隐藏需求中的关键词（同样按段提取）
             need = insight.get("hidden_need", "") or insight.get("inferred_need", "") or ""
+            if not isinstance(need, str):
+                need = str(need) if need else ""
             zh_need_segments = re.split(r'[，。、；！？\s,.:;!?/\-—()（）\[\]【】]', need)
             for seg in zh_need_segments:
                 seg = seg.strip()
@@ -332,6 +336,8 @@ def discover_hot_words(posts: list[dict], min_freq: int = 2,
     # ── 来源 2：原始帖子（辅助，只提取英文技术术语）──
     for post in posts:
         title = post.get("title", "")
+        if not isinstance(title, str):
+            title = str(title) if title else ""
         # 英文：只匹配独立单词（4-15 字母），不匹配短语
         en_words = re.findall(r'\b[a-zA-Z]{4,15}\b', title)
         for w in en_words:
