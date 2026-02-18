@@ -162,12 +162,20 @@ class LLMClient:
 
     def _estimate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
         """估算成本（USD）"""
-        # 价格表（每百万 token）
+        # 价格表（每百万 token）— SiliconFlow 免费/低价模型
         prices = {
             "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
             "gpt-4o-mini": {"input": 0.15, "output": 0.6},
             "glm-5-plus": {"input": 0.5, "output": 0.5},
             "glm-5": {"input": 0.5, "output": 0.5},
+            # SiliconFlow 主力模型（实际价格）
+            "THUDM/glm-4-9b-chat": {"input": 0.0, "output": 0.0},  # 免费
+            "Qwen/Qwen2.5-7B-Instruct": {"input": 0.0, "output": 0.0},  # 免费
+            "THUDM/glm-z1-9b": {"input": 0.0, "output": 0.0},  # 免费
+            "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B": {"input": 0.0, "output": 0.0},  # 免费
+            "Qwen/Qwen2.5-72B-Instruct": {"input": 4.13, "output": 4.13},
+            "THUDM/glm-4-plus": {"input": 0.5, "output": 0.5},
         }
-        p = prices.get(model, {"input": 3.0, "output": 15.0})
+        # 未知模型默认用低价估算（SiliconFlow 大部分模型很便宜）
+        p = prices.get(model, {"input": 0.1, "output": 0.1})
         return (input_tokens * p["input"] + output_tokens * p["output"]) / 1_000_000

@@ -1,4 +1,9 @@
-"""GPU-Insight VideoCardz 爬虫 — 英文显卡新闻/评测源"""
+"""GPU-Insight VideoCardz 爬虫 — 英文显卡新闻/评测源
+
+注意: VideoCardz 使用 Cloudflare + JS 渲染，httpx 无法获取文章内容。
+首页返回 200 但内容是 JS 渲染的空壳，RSS/API/sitemap 全部 403。
+需要 Playwright 才能正常抓取。当前作为降级模式运行。
+"""
 
 import json
 import re
@@ -8,7 +13,10 @@ from .base_scraper import BaseScraper
 
 
 class VideoCardzScraper(BaseScraper):
-    """VideoCardz.com 爬虫 — GPU 新闻和评测"""
+    """VideoCardz.com 爬虫 — GPU 新闻和评测
+
+    当前状态: 降级模式（需要 Playwright 支持 JS 渲染）
+    """
 
     def __init__(self, config: dict):
         super().__init__("videocardz", config)
@@ -23,7 +31,7 @@ class VideoCardzScraper(BaseScraper):
         return {c["name"]: c["value"] for c in cookie_list if "videocardz.com" in c.get("domain", "")}
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
-        """抓取 VideoCardz 首页文章"""
+        """抓取 VideoCardz 文章 — 尝试从首页 HTML 提取，失败则静默跳过"""
         posts = []
 
         try:
@@ -32,24 +40,35 @@ class VideoCardzScraper(BaseScraper):
                                      delay=(3.0, 5.0),
                                      cookies=self.cookies if self.cookies else None)
             if not resp or resp.status_code != 200:
-                print(f"    [!] VideoCardz: 请求失败 (status={resp.status_code if resp else 'None'})")
+                print(f"    [!] VideoCardz: HTTP {resp.status_code if resp else 'None'}")
                 return []
 
-            # 提取文章链接和标题
-            # 多种 CSS class 匹配：story-title, entry-title, post-title
+            # VideoCardz 首页是 JS 渲染的，httpx 只能拿到空壳 HTML
+            # 尝试从 HTML 中提取任何文章链接（可能在 <script> 或 preload 中）
             seen = set()
+
+            # 策略 1: 标准 <a> 标签（带引号或不带引号的 href）
             for match in re.finditer(
-                r'href=["\']?(https://videocardz\.com/(?:newz|press-release|review)/[^\s<>"\']+)["\']?.*?'
-                r'(?:story-title|entry-title|post-title|news-title)[^>]*>([^<]+)<',
-                resp.text, re.DOTALL
+                r'href=["\']?(https://videocardz\.com/(?:newz|press-release|review)/[^\s<>"\']+)',
+                resp.text
             ):
                 url = match.group(1).strip().rstrip('"\'')
-                title = match.group(2).strip()
-                if not title or url in seen:
-                    continue
-                seen.add(url)
+                if url not in seen:
+                    seen.add(url)
 
-                post_id = url.rstrip("/").split("/")[-1][:60]
+            # 策略 2: JSON/script 中的 URL
+            for match in re.finditer(
+                r'(https://videocardz\.com/(?:newz|press-release|review)/[a-z0-9-]+(?:/[a-z0-9-]+)*)',
+                resp.text
+            ):
+                url = match.group(1).strip()
+                if url not in seen:
+                    seen.add(url)
+
+            for url in seen:
+                slug = url.rstrip("/").split("/")[-1]
+                title = slug.replace("-", " ").title()
+                post_id = slug[:60]
                 posts.append({
                     "id": f"vcz_{post_id}",
                     "source": "videocardz",
@@ -64,64 +83,9 @@ class VideoCardzScraper(BaseScraper):
                     "timestamp": datetime.now().isoformat(),
                 })
 
-            # 备用策略 1：先找链接，再在附近找标题文本
             if not posts:
-                for match in re.finditer(
-                    r'<a[^>]+href=["\']?(https://videocardz\.com/(?:newz|press-release|review)/([^\s<>"\']+))["\']?[^>]*>([^<]{10,})</a>',
-                    resp.text
-                ):
-                    url = match.group(1).strip().rstrip('"\'')
-                    slug = match.group(2).strip()
-                    title = match.group(3).strip()
-                    if url in seen or not title or title.lower() in ("read full story", "read more", "continue reading"):
-                        continue
-                    seen.add(url)
-                    post_id = slug.rstrip("/").split("/")[-1][:60]
-                    posts.append({
-                        "id": f"vcz_{post_id}",
-                        "source": "videocardz",
-                        "_source": "videocardz",
-                        "title": title,
-                        "content": title,
-                        "url": url,
-                        "author_hash": self.hash_author("videocardz"),
-                        "replies": 0,
-                        "likes": 0,
-                        "language": "en",
-                        "timestamp": datetime.now().isoformat(),
-                    })
-
-            # 备用策略 2：从 URL slug 生成标题
-            if not posts:
-                for match in re.finditer(
-                    r'href=["\']?(https://videocardz\.com/(?:newz|press-release|review)/([^\s<>"\']+))["\']?',
-                    resp.text
-                ):
-                    url = match.group(1).strip().rstrip('"\'')
-                    slug = match.group(2).strip()
-                    if url in seen:
-                        continue
-                    seen.add(url)
-                    title = slug.rstrip("/").split("/")[-1].replace("-", " ").title()
-                    post_id = slug.rstrip("/").split("/")[-1][:60]
-                    posts.append({
-                        "id": f"vcz_{post_id}",
-                        "source": "videocardz",
-                        "_source": "videocardz",
-                        "title": title,
-                        "content": title,
-                        "url": url,
-                        "author_hash": self.hash_author("videocardz"),
-                        "replies": 0,
-                        "likes": 0,
-                        "language": "en",
-                        "timestamp": datetime.now().isoformat(),
-                    })
-
-            if not posts:
-                # 调试：输出页面中找到的链接数量
-                all_links = re.findall(r'https://videocardz\.com/(?:newz|press-release|review)/', resp.text)
-                print(f"    [debug] VideoCardz: 页面中找到 {len(all_links)} 个文章链接但无法提取标题")
+                # JS 渲染页面，httpx 无法获取内容 — 这是预期行为
+                print(f"    [!] VideoCardz: JS渲染页面，需要Playwright（降级跳过）")
 
         except Exception as e:
             print(f"    [!] VideoCardz 抓取失败: {e}")
