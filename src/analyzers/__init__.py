@@ -157,11 +157,15 @@ related_post_indices 是该痛点来源的帖子序号（从0开始）。
     batch_size = 10
     for i in range(0, len(posts), batch_size):
         batch = posts[i:i + batch_size]
-        batch_text = "\n---\n".join(
-            f"[{j}] [{p.get('_source', '未知')}] {p.get('title', '')}\n{p.get('content', '')[:300]}"
-            for j, p in enumerate(batch)
-        )
-        prompt = f"请从以下 {len(batch)} 条讨论中提取显卡痛点，每条讨论前有序号。\n\n{batch_text}"
+        batch_parts = []
+        for j, p in enumerate(batch):
+            part = f"[{j}] [{p.get('_source', '未知')}] {p.get('title', '')}\n{p.get('content', '')[:300]}"
+            comments = p.get("comments", "")
+            if comments:
+                part += f"\n[评论区] {comments[:200]}"
+            batch_parts.append(part)
+        batch_text = "\n---\n".join(batch_parts)
+        prompt = f"请从以下 {len(batch)} 条讨论中提取显卡痛点，每条讨论前有序号。[评论区]标注的是其他用户的回复。\n\n{batch_text}"
 
         try:
             response = llm.call_simple(prompt, system_prompt)

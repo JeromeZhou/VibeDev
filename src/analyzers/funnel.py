@@ -3,6 +3,7 @@
 import re
 import json
 from src.utils.llm_client import LLMClient
+from src.utils.keywords import get_pain_signals
 
 
 # L1 排除模式（本地规则，0 token）
@@ -14,30 +15,8 @@ EXCLUDE_PATTERNS = [
     r"(?i)^(meme|funny|lol|haha)",  # 娱乐
 ]
 
-# L1 负面/痛点情绪词（加分）
-PAIN_SIGNALS = [
-    "problem", "issue", "crash", "bug", "broken", "bad", "worst", "hate",
-    "disappointed", "regret", "overheat", "loud", "noise", "expensive",
-    "rip", "dead", "fail", "error", "freeze", "stutter", "lag", "artifact",
-    "coil whine", "black screen", "blue screen", "bsod", "rma", "refund",
-    "waste", "scam", "overpriced", "underpowered", "bottleneck",
-    # 新增英文信号词
-    "throttle", "downclock", "unstable", "compatibility", "screen tearing",
-    "microstutter", "fps drop", "memory leak", "thermal throttle", "vrm",
-    "artifacting", "stuttering",
-    # 中文痛点信号
-    "爆显存", "崩溃", "黑屏", "花屏", "噪音", "发热", "功耗", "太贵",
-    "后悔", "翻车", "缩水", "虚标", "矿卡", "售后", "卡顿", "掉帧",
-    "温度高", "过热", "烧了", "坏了", "死机", "蓝屏", "闪退", "不兼容",
-    "驱动", "啸叫", "电子噪音", "漏电", "供电不足", "降频", "锁功耗",
-    "溢价", "加价", "智商税", "割韭菜", "性价比低", "不值", "坑",
-    "画面撕裂", "拖影", "延迟", "帧数低", "吃显存", "显存不够",
-    "散热差", "风扇声音大", "积热", "热管", "均热板",
-    "做工差", "用料缩", "品控", "质量问题", "返修", "保修",
-    # 新增中文信号词
-    "降频", "不稳定", "温度墙", "功耗墙", "体质", "翻车", "缩水",
-    "掉驱动", "蓝屏", "死机", "卡顿", "掉帧",
-]
+# L1 痛点信号词 — 从 config/keywords.yaml 动态加载
+PAIN_SIGNALS = get_pain_signals()
 
 
 def l1_local_filter(posts: list[dict]) -> list[dict]:
@@ -49,13 +28,17 @@ def l1_local_filter(posts: list[dict]) -> list[dict]:
     for post in posts:
         title = post.get("title", "").lower()
         content = (post.get("content", "") or "").lower()
+        comments = (post.get("comments", "") or "").lower()
         text = title + " " + content
 
         # 排除模式匹配 → 降低分数但不丢弃
         excluded = any(re.search(pat, title) for pat in EXCLUDE_PATTERNS)
 
-        # 痛点信号词计数
+        # 痛点信号词计数（正文 + 标题）
         pain_count = sum(1 for w in PAIN_SIGNALS if w in text)
+
+        # 评论区信号词（独立计数，权重 0.5）
+        comment_pain_count = sum(1 for w in PAIN_SIGNALS if w in comments) if comments else 0
 
         # 硬件专区来源加分（NGA PC硬件区帖子本身就是硬件话题）
         source_bonus = 0.0
@@ -64,18 +47,18 @@ def l1_local_filter(posts: list[dict]) -> list[dict]:
 
         # 信号分数
         base_score = post.get("_signal_score", 0)
-        pain_bonus = pain_count * 3.0
+        pain_bonus = pain_count * 3.0 + comment_pain_count * 1.5  # 评论区半权重
         exclude_penalty = -20.0 if excluded else 0.0
 
         post["_pain_signal_score"] = round(base_score + pain_bonus + source_bonus + exclude_penalty, 2)
-        post["_pain_signals"] = pain_count
+        post["_pain_signals"] = pain_count + comment_pain_count
         post["_excluded"] = excluded
 
     posts.sort(key=lambda x: x["_pain_signal_score"], reverse=True)
     return posts
 
 
-def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 15) -> list[dict]:
+def l2_batch_classify(posts: list[dict], llm: LLMClient, batch_size: int = 25) -> list[dict]:
     """L2: LLM 批量标题分类（极低 token 消耗）
 
     对每条帖子标记 0/1/2:
@@ -151,10 +134,15 @@ def run_funnel(posts: list[dict], llm: LLMClient) -> tuple[list[dict], list[dict
     # L1
     posts = l1_local_filter(posts)
     pain_posts = [p for p in posts if p.get("_pain_signals", 0) > 0]
-    print(f"  L1 信号排序: {len(pain_posts)} 条有痛点信号, {len(posts) - len(pain_posts)} 条无信号")
+    no_signal = [p for p in posts if p.get("_pain_signals", 0) == 0]
+    print(f"  L1 信号排序: {len(pain_posts)} 条有痛点信号, {len(no_signal)} 条无信号")
 
-    # L2
-    posts = l2_batch_classify(posts, llm)
+    # L2：只对有信号的帖子做 LLM 分类，无信号帖子直接标记 class=0
+    for p in no_signal:
+        p["_l2_class"] = 0
+    if pain_posts:
+        pain_posts = l2_batch_classify(pain_posts, llm)
+    posts = pain_posts + no_signal
 
     # L3
     deep, light = l3_select(posts)

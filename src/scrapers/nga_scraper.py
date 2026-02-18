@@ -60,10 +60,12 @@ class NGAScraper(BaseScraper):
             print(f"    抓取 {len(hot_posts)} 条热帖正文...", end=" ")
             fetched = 0
             for p in hot_posts:
-                content = self._fetch_thread_content(p["id"].replace("nga_", ""))
-                if content:
-                    p["content"] = content
+                main_content, comments = self._fetch_thread_content(p["id"].replace("nga_", ""))
+                if main_content:
+                    p["content"] = main_content
                     fetched += 1
+                if comments:
+                    p["comments"] = comments[:2000]
             print(f"成功 {fetched} 条")
 
         return posts
@@ -159,8 +161,8 @@ class NGAScraper(BaseScraper):
             "timestamp": post_time.isoformat(),
         }
 
-    def _fetch_thread_content(self, tid: str) -> str | None:
-        """抓取帖子首楼正文 + Top 回复"""
+    def _fetch_thread_content(self, tid: str) -> tuple[str | None, str | None]:
+        """抓取帖子首楼正文 + Top 回复，分离返回 (content, comments)"""
         try:
             url = f"https://bbs.nga.cn/read.php?tid={tid}&page=1&__output=11"
             resp = self.safe_request(url,
@@ -168,7 +170,7 @@ class NGAScraper(BaseScraper):
                                      delay=(1.0, 2.5),
                                      cookies=self.cookies)
             if not resp:
-                return None
+                return None, None
             text = resp.text.strip()
             if text.startswith("window.script_muti_get_var_store"):
                 text = re.sub(r'^window\.script_muti_get_var_store\s*=\s*', '', text)
@@ -182,19 +184,20 @@ class NGAScraper(BaseScraper):
             elif isinstance(rows, list):
                 items = rows
             else:
-                return None
+                return None, None
 
-            parts = []
             # 首楼正文
+            main_content = None
             if items and isinstance(items[0], dict):
                 content = items[0].get("content", "")
                 content = re.sub(r'<[^>]+>', ' ', content)
                 content = re.sub(r'\[.*?\]', '', content)
                 content = re.sub(r'\s+', ' ', content).strip()
                 if content:
-                    parts.append(content[:500])
+                    main_content = content[:500]
 
-            # Top 回复（2-6 楼，最多 5 条）
+            # Top 回复（2-6 楼，最多 5 条）— 独立存储
+            reply_parts = []
             for item in items[1:6]:
                 if not isinstance(item, dict):
                     continue
@@ -203,9 +206,10 @@ class NGAScraper(BaseScraper):
                 reply = re.sub(r'\[.*?\]', '', reply)
                 reply = re.sub(r'\s+', ' ', reply).strip()
                 if reply and len(reply) > 10:
-                    parts.append(reply[:200])
+                    reply_parts.append(reply[:200])
 
-            return "\n".join(parts) if parts else None
+            comments = "\n".join(reply_parts) if reply_parts else None
+            return main_content, comments
         except Exception:
             pass
-        return None
+        return None, None

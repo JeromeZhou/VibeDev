@@ -5,26 +5,23 @@ from datetime import datetime
 from urllib.parse import quote
 from .base_scraper import BaseScraper
 from src.utils.gpu_tagger import tag_post
+from src.utils.keywords import get_bilibili_keywords
 
 
 class BilibiliScraper(BaseScraper):
     """Bilibili 爬虫 — 通过搜索 API 抓取显卡相关视频"""
 
-    # 精简到 6 个高价值关键词，减少 412 限流风险
-    SEARCH_KEYWORDS = [
-        "显卡 问题", "GPU 翻车", "显卡 散热",
-        "RTX 5090", "RX 9070", "显卡 驱动",
-    ]
-
     def __init__(self, config: dict):
         super().__init__("bilibili", config)
+        # 从配置动态加载关键词
+        self.search_keywords = get_bilibili_keywords(max_count=8)
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """搜索 Bilibili 显卡相关视频"""
         posts = []
         seen_ids = set()
 
-        for keyword in self.SEARCH_KEYWORDS:
+        for keyword in self.search_keywords:
             try:
                 encoded_kw = quote(keyword)
                 full_url = (
@@ -66,7 +63,68 @@ class BilibiliScraper(BaseScraper):
         for p in posts:
             tag_post(p)
 
+        # 热门视频评论区抓取（评论>5 的视频，最多 15 条）
+        hot_posts = [p for p in posts if p.get("replies", 0) > 5][:15]
+        if hot_posts:
+            print(f"    抓取 {len(hot_posts)} 条热门视频评论...", end=" ")
+            fetched = 0
+            for p in hot_posts:
+                comments = self._fetch_comments(p)
+                if comments:
+                    p["comments"] = comments[:2000]
+                    fetched += 1
+            print(f"成功 {fetched} 条")
+
         return posts
+
+    def _fetch_comments(self, post: dict, max_comments: int = 10) -> str | None:
+        """抓取视频 Top 评论（按热度排序）"""
+        # 从 bvid 获取 aid（Bilibili 评论 API 需要 aid）
+        bvid = post["id"].replace("bili_", "")
+        try:
+            # 先用 bvid 查 aid
+            info_url = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
+            resp = self.safe_request(info_url, referer=f"https://www.bilibili.com/video/{bvid}",
+                                     delay=(1.0, 2.0), max_retries=1)
+            if not resp or resp.status_code != 200:
+                return None
+            info_data = resp.json()
+            if info_data.get("code") != 0:
+                return None
+            aid = info_data.get("data", {}).get("aid", 0)
+            if not aid:
+                return None
+
+            # 抓取评论（type=1 表示视频，sort=1 按热度）
+            reply_url = (
+                f"https://api.bilibili.com/x/v2/reply/main"
+                f"?type=1&oid={aid}&mode=3&ps={max_comments}"
+            )
+            resp = self.safe_request(reply_url, referer=f"https://www.bilibili.com/video/{bvid}",
+                                     delay=(1.5, 3.0), max_retries=1)
+            if not resp or resp.status_code != 200:
+                return None
+            if resp.status_code == 412:
+                return None
+
+            reply_data = resp.json()
+            if reply_data.get("code") != 0:
+                return None
+
+            replies = reply_data.get("data", {}).get("replies", [])
+            if not replies:
+                return None
+
+            texts = []
+            for r in replies[:max_comments]:
+                content = r.get("content", {}).get("message", "")
+                like_count = r.get("like", 0)
+                if content and len(content) > 5:
+                    texts.append(f"[+{like_count}] {content[:200]}")
+
+            return "\n".join(texts) if texts else None
+        except Exception:
+            return None
 
     def _parse_video(self, item: dict) -> dict | None:
         """解析 Bilibili 搜索结果"""

@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from .base_scraper import BaseScraper
 from src.utils.gpu_tagger import tag_post
+from src.utils.keywords import get_v2ex_keywords
 
 
 class V2EXScraper(BaseScraper):
@@ -11,11 +12,11 @@ class V2EXScraper(BaseScraper):
 
     # V2EX 有效节点（hardware + apple 已验证可用）
     NODES = ["hardware", "apple"]
-    # 搜索关键词（补充节点外的显卡讨论）
-    SEARCH_KEYWORDS = ["显卡", "GPU", "RTX", "RX", "NVIDIA", "AMD"]
 
     def __init__(self, config: dict):
         super().__init__("v2ex", config)
+        # 从配置动态加载关键词
+        self.search_keywords = get_v2ex_keywords()
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """抓取 V2EX 硬件相关帖子"""
@@ -54,7 +55,7 @@ class V2EXScraper(BaseScraper):
                     title = item.get("title", "")
                     content = item.get("content", "")
                     text = f"{title} {content}".lower()
-                    if any(kw.lower() in text for kw in self.SEARCH_KEYWORDS):
+                    if any(kw.lower() in text for kw in self.search_keywords):
                         post = self._parse_topic(item)
                         if post and post["id"] not in seen_ids:
                             seen_ids.add(post["id"])
@@ -66,7 +67,52 @@ class V2EXScraper(BaseScraper):
         for p in posts:
             tag_post(p)
 
+        # 热帖回复抓取（回复>3 的帖子，最多 10 条）
+        hot_posts = [p for p in posts if p.get("replies", 0) > 3][:10]
+        if hot_posts:
+            print(f"    抓取 {len(hot_posts)} 条热帖回复...", end=" ")
+            fetched = 0
+            for p in hot_posts:
+                comments = self._fetch_replies(p)
+                if comments:
+                    p["comments"] = comments[:2000]
+                    fetched += 1
+            print(f"成功 {fetched} 条")
+
         return posts
+
+    def _fetch_replies(self, post: dict, max_replies: int = 5) -> str | None:
+        """抓取 V2EX 帖子回复"""
+        topic_id = post["id"].replace("v2ex_", "")
+        try:
+            url = f"https://www.v2ex.com/api/replies/show.json?topic_id={topic_id}"
+            resp = self.safe_request(url, referer=f"https://www.v2ex.com/t/{topic_id}",
+                                     delay=(2.0, 4.0),
+                                     extra_headers={"Accept": "application/json"},
+                                     max_retries=1)
+            if not resp or resp.status_code != 200:
+                return None
+            if resp.status_code == 403:
+                return None
+
+            replies = resp.json()
+            if not isinstance(replies, list) or not replies:
+                return None
+
+            # 取最后 N 条回复（V2EX 按时间排序，最新的在后面）
+            texts = []
+            for r in replies[-max_replies:]:
+                content = r.get("content", "")
+                content = re.sub(r'<[^>]+>', ' ', content)
+                content = re.sub(r'\s+', ' ', content).strip()
+                member = r.get("member", {})
+                author = member.get("username", "") if isinstance(member, dict) else ""
+                if content and len(content) > 5:
+                    texts.append(f"[{author}] {content[:200]}")
+
+            return "\n".join(texts) if texts else None
+        except Exception:
+            return None
 
     def _parse_topic(self, item: dict) -> dict | None:
         """解析 V2EX topic JSON"""

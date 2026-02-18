@@ -166,6 +166,20 @@ def run_pipeline(config: dict):
     update_consensus(rankings, cost_info, config)
     print()
 
+    # 10.5 热词自动发现（从本轮帖子中提取高频新词）
+    try:
+        from src.utils.keywords import discover_hot_words, update_discovered_keywords
+        new_words = discover_hot_words(raw_posts, min_freq=2)
+        if new_words.get("zh") or new_words.get("en"):
+            update_discovered_keywords(new_words)
+            zh_count = len(new_words.get("zh", []))
+            en_count = len(new_words.get("en", []))
+            print(f"[10.5] 热词发现: +{zh_count} 中文, +{en_count} 英文")
+            print()
+    except Exception as e:
+        print(f"  [!] 热词发现失败(不影响运行): {e}")
+        print()
+
     # 11. 输出 Top 10
     trend_icons = {"rising": "↑", "falling": "↓", "stable": "→", "new": "★"}
     print("=" * 70)

@@ -94,6 +94,7 @@ def _migrate_tables(conn: sqlite3.Connection):
         ("pain_points", "earliest_timestamp", "TEXT"),
         ("pphi_history", "total_replies", "INTEGER DEFAULT 0"),
         ("pphi_history", "total_likes", "INTEGER DEFAULT 0"),
+        ("posts", "comments", "TEXT"),
     ]
     for table, column, col_type in migrations:
         try:
@@ -147,11 +148,12 @@ def save_posts(posts: list[dict]):
 
         try:
             conn.execute(
-                """INSERT INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO posts (id, source, content_hash, title, url, replies, likes, gpu_tags, timestamp, comments)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET
                        replies = MAX(posts.replies, excluded.replies),
-                       likes = MAX(posts.likes, excluded.likes)""",
+                       likes = MAX(posts.likes, excluded.likes),
+                       comments = COALESCE(excluded.comments, posts.comments)""",
                 (
                     post.get("id", ""),
                     post.get("source", ""),
@@ -162,6 +164,7 @@ def save_posts(posts: list[dict]):
                     post.get("likes", 0),
                     gpu_tags,
                     post.get("timestamp", ""),
+                    post.get("comments", ""),
                 )
             )
         except sqlite3.IntegrityError:

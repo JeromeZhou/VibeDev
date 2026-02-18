@@ -3,17 +3,17 @@
 from datetime import datetime
 from .base_scraper import BaseScraper
 from src.utils.gpu_tagger import tag_post
+from src.utils.keywords import get_reddit_queries
 
 
 class RedditScraper(BaseScraper):
     """Reddit 爬虫 — /hot + /new + /search 三端点"""
 
-    # 精简搜索关键词，减少请求数
-    SEARCH_QUERIES = ["problem", "issue", "crash", "overheat"]
-
     def __init__(self, config: dict):
         super().__init__("reddit", config)
         self.subreddits = self.source_config.get("subreddits", ["nvidia", "amd", "hardware"])
+        # 从配置动态加载搜索关键词
+        self.search_queries = get_reddit_queries()
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """三端点抓取 + 热帖评论"""
@@ -27,7 +27,7 @@ class RedditScraper(BaseScraper):
                         seen_ids.add(p["id"])
                         posts.append(p)
 
-            for query in self.SEARCH_QUERIES:
+            for query in self.search_queries:
                 qs = f"search.json?q={query}&restrict_sr=on&sort=relevance&t=week&limit=10"
                 for p in self._fetch_reddit(sub, qs):
                     if p["id"] not in seen_ids:
@@ -39,7 +39,7 @@ class RedditScraper(BaseScraper):
             p["_signal_score"] = self._calc_signal_score(p)
         posts.sort(key=lambda x: x["_signal_score"], reverse=True)
 
-        # 热帖评论（回复>10，最多 15 条）
+        # 热帖评论（回复>10，最多 15 条）— 独立存储到 comments 字段
         hot_posts = [p for p in posts if p.get("replies", 0) > 10][:15]
         if hot_posts:
             print(f"    抓取 {len(hot_posts)} 条热帖评论...", end=" ")
@@ -47,7 +47,7 @@ class RedditScraper(BaseScraper):
             for p in hot_posts:
                 comments = self._fetch_comments(p)
                 if comments:
-                    p["content"] = (p.get("content", "") + "\n\n--- Top Comments ---\n" + comments)[:3000]
+                    p["comments"] = comments[:2000]
                     fetched += 1
             print(f"成功 {fetched} 条")
 
