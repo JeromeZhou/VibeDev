@@ -155,8 +155,8 @@ def run_pipeline(config: dict):
         deep_pains = [pp for pp in pain_points
                       if any(pid in deep_ids for pid in pp.get("source_post_ids", []))]
         light_pains = [pp for pp in pain_points if pp not in deep_pains]
-        # 最多推导 5 个（deep 优先，不足用 light 补）
-        pains_for_inference = (deep_pains + light_pains)[:5]
+        # 全部推导（deep 优先排序）
+        pains_for_inference = deep_pains + light_pains
 
         # 回填：从 DB 历史中找缺少 hidden_need 的高排名痛点，补充推导
         backfill = []
@@ -167,7 +167,7 @@ def run_pipeline(config: dict):
                     """SELECT pain_point, pphi_score FROM pphi_history
                        WHERE (hidden_need IS NULL OR hidden_need = '')
                        AND run_date = (SELECT MAX(run_date) FROM pphi_history)
-                       ORDER BY pphi_score DESC LIMIT 3"""
+                       ORDER BY pphi_score DESC"""
                 ).fetchall()
                 existing_names = set(p.get("pain_point", "") for p in pains_for_inference)
                 for r in rows:
@@ -183,15 +183,14 @@ def run_pipeline(config: dict):
         except Exception:
             pass
 
-        # 合并：当轮 + 回填，总数不超过 7
+        # 合并：当轮全部 + 历史回填
         if backfill:
-            remaining = 7 - len(pains_for_inference)
-            pains_for_inference.extend(backfill[:max(remaining, 0)])
+            pains_for_inference.extend(backfill)
 
         # 给每个痛点加索引，用于后续 merge 时精确关联（不依赖 LLM 回显文本）
         for idx, pp in enumerate(pains_for_inference):
             pp["_inference_idx"] = idx
-        backfill_count = len(backfill[:max(7 - len(deep_pains) - len(light_pains), 0)])
+        backfill_count = len(backfill)
         print(f"[6] 隐藏需求推导（{len(pains_for_inference)} 个痛点：{len(deep_pains)} 深度 + {len(light_pains)} 轻度 + {backfill_count} 回填）...")
         status = cost_tracker.enforce_budget(llm)
         if status == "pause":
@@ -207,7 +206,7 @@ def run_pipeline(config: dict):
             if backfill_count > 0:
                 try:
                     from src.utils.db import get_db
-                    backfill_names = set(b["pain_point"] for b in backfill[:backfill_count])
+                    backfill_names = set(b["pain_point"] for b in backfill)
                     for hn in hidden_needs:
                         orig = hn.get("_original_pain", "") or hn.get("pain_point", "")
                         if orig in backfill_names and hn.get("hidden_need"):

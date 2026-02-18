@@ -429,7 +429,7 @@ def _save_rankings(rankings: list[dict], config: dict):
     output = {
         "timestamp": datetime.now().isoformat(),
         "total_pain_points": len(rankings),
-        "rankings": rankings[:20],
+        "rankings": rankings,
     }
     latest_file = output_dir / "latest.json"
     tmp_file = output_dir / "latest.json.tmp"
