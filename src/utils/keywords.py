@@ -1,13 +1,52 @@
-"""GPU-Insight 关键词管理 — 统一加载 + 热词发现 + 衰减机制"""
+"""GPU-Insight 关键词管理 — 统一加载 + 热词发现 + 衰减机制 + 型号自动同步"""
 
 import math
+import os
 import re
+import sys
 import yaml
 from datetime import datetime
 from pathlib import Path
 from collections import Counter
+from contextlib import contextmanager
 
 KEYWORDS_PATH = Path("config/keywords.yaml")
+GPU_PRODUCTS_PATH = Path("config/gpu_products.yaml")
+
+
+# ── 跨平台文件锁 ──────────────────────────────────────────
+@contextmanager
+def _file_lock(path: Path):
+    """跨平台文件锁（写 keywords.yaml 时防并发损坏）"""
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    lock_fd = open(lock_path, "w")
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        yield
+    except (OSError, IOError):
+        # 锁获取失败，跳过本次写入（下轮再写）
+        print("  [!] keywords.yaml 写锁获取失败，跳过本次更新")
+        yield
+    finally:
+        try:
+            if sys.platform == "win32":
+                import msvcrt
+                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        lock_fd.close()
+        try:
+            lock_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 # 中英文停用词（过滤热词发现中的无意义词）
 STOPWORDS_ZH = {
@@ -43,19 +82,63 @@ def _load_keywords_config() -> dict:
         return yaml.safe_load(f) or {}
 
 
+def _load_gpu_products() -> dict:
+    """加载 gpu_products.yaml"""
+    if not GPU_PRODUCTS_PATH.exists():
+        return {}
+    with open(GPU_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def _get_hot_models_from_products(top_n: int = 7) -> list[str]:
+    """从 gpu_products.yaml 提取最新热门型号（最新系列优先）
+
+    策略：每个品牌取最新系列的前几个型号，总计 top_n 个。
+    NVIDIA 最新系列权重最高（市场关注度），AMD 次之，Intel 补充。
+    """
+    products = _load_gpu_products()
+    brands = products.get("brands", {})
+    models = []
+
+    # 分配名额：NVIDIA 4, AMD 2, Intel 1
+    allocation = {"nvidia": 4, "amd": 2, "intel": 1}
+
+    for brand_key, count in allocation.items():
+        brand = brands.get(brand_key, {})
+        series_list = brand.get("series", [])
+        if not series_list:
+            continue
+        # 取第一个系列（yaml 中最新系列排最前）
+        latest = series_list[0].get("models", [])
+        models.extend(latest[:count])
+
+    return models[:top_n]
+
+
 def get_search_keywords(lang: str = "zh", category: str = "pain") -> list[str]:
-    """获取搜索关键词"""
+    """获取搜索关键词（models 类别自动合并 gpu_products.yaml 最新型号）"""
     config = _load_keywords_config()
     search = config.get("search", {}).get(lang, {})
 
     if category == "all":
         keywords = []
         for cat in ("pain", "models", "brands"):
-            keywords.extend(search.get(cat, []))
+            if cat == "models":
+                # 合并 yaml 手动配置 + gpu_products 自动提取
+                manual = search.get("models", [])
+                auto = _get_hot_models_from_products()
+                keywords.extend(list(dict.fromkeys(manual + auto)))
+            else:
+                keywords.extend(search.get(cat, []))
         # 加上活跃热词
         for item in _get_active_discovered(config, lang):
             keywords.append(item["word"])
         return list(dict.fromkeys(keywords))
+
+    if category == "models":
+        manual = search.get("models", [])
+        auto = _get_hot_models_from_products()
+        return list(dict.fromkeys(manual + auto))
 
     return search.get(category, [])
 
@@ -111,6 +194,44 @@ def get_discovered_stats() -> dict:
         "en_capacity": MAX_DISCOVERED_EN,
         "last_updated": discovered.get("last_updated"),
     }
+
+
+def get_signals_count() -> int:
+    """获取信号词总数（供 admin 页面使用）"""
+    config = _load_keywords_config()
+    signals = config.get("signals", {})
+    return len(signals.get("en", [])) + len(signals.get("zh", []))
+
+
+def sync_models_to_keywords():
+    """将 gpu_products.yaml 最新型号同步到 keywords.yaml 的 models 列表
+
+    只添加不删除，保留手动添加的型号。
+    """
+    auto_models = _get_hot_models_from_products()
+    if not auto_models:
+        return
+
+    config = _load_keywords_config()
+    changed = False
+
+    for lang in ("zh", "en"):
+        search = config.setdefault("search", {}).setdefault(lang, {})
+        existing = search.get("models", [])
+        existing_set = set(existing)
+
+        for model in auto_models:
+            if model not in existing_set:
+                existing.append(model)
+                changed = True
+
+        search["models"] = existing
+
+    if changed:
+        with _file_lock(KEYWORDS_PATH):
+            with open(KEYWORDS_PATH, "w", encoding="utf-8") as f:
+                yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        print(f"  型号同步: {len(auto_models)} 个热门型号已同步到 keywords.yaml")
 
 
 def _get_active_discovered(config: dict, lang: str) -> list[dict]:
@@ -243,8 +364,9 @@ def update_discovered_keywords(new_words: dict):
     discovered["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     config["discovered"] = discovered
 
-    with open(KEYWORDS_PATH, "w", encoding="utf-8") as f:
-        yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    with _file_lock(KEYWORDS_PATH):
+        with open(KEYWORDS_PATH, "w", encoding="utf-8") as f:
+            yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
     zh_count = len(discovered.get("zh", []))
     en_count = len(discovered.get("en", []))
