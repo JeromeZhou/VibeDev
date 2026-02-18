@@ -116,11 +116,9 @@ def run_pipeline(config: dict):
     else:
         from src.filters import filter_gpu_relevant
         print("[3.5] AI 相关性过滤...")
-        cleaned = filter_gpu_relevant(cleaned, llm, shadow=True)
-        # 统计 shadow 标记（不实际删除，仅标记）
-        shadow_drops = sum(1 for p in cleaned if p.get("_relevance_shadow_drop"))
-        if shadow_drops:
-            print(f"  [Shadow] {shadow_drops} 条被标记为不相关（未删除，仅标记）")
+        pre_count = len(cleaned)
+        cleaned = filter_gpu_relevant(cleaned, llm, shadow=False)
+        dropped_count = pre_count - len(cleaned)
         # 持久化 relevance 结果到 DB
         try:
             from src.utils.db import save_posts
@@ -129,11 +127,10 @@ def run_pipeline(config: dict):
             print(f"  [!] 保存 relevance 结果失败: {e}")
     print()
 
-    # 4. 三层漏斗（只对相关帖子执行，shadow_drop 的跳过）
+    # 4. 三层漏斗
     from src.analyzers.funnel import run_funnel
     print("[4] 三层漏斗筛选...")
-    relevant_posts = [p for p in cleaned if not p.get("_relevance_shadow_drop")]
-    deep_posts, light_posts = run_funnel(relevant_posts, llm)
+    deep_posts, light_posts = run_funnel(cleaned, llm)
     print()
 
     # 5. 痛点提取（对 deep + light 分别处理）
