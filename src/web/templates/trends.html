@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link href="/static/base.css" rel="stylesheet">
+    <script src="/static/theme.js"></script>
     <style>
         .trend-pill {
             display: inline-flex; align-items: center; gap: 4px;
@@ -40,7 +41,7 @@
         }
     </style>
 </head>
-<body class="mesh-bg">
+<body>
     <nav class="site-nav">
         <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
         <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
@@ -48,6 +49,8 @@
         <a href="/history"><span class="material-icons">history</span> 历史</a>
         <a href="/report"><span class="material-icons">description</span> 报告</a>
         <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
+        <span class="nav-spacer"></span>
+        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
     </nav>
 
     <main class="page-container">
@@ -172,7 +175,9 @@
     const evolutionData = {{ evolution_data_json | safe }};
 
     /* Chart.js color palette — synced with design system */
-    const chartColors = ['#5b8def', '#9d8abf', '#5ec49e', '#d4a04a', '#e5534b'];
+    function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+    var t = { text: css('--text-tertiary'), text2: css('--text-secondary'), tp: css('--text-primary'), grid: css('--chart-grid'), surf: css('--bg-elevated'), bdr: css('--border-default'), base: css('--bg-base') };
+    const chartColors = ['#0070f3', '#8b5cf6', '#00dc82', '#ffaa00', '#ff4444'];
 
     // PPHI 趋势折线图
     const trendCtx = document.getElementById('trendChart').getContext('2d');
@@ -192,7 +197,7 @@
                     pointHoverRadius: 5,
                     borderWidth: 2,
                     pointBackgroundColor: chartColors[i % chartColors.length],
-                    pointBorderColor: '#0b0d14',
+                    pointBorderColor: t.base,
                     pointBorderWidth: 2,
                 }))
             },
@@ -203,28 +208,21 @@
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { color: '#8b8fa3', padding: 16, usePointStyle: true, pointStyleWidth: 8, font: { family: "'Inter', 'Noto Sans SC', sans-serif", size: 11 } }
+                        labels: { color: t.text2, padding: 16, usePointStyle: true, pointStyleWidth: 8, font: { family: "'Inter', 'Noto Sans SC', sans-serif", size: 11 } }
                     },
                     tooltip: {
-                        backgroundColor: '#161922',
-                        borderColor: 'rgba(255,255,255,0.09)',
-                        borderWidth: 1,
-                        titleColor: '#ececf1',
-                        bodyColor: '#8b8fa3',
-                        padding: 10,
-                        cornerRadius: 8,
-                        titleFont: { family: "'Inter', 'Noto Sans SC', sans-serif" },
-                        bodyFont: { family: "'Inter', 'Noto Sans SC', sans-serif" },
+                        backgroundColor: t.surf, borderColor: t.bdr, borderWidth: 1,
+                        titleColor: t.tp, bodyColor: t.text2, padding: 10, cornerRadius: 8,
                     }
                 },
                 scales: {
                     x: {
-                        ticks: { color: '#565869', font: { family: "'Inter', sans-serif", size: 11 } },
-                        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }
+                        ticks: { color: t.text, font: { family: "'Inter', sans-serif", size: 11 } },
+                        grid: { color: t.grid, drawBorder: false }
                     },
                     y: {
-                        ticks: { color: '#565869', font: { family: "'JetBrains Mono', monospace", size: 11 } },
-                        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }
+                        ticks: { color: t.text, font: { family: "'JetBrains Mono', monospace", size: 11 } },
+                        grid: { color: t.grid, drawBorder: false }
                     }
                 }
             }
@@ -237,12 +235,12 @@
     const sourceCtx = document.getElementById('sourceChart').getContext('2d');
     if (sourceData.labels.length > 0) {
         const sourceColors = {
-            'reddit': '#e5534b', 'nga': '#5ec49e', 'tieba': '#d4a04a',
-            'chiphell': '#5b8def', 'videocardz': '#9d8abf',
+            'reddit': '#ff4444', 'nga': '#00dc82', 'tieba': '#ffaa00',
+            'chiphell': '#0070f3', 'videocardz': '#8b5cf6',
             'bilibili': '#fb7299', 'v2ex': '#778087', 'mydrivers': '#1e88e5',
             'techpowerup': '#ff6f00'
         };
-        const bgColors = sourceData.labels.map(l => sourceColors[l] || '#5b8def');
+        const bgColors = sourceData.labels.map(l => sourceColors[l] || '#0070f3');
 
         new Chart(sourceCtx, {
             type: 'doughnut',
@@ -251,9 +249,9 @@
                 datasets: [{
                     data: sourceData.data,
                     backgroundColor: bgColors,
-                    borderColor: '#111318',
+                    borderColor: t.surf,
                     borderWidth: 2,
-                    hoverBorderColor: '#1c1f2b',
+                    hoverBorderColor: t.base,
                     hoverOffset: 4,
                 }]
             },
@@ -264,18 +262,11 @@
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { color: '#8b8fa3', padding: 14, usePointStyle: true, pointStyleWidth: 8, font: { family: "'Inter', 'Noto Sans SC', sans-serif", size: 11 } }
+                        labels: { color: t.text2, padding: 14, usePointStyle: true, pointStyleWidth: 8, font: { family: "'Inter', 'Noto Sans SC', sans-serif", size: 11 } }
                     },
                     tooltip: {
-                        backgroundColor: '#161922',
-                        borderColor: 'rgba(255,255,255,0.09)',
-                        borderWidth: 1,
-                        titleColor: '#ececf1',
-                        bodyColor: '#8b8fa3',
-                        padding: 10,
-                        cornerRadius: 8,
-                        titleFont: { family: "'Inter', 'Noto Sans SC', sans-serif" },
-                        bodyFont: { family: "'Inter', 'Noto Sans SC', sans-serif" },
+                        backgroundColor: t.surf, borderColor: t.bdr, borderWidth: 1,
+                        titleColor: t.tp, bodyColor: t.text2, padding: 10, cornerRadius: 8,
                     }
                 }
             }
@@ -303,7 +294,7 @@
                     pointHoverRadius: 7,
                     borderWidth: 2.5,
                     pointBackgroundColor: s.color,
-                    pointBorderColor: '#0b0d14',
+                    pointBorderColor: t.base,
                     pointBorderWidth: 2,
                 }))
             },
@@ -314,16 +305,11 @@
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { color: '#8b8fa3', padding: 14, usePointStyle: true, pointStyleWidth: 8, font: { family: "'Inter', 'Noto Sans SC', sans-serif", size: 11 } }
+                        labels: { color: t.text2, padding: 14, usePointStyle: true, pointStyleWidth: 8, font: { family: "'Inter', 'Noto Sans SC', sans-serif", size: 11 } }
                     },
                     tooltip: {
-                        backgroundColor: '#161922',
-                        borderColor: 'rgba(255,255,255,0.09)',
-                        borderWidth: 1,
-                        titleColor: '#ececf1',
-                        bodyColor: '#8b8fa3',
-                        padding: 10,
-                        cornerRadius: 8,
+                        backgroundColor: t.surf, borderColor: t.bdr, borderWidth: 1,
+                        titleColor: t.tp, bodyColor: t.text2, padding: 10, cornerRadius: 8,
                         callbacks: {
                             label: function(ctx) {
                                 return ctx.dataset.label + ': #' + ctx.parsed.y;
@@ -333,19 +319,19 @@
                 },
                 scales: {
                     x: {
-                        ticks: { color: '#565869', font: { family: "'Inter', sans-serif", size: 11 } },
-                        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }
+                        ticks: { color: t.text, font: { family: "'Inter', sans-serif", size: 11 } },
+                        grid: { color: t.grid, drawBorder: false }
                     },
                     y: {
                         reverse: true,
                         min: 1,
                         ticks: {
-                            color: '#565869',
+                            color: t.text,
                             font: { family: "'JetBrains Mono', monospace", size: 11 },
                             stepSize: 1,
                             callback: function(val) { return '#' + val; }
                         },
-                        grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false }
+                        grid: { color: t.grid, drawBorder: false }
                     }
                 }
             }

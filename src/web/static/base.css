@@ -1,33 +1,99 @@
-/* GPU-Insight 公共样式 — 所有页面共享 */
+/* GPU-Insight 公共样式 — 双主题 (Vercel/Linear 风格) */
 
-:root {
-    --bg-base:     #0b0d14;
-    --bg-surface:  #111318;
-    --bg-elevated: #161922;
-    --bg-hover:    #1c1f2b;
+/* ── 深色主题（默认）── */
+:root, [data-theme="dark"] {
+    --bg-base:     #000000;
+    --bg-surface:  #0a0a0a;
+    --bg-elevated: #111111;
+    --bg-hover:    #1a1a1a;
     --border-subtle:  rgba(255,255,255,0.06);
-    --border-default: rgba(255,255,255,0.09);
-    --border-strong:  rgba(255,255,255,0.14);
-    --text-primary:   #ececf1;
-    --text-secondary: #8b8fa3;
-    --text-tertiary:  #565869;
-    --accent-blue:    #5b8def;
-    --accent-purple:  #9d8abf;
-    --accent-green:   #5ec49e;
-    --accent-red:     #e5534b;
-    --accent-amber:   #d4a04a;
+    --border-default: rgba(255,255,255,0.10);
+    --border-strong:  rgba(255,255,255,0.16);
+    --text-primary:   #ededed;
+    --text-secondary: #a1a1a1;
+    --text-tertiary:  #666666;
+    --accent-blue:    #0070f3;
+    --accent-purple:  #8b5cf6;
+    --accent-green:   #00dc82;
+    --accent-red:     #ff4444;
+    --accent-amber:   #ffaa00;
     --accent-silver:  #9ba3b0;
     --accent-bronze:  #b08952;
+    --shadow-card:    0 1px 2px rgba(0,0,0,0.4);
+    --chart-grid:     rgba(255,255,255,0.04);
+}
+
+/* ── 浅色主题 ── */
+[data-theme="light"] {
+    --bg-base:     #ffffff;
+    --bg-surface:  #fafafa;
+    --bg-elevated: #f5f5f5;
+    --bg-hover:    #eeeeee;
+    --border-subtle:  rgba(0,0,0,0.06);
+    --border-default: rgba(0,0,0,0.10);
+    --border-strong:  rgba(0,0,0,0.16);
+    --text-primary:   #171717;
+    --text-secondary: #666666;
+    --text-tertiary:  #999999;
+    --accent-blue:    #0070f3;
+    --accent-purple:  #7c3aed;
+    --accent-green:   #059669;
+    --accent-red:     #dc2626;
+    --accent-amber:   #d97706;
+    --accent-silver:  #6b7280;
+    --accent-bronze:  #92400e;
+    --shadow-card:    0 1px 3px rgba(0,0,0,0.08);
+    --chart-grid:     rgba(0,0,0,0.06);
+}
+
+/* ── 浅色主题下标签色调整 ── */
+[data-theme="light"] .gpu-tag {
+    background: rgba(124,58,237,0.08);
+    color: #7c3aed;
+    border-color: rgba(124,58,237,0.15);
+}
+[data-theme="light"] .mfr-tag {
+    background: rgba(5,150,105,0.08);
+    color: #059669;
+    border-color: rgba(5,150,105,0.12);
+}
+[data-theme="light"] .brand-tag {
+    background: rgba(217,119,6,0.08);
+    color: #d97706;
+    border-color: rgba(217,119,6,0.12);
+}
+[data-theme="light"] .tag-pain {
+    background: rgba(220,38,38,0.08);
+    color: #dc2626;
+}
+[data-theme="light"] .tag-model {
+    background: rgba(0,112,243,0.08);
+    color: #0070f3;
+}
+[data-theme="light"] .tag-hot {
+    background: rgba(217,119,6,0.08);
+    color: #d97706;
+}
+[data-theme="light"] .tag-signal {
+    background: rgba(124,58,237,0.08);
+    color: #7c3aed;
+}
+[data-theme="light"] .medal-gold { color: #fff; }
+[data-theme="light"] .medal-silver { color: #fff; }
+[data-theme="light"] .medal-bronze { color: #fff; }
+[data-theme="light"] .site-nav a.active {
+    background: rgba(0,112,243,0.06);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-    font-family: 'Inter', 'Noto Sans SC', sans-serif;
+    font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
     background: var(--bg-base);
     color: var(--text-primary);
     font-weight: 400;
     min-height: 100vh;
+    transition: background 0.2s, color 0.2s;
 }
 
 a { text-decoration: none; color: inherit; }
@@ -43,6 +109,9 @@ a { text-decoration: none; color: inherit; }
     display: flex;
     align-items: center;
     gap: 4px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
 }
 .site-nav .nav-brand {
     font-weight: 600;
@@ -73,9 +142,33 @@ a { text-decoration: none; color: inherit; }
 }
 .site-nav a.active {
     color: var(--accent-blue);
-    background: rgba(91,141,239,0.08);
+    background: rgba(0,112,243,0.08);
 }
 .site-nav .material-icons { font-size: 16px; }
+
+/* 导航右侧区域 */
+.nav-spacer { flex: 1; }
+
+/* 主题切换按钮 */
+.theme-toggle {
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+    border-color: var(--border-default);
+}
+.theme-toggle .material-icons { font-size: 16px; }
 
 /* ── 布局 ── */
 .page-container {
@@ -89,7 +182,7 @@ a { text-decoration: none; color: inherit; }
     background: var(--bg-surface);
     border-radius: 12px;
     border: 1px solid var(--border-subtle);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: var(--shadow-card);
     transition: border-color 0.2s ease;
 }
 .card:hover { border-color: var(--border-default); }
@@ -142,14 +235,6 @@ a { text-decoration: none; color: inherit; }
 .delay-2 { animation-delay: 0.1s; }
 .delay-3 { animation-delay: 0.15s; }
 .delay-4 { animation-delay: 0.2s; }
-
-/* ── 背景 ── */
-.mesh-bg {
-    background:
-        radial-gradient(ellipse at 15% 50%, rgba(37,99,235,0.04) 0%, transparent 50%),
-        radial-gradient(ellipse at 85% 15%, rgba(124,58,237,0.03) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 85%, rgba(5,150,105,0.03) 0%, transparent 50%);
-}
 
 /* ── PPHI 圆环 ── */
 .pphi-ring {

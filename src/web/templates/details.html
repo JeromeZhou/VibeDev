@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link href="/static/base.css" rel="stylesheet">
+    <script src="/static/theme.js"></script>
     <style>
         /* ── 页面专属样式 ── */
         .need-card {
@@ -71,7 +72,7 @@
         .transition { transition: all 0.2s ease; }
     </style>
 </head>
-<body class="mesh-bg" style="min-height: 100vh;">
+<body>
     <nav class="site-nav">
         <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
         <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
@@ -79,6 +80,8 @@
         <a href="/history"><span class="material-icons">history</span> 历史</a>
         <a href="/report"><span class="material-icons">description</span> 报告</a>
         <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
+        <span class="nav-spacer"></span>
+        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
     </nav>
 
     <main class="page-container">
@@ -381,6 +384,8 @@
 
     <script>
     (function() {
+        function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+        var t = { text: css('--text-tertiary'), text2: css('--text-secondary'), grid: css('--chart-grid'), blue: css('--accent-blue'), green: css('--accent-green') };
         var trendData = {{ trend_data_json | safe }};
         if (trendData.labels && trendData.labels.length > 1) {
             var ctx = document.getElementById('trendChart').getContext('2d');
@@ -391,21 +396,21 @@
                     datasets: [{
                         label: 'PPHI',
                         data: trendData.scores,
-                        borderColor: '#5b8def',
-                        backgroundColor: 'rgba(91,141,239,0.08)',
+                        borderColor: t.blue,
+                        backgroundColor: t.blue + '14',
                         fill: true,
                         tension: 0.3,
                         pointRadius: 3,
-                        pointBackgroundColor: '#5b8def',
+                        pointBackgroundColor: t.blue,
                         borderWidth: 2,
                     }, {
                         label: 'Mentions',
                         data: trendData.mentions,
-                        borderColor: '#5ec49e',
+                        borderColor: t.green,
                         backgroundColor: 'transparent',
                         tension: 0.3,
                         pointRadius: 2,
-                        pointBackgroundColor: '#5ec49e',
+                        pointBackgroundColor: t.green,
                         borderWidth: 1.5,
                         borderDash: [4, 2],
                         yAxisID: 'y1',
@@ -417,25 +422,25 @@
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: {
-                            labels: { color: '#8b8fa3', font: { size: 11 } }
+                            labels: { color: t.text2, font: { size: 11 } }
                         }
                     },
                     scales: {
                         x: {
-                            ticks: { color: '#565869', font: { size: 10 } },
-                            grid: { color: 'rgba(255,255,255,0.04)' }
+                            ticks: { color: t.text, font: { size: 10 } },
+                            grid: { color: t.grid }
                         },
                         y: {
                             position: 'left',
-                            ticks: { color: '#5b8def', font: { size: 10 } },
-                            grid: { color: 'rgba(255,255,255,0.04)' },
-                            title: { display: true, text: 'PPHI', color: '#5b8def', font: { size: 10 } }
+                            ticks: { color: t.blue, font: { size: 10 } },
+                            grid: { color: t.grid },
+                            title: { display: true, text: 'PPHI', color: t.blue, font: { size: 10 } }
                         },
                         y1: {
                             position: 'right',
-                            ticks: { color: '#5ec49e', font: { size: 10 } },
+                            ticks: { color: t.green, font: { size: 10 } },
                             grid: { display: false },
-                            title: { display: true, text: 'Mentions', color: '#5ec49e', font: { size: 10 } }
+                            title: { display: true, text: 'Mentions', color: t.green, font: { size: 10 } }
                         }
                     }
                 }

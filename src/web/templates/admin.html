@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link href="/static/base.css" rel="stylesheet">
+    <script src="/static/theme.js"></script>
     <style>
         .status-green { color: var(--accent-green); }
         .status-yellow { color: var(--accent-amber); }
@@ -46,9 +47,11 @@
         <a href="/history"><span class="material-icons">history</span> 历史</a>
         <a href="/report"><span class="material-icons">description</span> 报告</a>
         <a href="/admin" class="active"><span class="material-icons">admin_panel_settings</span> 管理</a>
+        <span class="nav-spacer"></span>
+        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
     </nav>
 
-    <div class="page-container">
+    <main class="page-container">
         <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px;">
             <span class="material-icons" style="vertical-align: middle; font-size: 22px; color: var(--accent-blue);">admin_panel_settings</span>
             后台管理
@@ -214,7 +217,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <footer class="site-footer">GPU-Insight · 显卡用户痛点智能分析系统</footer>
 </body>

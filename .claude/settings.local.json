@@ -92,7 +92,14 @@
       "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && wc -l {}')",
       "WebFetch(domain:www.mydrivers.com)",
       "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe -m uvicorn src.web.app:app --host 0.0.0.0 --port 9000)",
-      "Bash(ping -n 4 127.0.0.)"
+      "Bash(ping -n 4 127.0.0.)",
+      "WebFetch(domain:www.qodequay.com)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:blakecrosley.com)",
+      "Bash(for path in \"/\" \"/trends\" \"/history\" \"/admin\" \"/report\" \"/pain-point/1\")",
+      "Bash(do echo -n \"$path: \")",
+      "Bash(done)",
+      "Bash(for path in \"/\" \"/trends\" \"/history\" \"/admin\" \"/pain-point/1\")"
     ]
   }
 }
