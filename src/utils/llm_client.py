@@ -16,6 +16,9 @@ class LLMClient:
         self.log_path = Path(config.get("paths", {}).get("logs", "logs"))
         self.log_path.mkdir(parents=True, exist_ok=True)
         self._downgraded = False
+        # LLM 降级追踪
+        self.fallback_count = 0
+        self.models_used = {}  # model_name → call_count
         # 轻量模式超时倍率
         lm = config.get("lite_mode", {})
         if lm.get("enabled") and datetime.now().hour in lm.get("hours", []):
@@ -42,6 +45,15 @@ class LLMClient:
         if not self._downgraded:
             self._downgraded = True
             print("[LLM] 已切换到低成本模型: Qwen2.5-7B-Instruct")
+
+    def get_usage_summary(self) -> dict:
+        """返回本轮 LLM 使用摘要"""
+        return {
+            "total_tokens": self.total_tokens,
+            "total_cost": round(self.total_cost, 6),
+            "fallback_count": self.fallback_count,
+            "models_used": dict(self.models_used),
+        }
 
     def _get_cheapest_config(self) -> dict:
         """返回最便宜的模型配置"""
@@ -147,7 +159,10 @@ class LLMClient:
                     text = response.choices[0].message.content
                     usage = response.usage
                     self._log_usage(m, usage.prompt_tokens, usage.completion_tokens)
+                    # 追踪实际使用的模型
+                    self.models_used[m] = self.models_used.get(m, 0) + 1
                     if i > 0:
+                        self.fallback_count += 1
                         print(f"[fallback -> {m}]", end=" ")
                     return text
                 except Exception:

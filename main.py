@@ -19,6 +19,7 @@ load_dotenv(Path(__file__).parent / ".env")
 from src.utils.config import load_config
 from src.utils.llm_client import LLMClient
 from src.utils.cost_tracker import CostTracker
+from src.utils.db import init_db
 
 
 def check_agent_teams_available() -> bool:
@@ -39,6 +40,9 @@ def is_lite_mode(config: dict) -> bool:
 
 def run_pipeline(config: dict):
     """完整 pipeline：抓取 → 清洗 → GPU标签 → 三层漏斗 → 痛点提取 → 推理需求 → PPHI → 报告"""
+    # DB 初始化（只在进程首次调用时执行建表+迁移）
+    init_db()
+
     lite = is_lite_mode(config)
     if lite:
         print("启动串行模式 [轻量]")
@@ -275,6 +279,19 @@ def run_pipeline(config: dict):
     # 成本
     budget = cost_tracker.check_budget()
     print(f"[成本] 本轮: ${llm.total_cost:.4f} | Token: {llm.total_tokens} | 月度: ${budget['monthly_cost']:.2f} / ${budget['budget']}")
+
+    # LLM 降级追踪
+    usage = llm.get_usage_summary()
+    if usage["fallback_count"] > 0:
+        print(f"  [!] LLM 降级 {usage['fallback_count']} 次 | 实际模型: {usage['models_used']}")
+
+    # DB 备份（每轮结束后备份，保留最近 7 份）
+    try:
+        from src.utils.db import backup_db
+        backup_db()
+    except Exception as e:
+        print(f"  [!] DB 备份失败: {e}")
+
     print()
     print("本轮完成")
 

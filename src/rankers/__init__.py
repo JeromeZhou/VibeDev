@@ -397,8 +397,10 @@ def _save_rankings(rankings: list[dict], config: dict):
         "rankings": rankings[:20],
     }
     latest_file = output_dir / "latest.json"
-    with open(latest_file, "w", encoding="utf-8") as f:
+    tmp_file = output_dir / "latest.json.tmp"
+    with open(tmp_file, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
+    tmp_file.replace(latest_file)  # 原子替换
 
     date_str = datetime.now().strftime("%Y-%m-%d_%H%M")
     history_file = output_dir / f"rankings_{date_str}.json"

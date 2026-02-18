@@ -22,8 +22,10 @@ class TestConfig:
         from src.utils.config import load_config, get_enabled_sources
         config = load_config("config/config.yaml")
         enabled = get_enabled_sources(config)
-        assert "chiphell" in enabled
-        assert enabled["chiphell"]["weight"] == 1.0
+        # chiphell 已 disabled（567 error），验证至少有活跃源
+        assert len(enabled) > 0, "应该有至少一个启用的数据源"
+        assert "reddit" in enabled
+        assert enabled["reddit"]["weight"] == 0.9
 
     def test_get_pphi_weights(self):
         from src.utils.config import load_config, get_pphi_weights
@@ -94,13 +96,17 @@ class TestPPHI:
     """测试 PPHI 排名算法"""
 
     def test_calculate_empty(self):
+        from unittest.mock import patch
         from src.utils.config import load_config
         from src.rankers import calculate_pphi
         config = load_config("config/config.yaml")
-        result = calculate_pphi([], config)
+        # Mock 掉历史加载，确保纯空输入返回空
+        with patch("src.rankers._load_historical_insights", return_value=[]):
+            result = calculate_pphi([], config)
         assert result == []
 
     def test_calculate_ranking_order(self):
+        from unittest.mock import patch
         from src.utils.config import load_config
         from src.rankers import calculate_pphi
         config = load_config("config/config.yaml")
@@ -108,7 +114,9 @@ class TestPPHI:
             {"pain_point": "A", "confidence": 0.9, "_source": "chiphell", "approved": True},
             {"pain_point": "B", "confidence": 0.5, "_source": "reddit", "approved": True},
         ]
-        result = calculate_pphi(data, config)
+        # Mock 掉历史加载，只测试当轮排名逻辑
+        with patch("src.rankers._load_historical_insights", return_value=[]):
+            result = calculate_pphi(data, config)
         assert len(result) == 2
         assert result[0]["rank"] == 1
         assert result[1]["rank"] == 2

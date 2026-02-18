@@ -9,16 +9,34 @@ from pathlib import Path
 
 DB_PATH = Path("data/gpu_insight.db")
 
+# 标记是否已初始化（进程级单例）
+_initialized = False
+
+
+def init_db():
+    """进程启动时调用一次 — 建表 + 迁移。后续 get_db() 不再重复执行。"""
+    global _initialized
+    if _initialized:
+        return
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    _init_tables(conn)
+    conn.close()
+    _initialized = True
+
 
 @contextmanager
 def get_db() -> sqlite3.Connection:
     """获取数据库连接（context manager，自动关闭）"""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    global _initialized
+    if not _initialized:
+        init_db()
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
-    _init_tables(conn)
     try:
         yield conn
         conn.commit()
@@ -296,3 +314,20 @@ def get_trend_data(days: int = 30) -> list[dict]:
             (days * 10,)
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def backup_db(max_backups: int = 7):
+    """备份数据库文件，保留最近 N 份"""
+    import shutil
+    if not DB_PATH.exists():
+        return
+    backup_dir = DB_PATH.parent / "backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    dest = backup_dir / f"gpu_insight_{timestamp}.db"
+    shutil.copy2(str(DB_PATH), str(dest))
+    # 清理旧备份
+    backups = sorted(backup_dir.glob("gpu_insight_*.db"), reverse=True)
+    for old in backups[max_backups:]:
+        old.unlink()
+    print(f"  [DB] 备份: {dest.name}（保留 {min(len(backups), max_backups)} 份）")
