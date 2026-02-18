@@ -189,20 +189,27 @@
                     {% endfor %}
                 </ol>
             </div>
+            {% elif inferred.get('confidence', 0) == 0 %}
+            <p class="mt-4 text-xs" style="color: var(--text-tertiary);">
+                <span class="material-icons text-xs">schedule</span> 推理链数据待更新（下轮 pipeline 将自动补全）
+            </p>
             {% endif %}
 
             <!-- Munger 审查结果 -->
             {% set munger = inferred.get('munger_review') %}
             {% if munger %}
-            <div class="mt-4 p-4 rounded-lg" style="background: var(--bg-elevated); border-left: 2px solid {% if munger.get('approved') %}var(--accent-green){% else %}var(--accent-red){% endif %};">
+            {% set ql = munger.get('quality_level', 'unknown') %}
+            <div class="mt-4 p-4 rounded-lg" style="background: var(--bg-elevated); border-left: 2px solid {% if ql == 'strong' %}var(--accent-green){% elif ql == 'moderate' %}var(--accent-amber){% else %}var(--accent-red){% endif %};">
                 <p class="text-xs mb-2 flex items-center gap-1 font-medium" style="color: var(--text-tertiary);">
                     <span class="material-icons text-xs">gavel</span> Devil's Advocate 审查 (Munger)
                 </p>
                 <div class="flex items-center gap-2 mb-2">
-                    {% if munger.get('approved') %}
-                    <span class="text-sm font-medium" style="color: var(--accent-green);">✅ 通过</span>
+                    {% if ql == 'strong' %}
+                    <span class="text-sm font-medium" style="color: var(--accent-green);">✓ Strong</span>
+                    {% elif ql == 'moderate' %}
+                    <span class="text-sm font-medium" style="color: var(--accent-amber);">◐ Moderate</span>
                     {% else %}
-                    <span class="text-sm font-medium" style="color: var(--accent-red);">❌ 未通过</span>
+                    <span class="text-sm font-medium" style="color: var(--accent-red);">✗ Weak</span>
                     {% endif %}
                     {% if munger.get('adjusted_confidence') %}
                     <span class="text-xs mono" style="color: var(--text-tertiary);">
@@ -210,10 +217,12 @@
                     </span>
                     {% endif %}
                 </div>
-                {% if munger.get('rejection_reason') %}
-                <p class="text-sm mb-2" style="color: var(--accent-red);">
-                    <strong>否决原因:</strong> {{ munger.rejection_reason }}
-                </p>
+                {% if munger.get('concerns') %}
+                <div class="text-sm mb-2" style="color: var(--text-secondary);">
+                    {% for concern in munger.concerns %}
+                    <p>⚠ {{ concern }}</p>
+                    {% endfor %}
+                </div>
                 {% endif %}
                 {% if munger.get('comment') %}
                 <p class="text-sm italic" style="color: var(--text-secondary);">

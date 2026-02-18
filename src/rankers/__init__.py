@@ -118,7 +118,7 @@ def _load_historical_insights() -> list[dict]:
             rows = conn.execute(
                 """SELECT pain_point, pphi_score, mentions, gpu_tags,
                           source_urls, hidden_need, total_replies, total_likes,
-                          inferred_need_json
+                          inferred_need_json, category, affected_users
                    FROM pphi_history
                    WHERE run_date = ?
                    ORDER BY rank ASC""",
@@ -152,6 +152,9 @@ def _load_historical_insights() -> list[dict]:
                     elif "techpowerup" in url:
                         slug = url.rstrip("/").split("/")[-1]
                         source_post_ids.append(f"techpowerup_{slug}")
+                    elif "videocardz" in url:
+                        slug = url.rstrip("/").split("/")[-1]
+                        source_post_ids.append(f"videocardz_{slug}")
                     else:
                         source_post_ids.append(f"unknown_{url[-20:]}")
 
@@ -184,15 +187,16 @@ def _load_historical_insights() -> list[dict]:
                 if not hidden_need_obj and r["hidden_need"]:
                     hidden_need_obj = {
                         "hidden_need": r["hidden_need"],
-                        "confidence": 0.5,
+                        "confidence": 0,
                         "reasoning_chain": [],
                         "munger_review": None,
+                        "_is_fallback": True,
                     }
 
                 insights.append({
                     "pain_point": r["pain_point"],
-                    "category": "",
-                    "affected_users": "",
+                    "category": r["category"] if "category" in r.keys() and r["category"] else "",
+                    "affected_users": r["affected_users"] if "affected_users" in r.keys() and r["affected_users"] else "",
                     "evidence": "",
                     "source_post_ids": source_post_ids,
                     "source_urls": source_urls,
