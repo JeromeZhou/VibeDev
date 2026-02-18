@@ -47,9 +47,14 @@ class RedditScraper(BaseScraper):
         # 热帖评论（回复>10，最多 15 条）— 独立存储到 comments 字段
         hot_posts = [p for p in posts if p.get("replies", 0) > 10][:15]
         if hot_posts:
+            import time as _time
             print(f"    抓取 {len(hot_posts)} 条热帖评论...", end=" ")
             fetched = 0
+            deadline = _time.time() + 120  # 总超时 2 分钟
             for p in hot_posts:
+                if _time.time() > deadline:
+                    print(f"(超时，已获取 {fetched} 条)", end=" ")
+                    break
                 comments = self._fetch_comments(p)
                 if comments:
                     p["comments"] = comments[:2000]
