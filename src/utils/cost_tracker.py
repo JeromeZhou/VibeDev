@@ -13,7 +13,55 @@ class CostTracker:
         self.thresholds = config.get("cost", {}).get("alert_thresholds", {
             "warning": 0.8, "downgrade": 0.9, "pause": 0.95, "stop": 1.0,
         })
-        self.log_path = Path(config.get("paths", {}).get("logs", "logs")) / "cost.log"
+        self.log_dir = Path(config.get("paths", {}).get("logs", "logs"))
+        self.log_path = self.log_dir / "cost.log"
+        self._rotate_if_needed()
+
+    def _rotate_if_needed(self):
+        """月初自动轮转：将上月日志归档，清空当月日志"""
+        if not self.log_path.exists():
+            return
+        try:
+            current_month = datetime.now().strftime("%Y-%m")
+            # 读取第一行判断日志起始月份
+            with open(self.log_path, "r", encoding="utf-8") as f:
+                first_line = f.readline().strip()
+            if not first_line:
+                return
+            first_entry = json.loads(first_line)
+            first_month = first_entry["timestamp"][:7]  # "YYYY-MM"
+
+            # 如果日志包含上月数据，归档非当月条目
+            if first_month != current_month:
+                current_lines = []
+                archive_lines = []
+                with open(self.log_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            entry = json.loads(line)
+                            if entry["timestamp"].startswith(current_month):
+                                current_lines.append(line)
+                            else:
+                                archive_lines.append(line)
+                        except (json.JSONDecodeError, KeyError):
+                            archive_lines.append(line)
+
+                # 归档旧数据
+                if archive_lines:
+                    archive_path = self.log_dir / f"cost_{first_month}.log"
+                    with open(archive_path, "a", encoding="utf-8") as f:
+                        f.write("\n".join(archive_lines) + "\n")
+
+                # 只保留当月数据
+                with open(self.log_path, "w", encoding="utf-8") as f:
+                    if current_lines:
+                        f.write("\n".join(current_lines) + "\n")
+                print(f"  [成本] 归档 {len(archive_lines)} 条旧日志 → cost_{first_month}.log")
+        except Exception:
+            pass  # 轮转失败不影响正常运行
 
     def get_monthly_cost(self) -> float:
         """获取当月累计成本"""

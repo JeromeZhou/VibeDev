@@ -110,15 +110,21 @@ class BilibiliScraper(BaseScraper):
         for p in posts:
             tag_post(p)
 
-        # 热门视频评论区抓取（被限流时跳过）
+        # 热门视频评论区抓取（被限流时跳过，限制数量避免耗时过长）
         if self._rate_limited:
             print(f"    跳过评论抓取（限流中）")
         else:
-            hot_posts = [p for p in posts if p.get("replies", 0) > 5][:15]
+            hot_posts = [p for p in posts if p.get("replies", 0) > 5][:8]  # 最多8条，避免耗时
             if hot_posts:
                 print(f"    抓取 {len(hot_posts)} 条热门视频评论...", end=" ")
                 fetched = 0
+                import time as _time
+                comment_start = _time.time()
                 for p in hot_posts:
+                    # 总耗时超过 120s 则停止
+                    if _time.time() - comment_start > 120:
+                        print(f"(超时截断)", end=" ")
+                        break
                     comments = self._fetch_comments(p)
                     if comments:
                         p["comments"] = comments[:2000]
@@ -139,10 +145,11 @@ class BilibiliScraper(BaseScraper):
             resp = self.safe_request(
                 info_url,
                 referer=f"https://www.bilibili.com/video/{bvid}",
-                delay=(2.0, 4.0),
+                delay=(1.5, 3.0),
                 max_retries=1,
                 extra_headers=self._bili_headers(),
                 cookies=self._session_cookies,
+                timeout=15,
             )
             if resp and resp.status_code == 412:
                 self._rate_limited = True
@@ -164,10 +171,11 @@ class BilibiliScraper(BaseScraper):
             resp = self.safe_request(
                 reply_url,
                 referer=f"https://www.bilibili.com/video/{bvid}",
-                delay=(2.5, 4.5),
+                delay=(1.5, 3.0),
                 max_retries=1,
                 extra_headers=self._bili_headers(),
                 cookies=self._session_cookies,
+                timeout=15,
             )
             if resp and resp.status_code == 412:
                 self._rate_limited = True
