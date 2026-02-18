@@ -28,21 +28,22 @@ class VideoCardzScraper(BaseScraper):
 
         try:
             resp = self.safe_request("https://videocardz.com/",
-                                     referer="https://videocardz.com/",
-                                     delay=(2.0, 4.0))
+                                     referer="https://www.google.com/",
+                                     delay=(3.0, 5.0),
+                                     cookies=self.cookies if self.cookies else None)
             if not resp or resp.status_code != 200:
-                print(f"    [!] VideoCardz: 请求失败")
+                print(f"    [!] VideoCardz: 请求失败 (status={resp.status_code if resp else 'None'})")
                 return []
 
             # 提取文章链接和标题
-            # Pattern: href=https://videocardz.com/newz/... 或 /press-release/...
+            # 多种 CSS class 匹配：story-title, entry-title, post-title
             seen = set()
             for match in re.finditer(
-                r'href=(https://videocardz\.com/(?:newz|press-release|review)/[^\s<>"]+).*?'
-                r'(?:story-title|entry-title)[^>]*>([^<]+)<',
+                r'href=["\']?(https://videocardz\.com/(?:newz|press-release|review)/[^\s<>"\']+)["\']?.*?'
+                r'(?:story-title|entry-title|post-title|news-title)[^>]*>([^<]+)<',
                 resp.text, re.DOTALL
             ):
-                url = match.group(1).strip()
+                url = match.group(1).strip().rstrip('"\'')
                 title = match.group(2).strip()
                 if not title or url in seen:
                     continue
@@ -63,18 +64,44 @@ class VideoCardzScraper(BaseScraper):
                     "timestamp": datetime.now().isoformat(),
                 })
 
-            # 备用：更宽松的匹配
+            # 备用策略 1：先找链接，再在附近找标题文本
             if not posts:
                 for match in re.finditer(
-                    r'href=(https://videocardz\.com/(?:newz|press-release|review)/([^\s<>"]+))',
+                    r'<a[^>]+href=["\']?(https://videocardz\.com/(?:newz|press-release|review)/([^\s<>"\']+))["\']?[^>]*>([^<]{10,})</a>',
                     resp.text
                 ):
-                    url = match.group(1).strip()
+                    url = match.group(1).strip().rstrip('"\'')
+                    slug = match.group(2).strip()
+                    title = match.group(3).strip()
+                    if url in seen or not title or title.lower() in ("read full story", "read more", "continue reading"):
+                        continue
+                    seen.add(url)
+                    post_id = slug.rstrip("/").split("/")[-1][:60]
+                    posts.append({
+                        "id": f"vcz_{post_id}",
+                        "source": "videocardz",
+                        "_source": "videocardz",
+                        "title": title,
+                        "content": title,
+                        "url": url,
+                        "author_hash": self.hash_author("videocardz"),
+                        "replies": 0,
+                        "likes": 0,
+                        "language": "en",
+                        "timestamp": datetime.now().isoformat(),
+                    })
+
+            # 备用策略 2：从 URL slug 生成标题
+            if not posts:
+                for match in re.finditer(
+                    r'href=["\']?(https://videocardz\.com/(?:newz|press-release|review)/([^\s<>"\']+))["\']?',
+                    resp.text
+                ):
+                    url = match.group(1).strip().rstrip('"\'')
                     slug = match.group(2).strip()
                     if url in seen:
                         continue
                     seen.add(url)
-                    # 从 slug 生成标题
                     title = slug.rstrip("/").split("/")[-1].replace("-", " ").title()
                     post_id = slug.rstrip("/").split("/")[-1][:60]
                     posts.append({
@@ -90,6 +117,11 @@ class VideoCardzScraper(BaseScraper):
                         "language": "en",
                         "timestamp": datetime.now().isoformat(),
                     })
+
+            if not posts:
+                # 调试：输出页面中找到的链接数量
+                all_links = re.findall(r'https://videocardz\.com/(?:newz|press-release|review)/', resp.text)
+                print(f"    [debug] VideoCardz: 页面中找到 {len(all_links)} 个文章链接但无法提取标题")
 
         except Exception as e:
             print(f"    [!] VideoCardz 抓取失败: {e}")

@@ -13,11 +13,12 @@ import httpx
 
 # 全局 UA 池 — 真实浏览器指纹，所有爬虫共享
 _USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
 ]
 
 
@@ -76,8 +77,10 @@ class BaseScraper(ABC):
 
     @staticmethod
     def random_delay(min_sec: float = 2.0, max_sec: float = 5.0):
-        """随机延迟，防反爬"""
-        time.sleep(random.uniform(min_sec, max_sec))
+        """随机延迟 + ±20% 抖动，防反爬"""
+        base = random.uniform(min_sec, max_sec)
+        jitter = base * random.uniform(-0.2, 0.2)
+        time.sleep(max(0.5, base + jitter))
 
     @staticmethod
     def hash_author(author_id: str) -> str:
@@ -102,9 +105,9 @@ class BaseScraper(ABC):
 
     def safe_request(self, url: str, referer: str = None, timeout: int = 30,
                      delay: tuple = (2.0, 4.5), extra_headers: dict = None,
-                     cookies: dict = None, max_retries: int = 2,
+                     cookies: dict = None, max_retries: int = 3,
                      verify_ssl: bool = None) -> httpx.Response | None:
-        """统一安全请求 — 自动处理 403/429/SSL 错误
+        """统一安全请求 — 自动处理 403/429/SSL 错误 + 指数退避
 
         Args:
             verify_ssl: True/False 强制指定，None 则自动（首次 True，重试 False）
@@ -126,9 +129,13 @@ class BaseScraper(ABC):
                                  cookies=cookies)
 
                 if resp.status_code == 429:
-                    wait = int(resp.headers.get("Retry-After", 30))
-                    print(f"    [!] {self.source_name} 限流(429)，等待 {wait}s...")
-                    time.sleep(min(wait, 60))
+                    # 指数退避: 30s → 60s → 120s，加随机抖动
+                    base_wait = int(resp.headers.get("Retry-After", 30))
+                    backoff = min(base_wait * (2 ** attempt), 120)
+                    jitter = random.uniform(0, backoff * 0.3)
+                    wait = backoff + jitter
+                    print(f"    [!] {self.source_name} 限流(429)，退避 {wait:.0f}s (attempt {attempt+1})...")
+                    time.sleep(wait)
                     continue
 
                 if resp.status_code == 412:
@@ -137,7 +144,10 @@ class BaseScraper(ABC):
 
                 if resp.status_code == 403:
                     if attempt < max_retries - 1:
-                        continue  # 下一次尝试（可能 SSL 降级有效）
+                        # 退避后重试
+                        backoff = 5 * (2 ** attempt) + random.uniform(0, 3)
+                        time.sleep(backoff)
+                        continue
                     print(f"    [!] {self.source_name} 被拒(403): {url[:80]}")
                     return None
 
@@ -146,10 +156,14 @@ class BaseScraper(ABC):
 
             except (httpx.ReadError, ssl.SSLError):
                 if attempt < max_retries - 1:
+                    time.sleep(3 * (attempt + 1))
                     continue  # SSL 降级重试
                 print(f"    [!] {self.source_name} SSL 错误: {url[:80]}")
                 return None
             except httpx.TimeoutException:
+                if attempt < max_retries - 1:
+                    time.sleep(5 * (attempt + 1))
+                    continue
                 print(f"    [!] {self.source_name} 超时: {url[:80]}")
                 return None
             except Exception as e:

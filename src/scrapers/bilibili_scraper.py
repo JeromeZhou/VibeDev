@@ -1,6 +1,8 @@
 """GPU-Insight Bilibili 爬虫 — 搜索 API 抓取显卡相关视频讨论"""
 
 import re
+import random
+import uuid
 from datetime import datetime
 from urllib.parse import quote
 from .base_scraper import BaseScraper
@@ -8,14 +10,44 @@ from src.utils.gpu_tagger import tag_post
 from src.utils.keywords import get_bilibili_keywords
 
 
+def _generate_buvid3() -> str:
+    """生成 Bilibili buvid3 cookie — 模拟浏览器首次访问"""
+    # buvid3 格式: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx + infoc 后缀
+    return str(uuid.uuid4()).upper() + "infoc"
+
+
+def _generate_b_nut() -> str:
+    """生成 b_nut cookie — 13位时间戳"""
+    import time
+    return str(int(time.time() * 1000))[:13]
+
+
 class BilibiliScraper(BaseScraper):
     """Bilibili 爬虫 — 通过搜索 API 抓取显卡相关视频"""
 
     def __init__(self, config: dict):
         super().__init__("bilibili", config)
-        # 从配置动态加载关键词
-        self.search_keywords = get_bilibili_keywords(max_count=8)
+        # 从配置动态加载关键词，限制数量减少请求
+        self.search_keywords = get_bilibili_keywords(max_count=5)
         self._rate_limited = False  # 412 限流标记
+        # 生成会话级 cookies — 模拟真实浏览器
+        self._session_cookies = {
+            "buvid3": _generate_buvid3(),
+            "b_nut": _generate_b_nut(),
+            "i-wanna-go-back": "-1",
+            "b_ut": "7",
+            "CURRENT_FNVAL": "4048",
+        }
+
+    def _bili_headers(self) -> dict:
+        """Bilibili 专用请求头 — 模拟浏览器 XHR"""
+        return {
+            "Origin": "https://www.bilibili.com",
+            "X-Requested-With": "XMLHttpRequest",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+        }
 
     def fetch_posts(self, last_id: str = None) -> list[dict]:
         """搜索 Bilibili 显卡相关视频"""
@@ -23,7 +55,11 @@ class BilibiliScraper(BaseScraper):
         seen_ids = set()
         self._rate_limited = False
 
-        for keyword in self.search_keywords:
+        # 随机打乱关键词顺序，避免每次相同请求模式
+        keywords = list(self.search_keywords)
+        random.shuffle(keywords)
+
+        for i, keyword in enumerate(keywords):
             try:
                 encoded_kw = quote(keyword)
                 full_url = (
@@ -31,8 +67,15 @@ class BilibiliScraper(BaseScraper):
                     f"?search_type=video&keyword={encoded_kw}"
                     f"&order=pubdate&duration=0&page=1&pagesize=20"
                 )
-                resp = self.safe_request(full_url, referer="https://www.bilibili.com",
-                                         delay=(3.0, 5.0))
+                # 关键词间递增延迟: 4-7s, 5-8s, 6-9s...
+                kw_delay = (4.0 + i * 1.0, 7.0 + i * 1.0)
+                resp = self.safe_request(
+                    full_url,
+                    referer=f"https://search.bilibili.com/all?keyword={encoded_kw}",
+                    delay=kw_delay,
+                    extra_headers=self._bili_headers(),
+                    cookies=self._session_cookies,
+                )
 
                 # 412 限流 — 立即停止
                 if resp and resp.status_code == 412:
@@ -93,8 +136,14 @@ class BilibiliScraper(BaseScraper):
         try:
             # 先用 bvid 查 aid
             info_url = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
-            resp = self.safe_request(info_url, referer=f"https://www.bilibili.com/video/{bvid}",
-                                     delay=(1.0, 2.0), max_retries=1)
+            resp = self.safe_request(
+                info_url,
+                referer=f"https://www.bilibili.com/video/{bvid}",
+                delay=(2.0, 4.0),
+                max_retries=1,
+                extra_headers=self._bili_headers(),
+                cookies=self._session_cookies,
+            )
             if resp and resp.status_code == 412:
                 self._rate_limited = True
                 return None
@@ -112,8 +161,14 @@ class BilibiliScraper(BaseScraper):
                 f"https://api.bilibili.com/x/v2/reply/main"
                 f"?type=1&oid={aid}&mode=3&ps={max_comments}"
             )
-            resp = self.safe_request(reply_url, referer=f"https://www.bilibili.com/video/{bvid}",
-                                     delay=(1.5, 3.0), max_retries=1)
+            resp = self.safe_request(
+                reply_url,
+                referer=f"https://www.bilibili.com/video/{bvid}",
+                delay=(2.5, 4.5),
+                max_retries=1,
+                extra_headers=self._bili_headers(),
+                cookies=self._session_cookies,
+            )
             if resp and resp.status_code == 412:
                 self._rate_limited = True
                 return None
