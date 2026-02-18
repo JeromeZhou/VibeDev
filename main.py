@@ -29,10 +29,24 @@ def run_with_agent_teams(config: dict):
     print("启动 Agent Teams 模式（并行执行）")
 
 
+def is_lite_mode(config: dict) -> bool:
+    """检测是否为轻量模式"""
+    lm = config.get("lite_mode", {})
+    if not lm.get("enabled"):
+        return False
+    return datetime.now().hour in lm.get("hours", [])
+
+
 def run_pipeline(config: dict):
     """完整 pipeline：抓取 → 清洗 → GPU标签 → 三层漏斗 → 痛点提取 → 推理需求 → PPHI → 报告"""
-    print("启动串行模式")
-    print(f"  时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    lite = is_lite_mode(config)
+    if lite:
+        print("启动串行模式 [轻量]")
+        print(f"  时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        print("  跳过不稳定源和高成本 AI 步骤")
+    else:
+        print("启动串行模式")
+        print(f"  时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print()
 
     llm = LLMClient(config)
@@ -49,7 +63,8 @@ def run_pipeline(config: dict):
     # 1. 抓取
     from src.scrapers import scrape_all_forums
     print("[1] 数据采集...")
-    raw_posts = scrape_all_forums(config)
+    skip_sources = config.get("lite_mode", {}).get("skip_sources", []) if lite else []
+    raw_posts = scrape_all_forums(config, skip_sources=skip_sources)
     print(f"  获取 {len(raw_posts)} 条新讨论")
     if not raw_posts:
         print("  本轮无新数据，重新计算历史排名（PPHI 时间衰减）")
@@ -91,19 +106,23 @@ def run_pipeline(config: dict):
     print()
 
     # 3.5 AI 相关性过滤（在 GPU tagger 之后，利用 _gpu_tags 快速通道）
-    from src.filters import filter_gpu_relevant
-    print("[3.5] AI 相关性过滤...")
-    cleaned = filter_gpu_relevant(cleaned, llm, shadow=True)
-    # 统计 shadow 标记（不实际删除，仅标记）
-    shadow_drops = sum(1 for p in cleaned if p.get("_relevance_shadow_drop"))
-    if shadow_drops:
-        print(f"  [Shadow] {shadow_drops} 条被标记为不相关（未删除，仅标记）")
-    # 持久化 relevance 结果到 DB
-    try:
-        from src.utils.db import save_posts
-        save_posts(cleaned)
-    except Exception as e:
-        print(f"  [!] 保存 relevance 结果失败: {e}")
+    skip_steps = config.get("lite_mode", {}).get("skip_steps", []) if lite else []
+    if "ai_filter" in skip_steps:
+        print("[3.5] AI 相关性过滤... 跳过（轻量模式）")
+    else:
+        from src.filters import filter_gpu_relevant
+        print("[3.5] AI 相关性过滤...")
+        cleaned = filter_gpu_relevant(cleaned, llm, shadow=True)
+        # 统计 shadow 标记（不实际删除，仅标记）
+        shadow_drops = sum(1 for p in cleaned if p.get("_relevance_shadow_drop"))
+        if shadow_drops:
+            print(f"  [Shadow] {shadow_drops} 条被标记为不相关（未删除，仅标记）")
+        # 持久化 relevance 结果到 DB
+        try:
+            from src.utils.db import save_posts
+            save_posts(cleaned)
+        except Exception as e:
+            print(f"  [!] 保存 relevance 结果失败: {e}")
     print()
 
     # 4. 三层漏斗（只对相关帖子执行，shadow_drop 的跳过）
@@ -126,32 +145,35 @@ def run_pipeline(config: dict):
     print()
 
     # 6. 推理需求（对所有痛点做推理，优先 deep，控制数量）
-    # 优先 deep_posts 来源的痛点，不足时补充 light_posts 来源的
-    deep_ids = set(p.get("id") for p in deep_posts)
-    deep_pains = [pp for pp in pain_points
-                  if any(pid in deep_ids for pid in pp.get("source_post_ids", []))]
-    light_pains = [pp for pp in pain_points if pp not in deep_pains]
-    # 最多推导 5 个（deep 优先，不足用 light 补）
-    pains_for_inference = (deep_pains + light_pains)[:5]
-    # 给每个痛点加索引，用于后续 merge 时精确关联（不依赖 LLM 回显文本）
-    for idx, pp in enumerate(pains_for_inference):
-        pp["_inference_idx"] = idx
-    print(f"[6] 隐藏需求推导（{len(pains_for_inference)} 个痛点：{len(deep_pains)} 深度 + {len(light_pains)} 轻度）...")
-    status = cost_tracker.enforce_budget(llm)
-    if status == "pause":
-        print("  预算不足，跳过隐藏需求推导")
-        hidden_needs = []
-    elif status == "stop":
-        print("  预算不足，停止运行")
-        return
+    hidden_needs = []
+    if "hidden_needs" in skip_steps:
+        print("[6] 隐藏需求推导... 跳过（轻量模式）")
     else:
-        hidden_needs = infer_hidden_needs(pains_for_inference, config, llm)
-        print(f"  推导 {len(hidden_needs)} 个隐藏需求")
+        # 优先 deep_posts 来源的痛点，不足时补充 light_posts 来源的
+        deep_ids = set(p.get("id") for p in deep_posts)
+        deep_pains = [pp for pp in pain_points
+                      if any(pid in deep_ids for pid in pp.get("source_post_ids", []))]
+        light_pains = [pp for pp in pain_points if pp not in deep_pains]
+        # 最多推导 5 个（deep 优先，不足用 light 补）
+        pains_for_inference = (deep_pains + light_pains)[:5]
+        # 给每个痛点加索引，用于后续 merge 时精确关联（不依赖 LLM 回显文本）
+        for idx, pp in enumerate(pains_for_inference):
+            pp["_inference_idx"] = idx
+        print(f"[6] 隐藏需求推导（{len(pains_for_inference)} 个痛点：{len(deep_pains)} 深度 + {len(light_pains)} 轻度）...")
+        status = cost_tracker.enforce_budget(llm)
+        if status == "pause":
+            print("  预算不足，跳过隐藏需求推导")
+        elif status == "stop":
+            print("  预算不足，停止运行")
+            return
+        else:
+            hidden_needs = infer_hidden_needs(pains_for_inference, config, llm)
+            print(f"  推导 {len(hidden_needs)} 个隐藏需求")
     print()
 
     # 6.5 Devil's Advocate 审查（防幻觉机制）
     from src.analyzers import devils_advocate_review
-    if hidden_needs:
+    if hidden_needs and "munger" not in skip_steps:
         print("[6.5] Devil's Advocate 审查（Munger 反向论证）...")
         status = cost_tracker.enforce_budget(llm)
         if status == "pause":
@@ -161,6 +183,9 @@ def run_pipeline(config: dict):
             return
         else:
             hidden_needs = devils_advocate_review(hidden_needs, llm)
+        print()
+    elif "munger" in skip_steps and hidden_needs:
+        print("[6.5] Devil's Advocate 审查... 跳过（轻量模式）")
         print()
 
     # 7. 合并为 PainInsight

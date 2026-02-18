@@ -10,6 +10,14 @@ runtime:
   cycle_interval_hours: 4
   timezone: "Asia/Shanghai"
 
+# 轻量模式（低峰时段降级运行）
+lite_mode:
+  enabled: true
+  hours: [0, 1, 2, 3, 4, 5, 6]  # 00:00-06:59 自动启用
+  skip_sources: ["bilibili", "reddit"]  # 跳过不稳定源
+  skip_steps: ["ai_filter", "hidden_needs", "munger"]  # 跳过高成本 AI 步骤
+  llm_timeout_multiplier: 2.0  # LLM 超时翻倍
+
 # Agent Teams 配置
 agent_teams:
   enabled: false  # Phase 1 先关闭，验证流程

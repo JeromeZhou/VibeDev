@@ -3,8 +3,12 @@
 from src.utils.config import get_enabled_sources
 
 
-def scrape_all_forums(config: dict) -> list[dict]:
-    """串行抓取所有已启用的论坛（带增量检查点）"""
+def scrape_all_forums(config: dict, skip_sources: list[str] = None) -> list[dict]:
+    """串行抓取所有已启用的论坛（带增量检查点）
+
+    Args:
+        skip_sources: 跳过的数据源列表（轻量模式用）
+    """
     from .chiphell_pw_scraper import ChiphellPlaywrightScraper
     from .reddit_scraper import RedditScraper
     from .tieba_scraper import TiebaScraper
@@ -32,6 +36,9 @@ def scrape_all_forums(config: dict) -> list[dict]:
     all_posts = []
 
     for source_name, source_config in enabled.items():
+        if skip_sources and source_name in skip_sources:
+            print(f"  跳过 {source_name}（轻量模式）")
+            continue
         scraper_cls = scraper_map.get(source_name)
         if scraper_cls:
             cp = get_checkpoint(source_name)

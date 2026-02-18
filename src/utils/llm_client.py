@@ -16,6 +16,12 @@ class LLMClient:
         self.log_path = Path(config.get("paths", {}).get("logs", "logs"))
         self.log_path.mkdir(parents=True, exist_ok=True)
         self._downgraded = False
+        # 轻量模式超时倍率
+        lm = config.get("lite_mode", {})
+        if lm.get("enabled") and datetime.now().hour in lm.get("hours", []):
+            self._timeout_mult = lm.get("llm_timeout_multiplier", 2.0)
+        else:
+            self._timeout_mult = 1.0
 
     def call_reasoning(self, prompt: str, system: str = "") -> str:
         """调用推理模型（Claude Sonnet）— 用于深度分析"""
@@ -117,9 +123,9 @@ class LLMClient:
 
             # 主模型短超时，fallback 长超时（晚上 API 慢，需要更长超时）
             fallback_chain = [
-                (model, 30.0),
-                ("THUDM/glm-4-9b-chat", 120.0),
-                ("Qwen/Qwen2.5-7B-Instruct", 120.0),
+                (model, 30.0 * self._timeout_mult),
+                ("THUDM/glm-4-9b-chat", 120.0 * self._timeout_mult),
+                ("Qwen/Qwen2.5-7B-Instruct", 120.0 * self._timeout_mult),
             ]
 
             for i, (m, timeout) in enumerate(fallback_chain):
