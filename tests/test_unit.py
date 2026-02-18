@@ -189,3 +189,45 @@ class TestSchema:
         pp = PainPoint(pain_point="显存不足", category="显存", emotion_intensity=0.8)
         d = pp.to_dict()
         assert d["emotion_intensity"] == 0.8
+
+
+class TestPainNameGuard:
+    """测试痛点名称质量守卫"""
+
+    def test_vague_category_name(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "散热", "category": "散热", "evidence": "GPU满载95度降频严重"}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] != "散热"
+        assert "95" in result["pain_point"] or "降频" in result["pain_point"]
+
+    def test_vague_with_suffix(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "显存问题", "category": "显存", "evidence": "8GB显存玩4K不够用"}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] != "显存问题"
+        assert "8GB" in result["pain_point"] or "4K" in result["pain_point"]
+
+    def test_qita_wenti(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "其他问题", "category": "其他", "evidence": "5090 FE Anti Sag Bracket"}
+        result = _guard_pain_name(parsed)
+        assert "其他" not in result["pain_point"]
+
+    def test_good_name_unchanged(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "4K游戏帧率不足", "category": "性能", "evidence": "some evidence"}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] == "4K游戏帧率不足"
+
+    def test_too_long_truncated(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "Cinebench23长时间负载下显卡跑分拉胯，温度稳定在95℃，功耗稳定在256w", "category": "性能", "evidence": ""}
+        result = _guard_pain_name(parsed)
+        assert len(result["pain_point"]) <= 30
+
+    def test_too_short_expanded(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "热", "category": "散热", "evidence": "显卡满载温度过高"}
+        result = _guard_pain_name(parsed)
+        assert len(result["pain_point"]) >= 3

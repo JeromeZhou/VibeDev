@@ -330,10 +330,45 @@ def _aggregate(insights: list[dict]) -> dict:
         del data["confidences"]
         del data["timestamps"]
 
+        # 聚合层守卫：检测笼统名称，尝试用 evidence 替代
+        display_name = _guard_display_name(display_name, data)
+
         # 使用展示名作为最终 key
         final_agg[display_name] = data
 
     return final_agg
+
+
+# 分类名集合（与 analyzer 一致）
+_CATEGORY_NAMES_R = {"性能", "价格", "散热", "噪音", "驱动", "兼容性", "显存", "功耗", "供货", "质量", "生态", "其他"}
+
+
+def _guard_display_name(name: str, data: dict) -> str:
+    """聚合层名称守卫：检测笼统名称，用 evidence 替代
+
+    注意：不使用 hidden_need 替代，因为那是"需求"不是"痛点"
+    """
+    clean = name.strip()
+    for prefix in ("显卡", "GPU"):
+        if clean.startswith(prefix):
+            clean = clean[len(prefix):]
+    for suffix in ("问题", "不足", "困难", "不好"):
+        if clean.endswith(suffix):
+            clean = clean[:-len(suffix)].strip()
+
+    if clean not in _CATEGORY_NAMES_R and len(clean) >= 3:
+        return name  # 名称足够具体，不需要修正
+
+    # 尝试用 evidence 替代
+    evidence = data.get("evidence", "")
+    if evidence and len(evidence) >= 4:
+        short_ev = evidence[:40].split("。")[0].split(",")[0].split("，")[0].strip()
+        if len(short_ev) >= 4:
+            return short_ev
+
+    # 无 evidence 时，尝试从 source_urls 推断上下文
+    # 对于历史数据，保留原名但加标记（下轮新数据进来时会自然替换）
+    return name  # 无法改善，保持原样
 
 
 def _detect_trend(pain_point: str, current_score: float) -> str:

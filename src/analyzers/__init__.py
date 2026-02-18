@@ -7,6 +7,78 @@ from pathlib import Path
 from src.utils.llm_client import LLMClient
 from src.utils.gpu_tagger import tag_gpu_products
 
+# 12 个分类名（与 system_prompt 中的分类一致）
+_CATEGORY_NAMES = {"性能", "价格", "散热", "噪音", "驱动", "兼容性", "显存", "功耗", "供货", "质量", "生态", "其他"}
+_VAGUE_PATTERNS = {"问题", "不足", "困难", "不好", "issue", "problem", "issues", "problems"}
+
+
+def _guard_pain_name(parsed: dict) -> dict:
+    """痛点名称质量守卫 — 确保名称具体、可读、长度合理（零 token）
+
+    规则：
+    1. 纯分类名 → 用 evidence 生成具体名称
+    2. "分类+问题" 笼统模式 → 同上
+    3. 过长（>30字）→ 截断到核心描述
+    4. 过短（<3字）→ 用 evidence 补充
+    """
+    name = parsed.get("pain_point", "").strip()
+    category = parsed.get("category", "其他")
+    evidence = parsed.get("evidence", "")
+
+    # 去掉 "显卡" 前缀
+    clean = name
+    for prefix in ("显卡", "GPU"):
+        if clean.startswith(prefix):
+            clean = clean[len(prefix):]
+
+    # 规则1: 纯分类名
+    is_vague = clean in _CATEGORY_NAMES
+
+    # 规则2: "分类+问题/不足" 或 "显卡+分类+问题"
+    if not is_vague:
+        for suffix in _VAGUE_PATTERNS:
+            base = clean.replace(suffix, "").strip()
+            if base in _CATEGORY_NAMES or len(base) <= 2:
+                is_vague = True
+                break
+
+    if is_vague and evidence:
+        # 从 evidence 提取前段作为具体描述
+        short_ev = evidence[:50].split("。")[0].split(",")[0].split("，")[0].strip()
+        if len(short_ev) >= 4:
+            parsed["pain_point"] = short_ev
+            parsed["_name_source"] = "evidence_fallback"
+        elif category != "其他":
+            parsed["pain_point"] = f"{category}：{evidence[:20].strip()}"
+            parsed["_name_source"] = "category_prefix"
+    elif is_vague:
+        # 没有 evidence，标记待细化
+        parsed["_vague_name"] = True
+
+    # 规则3: 过长截断（>30字）
+    if len(parsed.get("pain_point", "")) > 30:
+        text = parsed["pain_point"]
+        # 尝试在标点处截断
+        for sep in ("，", ",", "。", "；", ";"):
+            idx = text.find(sep, 10)
+            if 10 <= idx <= 30:
+                parsed["pain_point"] = text[:idx]
+                break
+        else:
+            parsed["pain_point"] = text[:28]
+        parsed["_name_source"] = "truncated"
+
+    # 规则4: 过短（<3字）
+    if len(parsed.get("pain_point", "")) < 3:
+        if evidence and len(evidence) >= 4:
+            parsed["pain_point"] = evidence[:25].split("。")[0].strip()
+            parsed["_name_source"] = "evidence_expand"
+        elif category != "其他":
+            parsed["pain_point"] = category
+            parsed["_name_source"] = "category_only"
+
+    return parsed
+
 
 def _extract_json(text: str) -> list[dict]:
     """从 LLM 响应中提取 JSON 对象（处理 markdown 代码块、多行 JSON 等）"""
@@ -222,9 +294,26 @@ def analyze_pain_points(posts: list[dict], config: dict, llm: LLMClient) -> list
 }
 
 重要：痛点描述要具体，不要笼统。
-❌ 笼统："显卡性能问题"、"GPU performance issue"
-✅ 具体中文："4K 游戏帧率不足"、"满载温度过高"、"风扇噪音大"
+❌ 禁止："其他问题"、"其他"、"显卡问题"、"GPU issue"、"misc problem"
+❌ 笼统："显卡性能问题"、"GPU performance issue"、"散热问题"、"驱动问题"、"显存问题"、"价格问题"
+✅ 具体中文："4K 游戏帧率不足"、"满载温度95℃导致降频"、"风扇噪音大"、"显卡下垂需要支架"
 ✅ 具体英文："RTX 5080 crashes in Cyberpunk at 4K"、"GPU throttling at 95°C under load"
+
+命名规则：
+- 长度 4-25 字（中文）或 5-60 字符（英文）
+- 格式："[具体现象/症状]" 而非 "[分类名]+问题"
+- 必须包含可区分的细节（型号、场景、症状、数值中至少一个）
+
+示例对照：
+❌ "散热问题" → ✅ "满载温度95℃导致降频"
+❌ "显卡价格问题" → ✅ "RTX 5090 溢价严重性价比低"
+❌ "兼容性问题" → ✅ "新卡与旧主板PCIe插槽不兼容"
+❌ "显存问题" → ✅ "8GB显存不够4K游戏使用"
+❌ "质量" → ✅ "极限超频导致GPU核心开裂"
+❌ "供货" → ✅ "RTX 5080发售即缺货难以购买"
+❌ "其他问题" → ✅ "显卡过重需要防下垂支架"
+
+如果无法确定具体痛点，请从原文中提取最相关的描述，不要用"其他"代替。
 
 category 说明：
 - 性能：FPS不足、卡顿、光追性能差、DLSS/FSR问题
@@ -261,6 +350,8 @@ related_post_indices 是该痛点来源的帖子序号（从0开始）。
             response = llm.call_simple(prompt, system_prompt)
             for parsed in _extract_json(response):
                 if parsed.get("pain_point"):
+                    # 痛点名称质量守卫
+                    parsed = _guard_pain_name(parsed)
                     # 关联原帖 URL 和 ID
                     indices = parsed.pop("related_post_indices", [])
                     if not indices:
