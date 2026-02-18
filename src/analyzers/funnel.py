@@ -147,4 +147,15 @@ def run_funnel(posts: list[dict], llm: LLMClient) -> tuple[list[dict], list[dict
     # L3
     deep, light = l3_select(posts)
 
+    # L3 保底：deep_posts 不足 5 条时，从 light_posts 按信号分补充
+    min_deep = 5
+    if len(deep) < min_deep and light:
+        light.sort(key=lambda x: x.get("_pain_signal_score", 0), reverse=True)
+        need = min_deep - len(deep)
+        promoted = light[:need]
+        deep.extend(promoted)
+        light = light[need:]
+        if promoted:
+            print(f"  L3 保底: 从 light 提升 {len(promoted)} 条到 deep（总计 {len(deep)} 条）")
+
     return deep, light

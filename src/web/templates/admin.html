@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU-Insight 后台管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base:     #0b0d14;
+            --bg-surface:  #111318;
+            --bg-elevated: #161922;
+            --bg-hover:    #1c1f2b;
+            --border-subtle:  rgba(255,255,255,0.06);
+            --border-default: rgba(255,255,255,0.09);
+            --border-strong:  rgba(255,255,255,0.14);
+            --text-primary:   #ececf1;
+            --text-secondary: #8b8fa3;
+            --text-tertiary:  #565869;
+            --accent-blue:    #5b8def;
+            --accent-purple:  #9d8abf;
+            --accent-green:   #5ec49e;
+            --accent-red:     #e5534b;
+            --accent-amber:   #d4a04a;
+        }
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .card {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .status-green { color: var(--accent-green); }
+        .status-yellow { color: var(--accent-amber); }
+        .status-red { color: var(--accent-red); }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        }
+        .status-dot.green { background: var(--accent-green); }
+        .status-dot.yellow { background: var(--accent-amber); }
+        .status-dot.red { background: var(--accent-red); }
+        .alert-ok { background: rgba(94,196,158,0.08); border-left: 3px solid var(--accent-green); }
+        .alert-warning { background: rgba(212,160,74,0.08); border-left: 3px solid var(--accent-amber); }
+        .alert-error { background: rgba(229,83,75,0.08); border-left: 3px solid var(--accent-red); }
+        .tag {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 12px; margin: 2px;
+        }
+        .tag-pain { background: rgba(229,83,75,0.12); color: #e5534b; }
+        .tag-model { background: rgba(91,141,239,0.12); color: #5b8def; }
+        .tag-hot { background: rgba(212,160,74,0.12); color: #d4a04a; }
+        .tag-signal { background: rgba(157,138,191,0.12); color: #9d8abf; }
+        .progress-bar {
+            height: 8px; border-radius: 4px; background: var(--bg-elevated);
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; border-radius: 4px; transition: width 0.3s;
+        }
+        nav a { color: var(--text-secondary); text-decoration: none; padding: 8px 16px; border-radius: 6px; }
+        nav a:hover { color: var(--text-primary); background: var(--bg-hover); }
+        nav a.active { color: var(--accent-blue); background: rgba(91,141,239,0.08); }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; color: var(--text-tertiary); font-weight: 500; font-size: 12px; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+        td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 14px; }
+        .section-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    </style>
+</head>
+<body>
+    <!-- 导航 -->
+    <nav style="background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); padding: 12px 24px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-weight: 600; margin-right: 24px;">GPU-Insight</span>
+        <a href="/">仪表盘</a>
+        <a href="/trends">趋势</a>
+        <a href="/history">历史</a>
+        <a href="/report">报告</a>
+        <a href="/admin" class="active">管理</a>
+    </nav>
+
+    <div style="max-width: 1200px; margin: 0 auto; padding: 24px;">
+        <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px;">
+            <span class="material-icons" style="vertical-align: middle; font-size: 22px; color: var(--accent-blue);">admin_panel_settings</span>
+            后台管理
+        </h1>
+
+        <!-- 异常告警 -->
+        {% for alert in alerts %}
+        <div class="alert-{{ alert.level }}" style="padding: 10px 16px; border-radius: 8px; margin-bottom: 8px; font-size: 14px;">
+            {% if alert.level == 'error' %}
+            <span class="material-icons" style="font-size: 16px; vertical-align: middle; color: var(--accent-red);">error</span>
+            {% elif alert.level == 'warning' %}
+            <span class="material-icons" style="font-size: 16px; vertical-align: middle; color: var(--accent-amber);">warning</span>
+            {% else %}
+            <span class="material-icons" style="font-size: 16px; vertical-align: middle; color: var(--accent-green);">check_circle</span>
+            {% endif %}
+            {{ alert.msg }}
+        </div>
+        {% endfor %}
+
+        <!-- 统计卡片 -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 20px 0;">
+            <div class="card" style="padding: 16px;">
+                <div style="color: var(--text-tertiary); font-size: 12px;">累计帖子</div>
+                <div class="mono" style="font-size: 28px; font-weight: 600;">{{ stats.total_posts }}</div>
+            </div>
+            <div class="card" style="padding: 16px;">
+                <div style="color: var(--text-tertiary); font-size: 12px;">分析轮次</div>
+                <div class="mono" style="font-size: 28px; font-weight: 600;">{{ stats.total_runs }}</div>
+            </div>
+            <div class="card" style="padding: 16px;">
+                <div style="color: var(--text-tertiary); font-size: 12px;">月度成本</div>
+                <div class="mono" style="font-size: 28px; font-weight: 600;">${{ cost.monthly }}</div>
+                <div class="progress-bar" style="margin-top: 8px;">
+                    <div class="progress-fill" style="width: {{ cost.pct }}%; background: {% if cost.pct > 90 %}var(--accent-red){% elif cost.pct > 80 %}var(--accent-amber){% else %}var(--accent-green){% endif %};"></div>
+                </div>
+                <div style="color: var(--text-tertiary); font-size: 11px; margin-top: 4px;">{{ cost.pct }}% / ${{ cost.budget }}</div>
+            </div>
+            <div class="card" style="padding: 16px;">
+                <div style="color: var(--text-tertiary); font-size: 12px;">信号词库</div>
+                <div class="mono" style="font-size: 28px; font-weight: 600;">{{ keywords.signals_count }}</div>
+                <div style="color: var(--text-tertiary); font-size: 11px; margin-top: 4px;">中英文合计</div>
+            </div>
+        </div>
+
+        <!-- 两列布局 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+
+            <!-- 左列：数据源健康 -->
+            <div class="card" style="padding: 20px;">
+                <div class="section-title">
+                    <span class="material-icons" style="font-size: 16px;">dns</span>
+                    数据源健康
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>来源</th><th>状态</th><th>本轮</th><th>累计</th><th>更新</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for s in sources %}
+                        <tr>
+                            <td style="font-weight: 500;">{{ s.name }}</td>
+                            <td><span class="status-dot {{ s.status }}"></span></td>
+                            <td class="mono">{{ s.last_count }}</td>
+                            <td class="mono">{{ s.total }}</td>
+                            <td style="color: var(--text-secondary); font-size: 12px;">{{ s.last_at }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not sources %}
+                        <tr><td colspan="5" style="color: var(--text-tertiary); text-align: center;">暂无数据</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 右列：搜索关键词 -->
+            <div class="card" style="padding: 20px;">
+                <div class="section-title">
+                    <span class="material-icons" style="font-size: 16px;">search</span>
+                    搜索关键词
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <div style="color: var(--text-tertiary); font-size: 12px; margin-bottom: 6px;">Bilibili ({{ keywords.bilibili|length }} 词)</div>
+                    {% for kw in keywords.bilibili %}
+                    <span class="tag tag-pain">{{ kw }}</span>
+                    {% endfor %}
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <div style="color: var(--text-tertiary); font-size: 12px; margin-bottom: 6px;">Reddit ({{ keywords.reddit|length }} 词)</div>
+                    {% for kw in keywords.reddit %}
+                    <span class="tag tag-model">{{ kw }}</span>
+                    {% endfor %}
+                </div>
+
+                <div>
+                    <div style="color: var(--text-tertiary); font-size: 12px; margin-bottom: 6px;">
+                        热词发现
+                        <span class="mono" style="font-size: 11px;">
+                            {{ keywords.discovered.zh_count }}/{{ keywords.discovered.zh_capacity }} 中文,
+                            {{ keywords.discovered.en_count }}/{{ keywords.discovered.en_capacity }} 英文
+                        </span>
+                        {% if keywords.discovered.last_updated %}
+                        <span style="font-size: 11px; color: var(--text-tertiary);">· {{ keywords.discovered.last_updated }}</span>
+                        {% endif %}
+                    </div>
+                    {% if keywords.discovered.zh %}
+                        {% for item in keywords.discovered.zh %}
+                        <span class="tag tag-hot" title="出现{{ item.total_mentions }}次 | 衰减{{ item.decay_score }}">
+                            {{ item.word }}
+                            <span class="mono" style="font-size: 10px; opacity: 0.6;">×{{ item.total_mentions }}</span>
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <span style="color: var(--text-tertiary); font-size: 12px;">暂无自动发现的热词</span>
+                    {% endif %}
+                    {% if keywords.discovered.en %}
+                        <div style="margin-top: 6px;">
+                        {% for item in keywords.discovered.en %}
+                        <span class="tag tag-hot" title="出现{{ item.total_mentions }}次 | 衰减{{ item.decay_score }}">
+                            {{ item.word }}
+                            <span class="mono" style="font-size: 10px; opacity: 0.6;">×{{ item.total_mentions }}</span>
+                        </span>
+                        {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统信息 -->
+        <div class="card" style="padding: 20px; margin-top: 16px;">
+            <div class="section-title">
+                <span class="material-icons" style="font-size: 16px;">info</span>
+                系统信息
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; font-size: 13px;">
+                <div>
+                    <span style="color: var(--text-tertiary);">数据源</span>
+                    <span class="mono">{{ sources|length }} 个活跃</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-tertiary);">预算状态</span>
+                    <span class="status-{% if cost.status == 'normal' %}green{% elif cost.status == 'warning' %}yellow{% else %}red{% endif %}">
+                        {{ cost.status }}
+                    </span>
+                </div>
+                <div>
+                    <span style="color: var(--text-tertiary);">热词衰减</span>
+                    <span class="mono">14天周期</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-tertiary);">MIN_DATE</span>
+                    <span class="mono">2025-01-01</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-tertiary);">L2 batch_size</span>
+                    <span class="mono">25</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-tertiary);">版本</span>
+                    <span class="mono">v8</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

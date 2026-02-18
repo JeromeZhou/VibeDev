@@ -284,6 +284,131 @@ async def health():
     return {"status": "ok", "service": "GPU-Insight"}
 
 
+@app.get("/admin")
+async def admin(request: Request):
+    """后台管理页面 — 数据源健康 + 成本 + 异常告警 + 关键词管理"""
+    from src.utils.db import get_db
+    from src.utils.keywords import get_discovered_stats, get_bilibili_keywords, get_reddit_queries, get_pain_signals
+
+    # 1. 数据源健康
+    sources = []
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT source, last_scrape_at, last_post_count, total_scraped FROM scrape_checkpoints ORDER BY source"
+        ).fetchall()
+        for r in rows:
+            last_at = r["last_scrape_at"] or ""
+            # 计算距今多久
+            status = "green"
+            ago = ""
+            if last_at:
+                from datetime import datetime
+                try:
+                    last_dt = datetime.strptime(last_at, "%Y-%m-%d %H:%M:%S")
+                    diff = (datetime.now() - last_dt).total_seconds()
+                    if diff < 3600:
+                        ago = f"{int(diff/60)}分钟前"
+                    elif diff < 86400:
+                        ago = f"{int(diff/3600)}小时前"
+                    else:
+                        ago = f"{int(diff/86400)}天前"
+                    if diff > 14400:  # >4h
+                        status = "red"
+                    elif diff > 7200:  # >2h
+                        status = "yellow"
+                except (ValueError, TypeError):
+                    ago = last_at[:16]
+            sources.append({
+                "name": r["source"],
+                "status": status,
+                "last_at": ago or "从未",
+                "last_count": r["last_post_count"],
+                "total": r["total_scraped"],
+            })
+        conn.close()
+    except Exception:
+        pass
+
+    # 2. 成本信息
+    cost_info = {"monthly": 0, "budget": 80, "pct": 0, "status": "normal"}
+    try:
+        from src.utils.cost_tracker import CostTracker
+        from src.utils.config import load_config
+        config = load_config()
+        tracker = CostTracker(config)
+        budget = tracker.check_budget()
+        cost_info = {
+            "monthly": round(budget["monthly_cost"], 2),
+            "budget": budget["budget"],
+            "pct": round(budget["monthly_cost"] / budget["budget"] * 100, 1),
+            "status": budget["status"],
+        }
+    except Exception:
+        pass
+
+    # 3. 异常告警
+    alerts = []
+    try:
+        conn = get_db()
+        # 检查最新一轮
+        latest = conn.execute("SELECT MAX(run_date) as rd FROM pphi_history").fetchone()
+        if latest and latest["rd"]:
+            rd = latest["rd"]
+            pain_count = conn.execute(
+                "SELECT COUNT(*) as c FROM pphi_history WHERE run_date = ?", (rd,)
+            ).fetchone()["c"]
+            if pain_count == 0:
+                alerts.append({"level": "error", "msg": f"最新轮次 {rd} 痛点数为 0"})
+
+            # 检查隐藏需求是否全空
+            needs = conn.execute(
+                "SELECT COUNT(*) as c FROM pphi_history WHERE run_date = ? AND hidden_need != '' AND hidden_need IS NOT NULL", (rd,)
+            ).fetchone()["c"]
+            if needs == 0 and pain_count > 0:
+                alerts.append({"level": "warning", "msg": f"最新轮次隐藏需求全部为空"})
+
+        # 检查爬虫超时（>8h 未更新）
+        stale = conn.execute(
+            """SELECT source FROM scrape_checkpoints
+               WHERE last_scrape_at < datetime('now', '-8 hours')"""
+        ).fetchall()
+        for r in stale:
+            alerts.append({"level": "warning", "msg": f"数据源 {r['source']} 超过 8 小时未更新"})
+
+        conn.close()
+    except Exception:
+        pass
+
+    if cost_info["pct"] > 90:
+        alerts.insert(0, {"level": "error", "msg": f"月度成本已达 {cost_info['pct']}%，接近预算上限"})
+    elif cost_info["pct"] > 80:
+        alerts.insert(0, {"level": "warning", "msg": f"月度成本已达 {cost_info['pct']}%"})
+
+    if not alerts:
+        alerts.append({"level": "ok", "msg": "系统运行正常，无异常"})
+
+    # 4. 关键词管理
+    keywords_info = {
+        "bilibili": get_bilibili_keywords(),
+        "reddit": get_reddit_queries(),
+        "signals_count": len(get_pain_signals()),
+        "discovered": get_discovered_stats(),
+    }
+
+    # 5. 累计统计
+    stats = _get_cumulative_stats()
+
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "sources": sources,
+        "cost": cost_info,
+        "alerts": alerts,
+        "keywords": keywords_info,
+        "stats": stats,
+    })
+
+
 @app.get("/report")
 async def report(request: Request):
     """打印友好的分析报告页（浏览器 Ctrl+P 导出 PDF）"""
