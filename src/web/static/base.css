@@ -533,3 +533,67 @@ td {
         animation: none;
     }
 }
+
+/* ══════════════════════════════════════════
+   v1.2 Responsive + Navigation
+   ══════════════════════════════════════════ */
+
+/* ── 汉堡菜单按钮（默认隐藏）── */
+.nav-hamburger {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+}
+.nav-hamburger .material-icons { font-size: 22px; }
+
+/* ── 导航链接容器 ── */
+.nav-links {
+    display: contents;
+}
+
+/* ── 平板 ── */
+@media (max-width: 1024px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .page-container { padding: 20px 16px; }
+}
+
+/* ── 手机 ── */
+@media (max-width: 768px) {
+    .nav-hamburger { display: flex; }
+    .nav-links {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        gap: 2px;
+        padding: 4px 0;
+    }
+    .site-nav {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 8px 16px;
+        gap: 4px;
+    }
+    .site-nav .nav-brand { margin-right: auto; }
+    .nav-open .nav-links { display: flex; }
+    .nav-links a { width: 100%; padding: 8px 12px; }
+    .nav-spacer { display: none; }
+
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .page-container { padding: 16px 12px; }
+
+    .ranking-row { gap: 10px; padding: 10px 12px; }
+    .ranking-score { font-size: 14px; }
+    .ranking-top .ranking-score { font-size: 16px; }
+}
+
+@media (max-width: 480px) {
+    .grid-4 { grid-template-columns: 1fr; }
+    .text-2xl { font-size: 20px; }
+    .ranking-meta { display: none; }
+}
+

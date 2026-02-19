@@ -1,14 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>历史轮次 — GPU-Insight</title>
-    <link href="/static/base.css?v=1.1" rel="stylesheet">
-    <script src="/static/theme.js"></script>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
+{% extends "base.html" %}
+{% block title %}GPU-Insight 历史轮次{% endblock %}
+
+{% block head %}
+<style>
         .run-icon {
             width: 40px; height: 40px;
             border-radius: 8px;
@@ -54,22 +48,10 @@
             border-color: var(--border-default);
         }
     </style>
-</head>
-<body>
-    <nav class="site-nav">
-        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
-        <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
-        <a href="/gpu-models"><span class="material-icons">memory</span> 型号</a>
-        <a href="/trends"><span class="material-icons">trending_up</span> 趋势</a>
-        <a href="/history" class="active"><span class="material-icons">history</span> 历史</a>
-        <a href="/report"><span class="material-icons">description</span> 报告</a>
-        <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
-        <span class="nav-spacer"></span>
-        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
-    </nav>
+{% endblock %}
 
-    <main class="page-container">
-        <div class="card p-6 animate-in">
+{% block content %}
+<div class="card p-6 animate-in">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
                     <span class="material-icons" style="color: var(--accent-amber);">schedule</span>
@@ -120,16 +102,10 @@
             </div>
             {% endif %}
         </div>
-    </main>
+{% endblock %}
 
-    <footer class="living-footer">
-        <span class="footer-status">
-            <span class="footer-dot"></span>
-            GPU-Insight · AI 持续分析中
-        </span>
-    </footer>
-
-    <script>
+{% block scripts %}
+<script>
     document.getElementById('searchBox').addEventListener('input', function(e) {
         const query = e.target.value.toLowerCase();
         document.querySelectorAll('.run-item').forEach(function(item) {
@@ -138,5 +114,4 @@
         });
     });
     </script>
-</body>
-</html>
+{% endblock %}

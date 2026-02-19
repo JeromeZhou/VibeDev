@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GPU-Insight{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link href="/static/base.css?v=1.2" rel="stylesheet">
+    <script src="/static/theme.js"></script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="site-nav">
+        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
+        <button class="nav-hamburger" onclick="document.querySelector('.site-nav').classList.toggle('nav-open')">
+            <span class="material-icons">menu</span>
+        </button>
+        <div class="nav-links">
+            <a href="/" {% if active_page == 'dashboard' %}class="active"{% endif %}><span class="material-icons">dashboard</span> 仪表盘</a>
+            <a href="/gpu-models" {% if active_page == 'gpu_models' %}class="active"{% endif %}><span class="material-icons">memory</span> 型号</a>
+            <a href="/trends" {% if active_page == 'trends' %}class="active"{% endif %}><span class="material-icons">trending_up</span> 趋势</a>
+            <a href="/history" {% if active_page == 'history' %}class="active"{% endif %}><span class="material-icons">history</span> 历史</a>
+            <a href="/report" {% if active_page == 'report' %}class="active"{% endif %}><span class="material-icons">description</span> 报告</a>
+            <a href="/admin" {% if active_page == 'admin' %}class="active"{% endif %}><span class="material-icons">admin_panel_settings</span> 管理</a>
+        </div>
+        <span class="nav-spacer"></span>
+        {% block nav_extra %}{% endblock %}
+        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
+    </nav>
+
+    <main class="page-container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="living-footer">
+        <span class="footer-status">
+            <span class="footer-dot"></span>
+            GPU-Insight · AI 持续分析中
+        </span>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

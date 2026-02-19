@@ -1,14 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPU-Insight 后台管理</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link href="/static/base.css?v=1.1" rel="stylesheet">
-    <script src="/static/theme.js"></script>
-    <style>
+{% extends "base.html" %}
+{% block title %}GPU-Insight 后台管理{% endblock %}
+
+{% block head %}
+<style>
         .status-green { color: var(--accent-green); }
         .status-yellow { color: var(--accent-amber); }
         .status-red { color: var(--accent-red); }
@@ -37,23 +31,10 @@
             height: 100%; border-radius: 4px; transition: width 0.3s;
         }
     </style>
-</head>
-<body>
-    <!-- 导航 -->
-    <nav class="site-nav">
-        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
-        <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
-        <a href="/gpu-models"><span class="material-icons">memory</span> 型号</a>
-        <a href="/trends"><span class="material-icons">trending_up</span> 趋势</a>
-        <a href="/history"><span class="material-icons">history</span> 历史</a>
-        <a href="/report"><span class="material-icons">description</span> 报告</a>
-        <a href="/admin" class="active"><span class="material-icons">admin_panel_settings</span> 管理</a>
-        <span class="nav-spacer"></span>
-        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
-    </nav>
+{% endblock %}
 
-    <main class="page-container">
-        <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px;">
+{% block content %}
+<h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px;">
             <span class="material-icons" style="vertical-align: middle; font-size: 22px; color: var(--accent-blue);">admin_panel_settings</span>
             后台管理
         </h1>
@@ -214,7 +195,7 @@
                 </div>
                 <div>
                     <span style="color: var(--text-tertiary);">版本</span>
-                    <span class="mono">v9</span>
+                    <span class="mono">v1.2</span>
                 </div>
             </div>
         </div>
@@ -270,13 +251,4 @@
             <div style="color: var(--text-tertiary); font-size: 12px;">暂无过滤数据（等待首次 pipeline 运行）</div>
             {% endif %}
         </div>
-    </main>
-
-    <footer class="living-footer">
-        <span class="footer-status">
-            <span class="footer-dot"></span>
-            GPU-Insight · AI 持续分析中
-        </span>
-    </footer>
-</body>
-</html>
+{% endblock %}

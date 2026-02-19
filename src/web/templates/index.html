@@ -1,311 +1,287 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPU-Insight 痛点仪表盘</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link href="/static/base.css?v=1.1" rel="stylesheet">
-    <script src="/static/theme.js"></script>
-    <style>
-        /* 统计卡片左色条 */
-        .stat-card { position: relative; overflow: hidden; }
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; bottom: 0;
-            width: 2px;
-            border-radius: 12px 0 0 12px;
-        }
-        .stat-1::before { background: var(--accent-blue); }
-        .stat-2::before { background: var(--accent-green); }
-        .stat-3::before { background: var(--accent-purple); }
-        .stat-4::before { background: var(--accent-amber); }
+{% extends "base.html" %}
+{% block title %}GPU-Insight 痛点仪表盘{% endblock %}
 
-        /* ── 排名行 ── */
-        .ranking-row {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border-subtle);
-            transition: background 0.15s;
-        }
-        .ranking-row:last-child { border-bottom: none; }
-        .ranking-row:hover { background: var(--bg-hover); }
-        .ranking-top { padding: 18px 16px; }
+{% block nav_extra %}
+<button class="theme-toggle" onclick="document.getElementById('aboutModal').classList.add('active')" style="margin-right: 4px;">
+    <span class="material-icons">info_outline</span>
+</button>
+{% endblock %}
 
-        .ranking-rank {
-            width: 32px;
-            text-align: center;
-            flex-shrink: 0;
-        }
+{% block head %}
+<style>
+    /* 统计卡片左色条 */
+    .stat-card { position: relative; overflow: hidden; }
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; bottom: 0;
+        width: 2px;
+        border-radius: 12px 0 0 12px;
+    }
+    .stat-1::before { background: var(--accent-blue); }
+    .stat-2::before { background: var(--accent-green); }
+    .stat-3::before { background: var(--accent-purple); }
+    .stat-4::before { background: var(--accent-amber); }
 
-        .ranking-content {
-            flex: 1;
-            min-width: 0;
-        }
-        .ranking-header {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 6px;
-        }
-        .ranking-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-primary);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .ranking-top .ranking-name {
-            font-size: 15px;
-            font-weight: 600;
-        }
-        .ranking-cat {
-            font-size: 11px;
-            color: var(--text-tertiary);
-            background: var(--bg-elevated);
-            padding: 1px 6px;
-            border-radius: 4px;
-            border: 1px solid var(--border-subtle);
-            flex-shrink: 0;
-        }
-        .ranking-meta {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-        .ranking-stats {
-            font-size: 12px;
-            color: var(--text-tertiary);
-            margin-left: 4px;
-        }
+    /* ── 排名行 ── */
+    .ranking-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border-subtle);
+        transition: background 0.15s;
+    }
+    .ranking-row:last-child { border-bottom: none; }
+    .ranking-row:hover { background: var(--bg-hover); }
+    .ranking-top { padding: 18px 16px; }
 
-        .ranking-score {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-shrink: 0;
-            font-size: 16px;
-        }
-        .ranking-top .ranking-score { font-size: 18px; }
+    .ranking-rank {
+        width: 32px;
+        text-align: center;
+        flex-shrink: 0;
+    }
 
-        .expand-btn {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-subtle);
-            transition: border-color 0.2s;
-        }
-        .expand-btn:hover { border-color: var(--border-default); }
+    .ranking-content {
+        flex: 1;
+        min-width: 0;
+    }
+    .ranking-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    .ranking-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .ranking-top .ranking-name {
+        font-size: 15px;
+        font-weight: 600;
+    }
+    .ranking-cat {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        background: var(--bg-elevated);
+        padding: 1px 6px;
+        border-radius: 4px;
+        border: 1px solid var(--border-subtle);
+        flex-shrink: 0;
+    }
+    .ranking-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .ranking-stats {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        margin-left: 4px;
+    }
 
-        .ranking-extra { display: none; }
-        .ranking-extra.show { display: flex; }
+    .ranking-score {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        font-size: 16px;
+    }
+    .ranking-top .ranking-score { font-size: 18px; }
 
-        /* PPHI tooltip */
-        .pphi-tooltip { position: relative; cursor: help; }
-        .pphi-tooltip .pphi-tip-text {
-            visibility: hidden; opacity: 0;
-            position: absolute; top: calc(100% + 8px); left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-default);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 12px; font-weight: 400;
-            color: var(--text-secondary);
-            white-space: nowrap; z-index: 10;
-            transition: opacity 0.15s;
-        }
-        .pphi-tooltip:hover .pphi-tip-text { visibility: visible; opacity: 1; }
+    .expand-btn {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-subtle);
+        transition: border-color 0.2s;
+    }
+    .expand-btn:hover { border-color: var(--border-default); }
 
-        /* 关于弹窗 */
-        .modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.6);
-            z-index: 50;
-            display: none;
-            align-items: center; justify-content: center;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal-content {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-default);
-            border-radius: 12px;
-            max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto;
-        }
-    </style>
-</head>
-<body>
-    <!-- 导航 -->
-    <nav class="site-nav">
-        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
-        <a href="/" class="active"><span class="material-icons">dashboard</span> 仪表盘</a>
-        <a href="/gpu-models"><span class="material-icons">memory</span> 型号</a>
-        <a href="/trends"><span class="material-icons">trending_up</span> 趋势</a>
-        <a href="/history"><span class="material-icons">history</span> 历史</a>
-        <a href="/report"><span class="material-icons">description</span> 报告</a>
-        <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
-        <span class="nav-spacer"></span>
-        <button class="theme-toggle" onclick="document.getElementById('aboutModal').classList.add('active')" style="margin-right: 4px;">
-            <span class="material-icons">info_outline</span>
+    .ranking-extra { display: none; }
+    .ranking-extra.show { display: flex; }
+
+    /* PPHI tooltip */
+    .pphi-tooltip { position: relative; cursor: help; }
+    .pphi-tooltip .pphi-tip-text {
+        visibility: hidden; opacity: 0;
+        position: absolute; top: calc(100% + 8px); left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px; font-weight: 400;
+        color: var(--text-secondary);
+        white-space: nowrap; z-index: 10;
+        transition: opacity 0.15s;
+    }
+    .pphi-tooltip:hover .pphi-tip-text { visibility: visible; opacity: 1; }
+
+    /* 关于弹窗 */
+    .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 50;
+        display: none;
+        align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- 更新时间 -->
+    <div class="flex items-center justify-between mb-4" style="margin-top: 4px;">
+        <div></div>
+        <span class="text-xs" style="color: var(--text-tertiary);">{{ updated_at }}</span>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="grid grid-4 gap-4 mb-6">
+        <div class="card stat-card stat-1 p-4 animate-in delay-1">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="material-icons text-base" style="color: var(--accent-blue);">bug_report</span>
+                <span class="text-xs font-medium" style="color: var(--text-tertiary);">当前痛点</span>
+            </div>
+            <span class="text-2xl font-semibold mono">{{ data.total_pain_points }}</span>
+        </div>
+        <div class="card stat-card stat-2 p-4 animate-in delay-2">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="material-icons text-base" style="color: var(--accent-green);">article</span>
+                <span class="text-xs font-medium" style="color: var(--text-tertiary);">累计帖子</span>
+            </div>
+            <span class="text-2xl font-semibold mono">{{ stats.total_posts }}</span>
+        </div>
+        <div class="card stat-card stat-3 p-4 animate-in delay-3">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="material-icons text-base" style="color: var(--accent-purple);">replay</span>
+                <span class="text-xs font-medium" style="color: var(--text-tertiary);">分析轮次</span>
+            </div>
+            <span class="text-2xl font-semibold mono">{{ stats.total_runs }}</span>
+        </div>
+        <div class="card stat-card stat-4 p-4 animate-in delay-4">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="material-icons text-base" style="color: var(--accent-amber);">language</span>
+                <span class="text-xs font-medium" style="color: var(--text-tertiary);">数据源</span>
+            </div>
+            <span class="text-2xl font-semibold mono">{{ stats.total_sources }}</span>
+        </div>
+    </div>
+
+    {% if delta.new_pains > 0 or delta.new_models > 0 %}
+    <div class="flex items-center gap-3 mb-4 px-1 text-xs" style="color: var(--text-tertiary);">
+        <span class="material-icons" style="font-size: 14px; color: var(--accent-green);">trending_up</span>
+        <span>本轮变化：</span>
+        {% if delta.new_pains > 0 %}
+        <span style="color: var(--accent-green);">+{{ delta.new_pains }} 新痛点</span>
+        {% endif %}
+        {% if delta.new_models > 0 %}
+        <span style="color: var(--accent-blue);">+{{ delta.new_models }} 新型号</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- 痛点排名 -->
+    <div class="card p-5 ambient-arc">
+        <div class="flex items-center justify-between mb-4">
+            <div class="section-title" style="margin-bottom: 0;">
+                <span class="material-icons" style="color: var(--accent-blue);">leaderboard</span>
+                痛点排名
+                <span class="pphi-tooltip">
+                    <span class="material-icons" style="font-size: 14px; color: var(--text-tertiary);">help_outline</span>
+                    <span class="pphi-tip-text">PPHI = Pain Point Heat Index，综合讨论量、情感强度、传播范围加权计算</span>
+                </span>
+            </div>
+            <span class="text-xs mono" style="color: var(--text-tertiary);">PPHI Index · 共 {{ rankings | length }} 项</span>
+        </div>
+
+        {% if rankings %}
+        <div id="rankingList">
+            {% for r in rankings %}
+            <a href="/pain-point/{{ r.rank }}"
+               class="ranking-row {% if r.rank <= 3 %}ranking-top{% endif %}
+                      {% if r.rank > 10 %}ranking-extra{% endif %}"
+               style="animation: fadeInUp 0.3s ease forwards; animation-delay: {{ r.rank * 0.03 }}s; opacity: 0;">
+
+                <!-- 左：排名 -->
+                <div class="ranking-rank">
+                    {% if r.rank <= 3 %}
+                    <span class="rank-medal {% if r.rank == 1 %}medal-gold{% elif r.rank == 2 %}medal-silver{% else %}medal-bronze{% endif %}">{{ r.rank }}</span>
+                    {% else %}
+                    <span class="mono text-xs font-semibold" style="color: var(--text-tertiary);">#{{ r.rank }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- 中：内容 -->
+                <div class="ranking-content">
+                    <div class="ranking-header">
+                        {% if r.get('trend') == 'hot' %}<span class="trend-up text-xs font-semibold" title="连续上升">🔥</span>
+                        {% elif r.get('trend') == 'rising' %}<span class="trend-up text-xs font-semibold">↑</span>
+                        {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-semibold">↓</span>
+                        {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
+                        {% else %}<span class="trend-new text-xs font-semibold">★</span>{% endif %}
+                        <span class="ranking-name">{{ r.pain_point }}</span>
+                        {% if r.get('category') %}
+                        <span class="ranking-cat">{{ r.category }}</span>
+                        {% endif %}
+                        {% if r.get('quality_tier') == 'gold' %}<span class="text-xs" title="已验证">🥇</span>
+                        {% elif r.get('quality_tier') == 'silver' %}<span class="text-xs" title="部分验证">🥈</span>{% endif %}
+                    </div>
+                    <div class="ranking-meta">
+                        {% set all_models = r.get('gpu_tags', {}).get('models', []) %}
+                        {% for m in all_models[:4] %}
+                        <span class="gpu-tag">{{ m }}</span>
+                        {% endfor %}
+                        {% if all_models | length > 4 %}
+                        <span class="gpu-tag" style="opacity: 0.5;">+{{ all_models | length - 4 }}</span>
+                        {% endif %}
+                        <span class="ranking-stats">
+                            {% for src in r.get('sources', [])[:3] %}
+                            <span class="source-dot {{ src }}"></span>
+                            {% endfor %}
+                            {{ r.get('mentions', 0) }} 讨论 · {{ r.get('sources', []) | length }} 来源
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 右：PPHI 分数 -->
+                <div class="ranking-score">
+                    <span class="mono font-semibold {% if r.rank <= 3 %}pphi-pulse{% endif %}"
+                        style="{% if r.rank <= 3 %}--pulse-color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% else %}var(--accent-bronze){% endif %};{% endif %} color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% elif r.rank == 3 %}var(--accent-bronze){% else %}var(--accent-blue){% endif %};">
+                        {{ r.pphi_score }}
+                    </span>
+                    <span class="material-icons" style="color: var(--text-tertiary); font-size: 18px;">chevron_right</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if rankings | length > 10 %}
+        <button id="expandBtn" onclick="toggleExpand()"
+                class="expand-btn w-full mt-4 py-3 rounded-lg text-sm font-medium flex items-center cursor-pointer"
+                style="color: var(--accent-blue); justify-content: center; gap: 8px;">
+            <span class="material-icons text-base" id="expandIcon">expand_more</span>
+            <span id="expandText">查看全部 {{ rankings | length }} 个痛点</span>
         </button>
-        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
-    </nav>
-
-    <main class="page-container">
-        <!-- 更新时间 -->
-        <div class="flex items-center justify-between mb-4" style="margin-top: 4px;">
-            <div></div>
-            <span class="text-xs" style="color: var(--text-tertiary);">{{ updated_at }}</span>
-        </div>
-
-        <!-- 统计卡片 -->
-        <div class="grid grid-4 gap-4 mb-6">
-            <div class="card stat-card stat-1 p-4 animate-in delay-1">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-base" style="color: var(--accent-blue);">bug_report</span>
-                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">当前痛点</span>
-                </div>
-                <span class="text-2xl font-semibold mono">{{ data.total_pain_points }}</span>
-            </div>
-            <div class="card stat-card stat-2 p-4 animate-in delay-2">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-base" style="color: var(--accent-green);">article</span>
-                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">累计帖子</span>
-                </div>
-                <span class="text-2xl font-semibold mono">{{ stats.total_posts }}</span>
-            </div>
-            <div class="card stat-card stat-3 p-4 animate-in delay-3">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-base" style="color: var(--accent-purple);">replay</span>
-                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">分析轮次</span>
-                </div>
-                <span class="text-2xl font-semibold mono">{{ stats.total_runs }}</span>
-            </div>
-            <div class="card stat-card stat-4 p-4 animate-in delay-4">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons text-base" style="color: var(--accent-amber);">language</span>
-                    <span class="text-xs font-medium" style="color: var(--text-tertiary);">数据源</span>
-                </div>
-                <span class="text-2xl font-semibold mono">{{ stats.total_sources }}</span>
-            </div>
-        </div>
-
-        {% if delta.new_pains > 0 or delta.new_models > 0 %}
-        <div class="flex items-center gap-3 mb-4 px-1 text-xs" style="color: var(--text-tertiary);">
-            <span class="material-icons" style="font-size: 14px; color: var(--accent-green);">trending_up</span>
-            <span>本轮变化：</span>
-            {% if delta.new_pains > 0 %}
-            <span style="color: var(--accent-green);">+{{ delta.new_pains }} 新痛点</span>
-            {% endif %}
-            {% if delta.new_models > 0 %}
-            <span style="color: var(--accent-blue);">+{{ delta.new_models }} 新型号</span>
-            {% endif %}
-        </div>
         {% endif %}
 
-        <!-- 痛点排名 -->
-        <div class="card p-5 ambient-arc">
-            <div class="flex items-center justify-between mb-4">
-                <div class="section-title" style="margin-bottom: 0;">
-                    <span class="material-icons" style="color: var(--accent-blue);">leaderboard</span>
-                    痛点排名
-                    <span class="pphi-tooltip">
-                        <span class="material-icons" style="font-size: 14px; color: var(--text-tertiary);">help_outline</span>
-                        <span class="pphi-tip-text">PPHI = Pain Point Heat Index，综合讨论量、情感强度、传播范围加权计算</span>
-                    </span>
-                </div>
-                <span class="text-xs mono" style="color: var(--text-tertiary);">PPHI Index · 共 {{ rankings | length }} 项</span>
-            </div>
-
-            {% if rankings %}
-            <div id="rankingList">
-                {% for r in rankings %}
-                <a href="/pain-point/{{ r.rank }}"
-                   class="ranking-row {% if r.rank <= 3 %}ranking-top{% endif %}
-                          {% if r.rank > 10 %}ranking-extra{% endif %}"
-                   style="animation: fadeInUp 0.3s ease forwards; animation-delay: {{ r.rank * 0.03 }}s; opacity: 0;">
-
-                    <!-- 左：排名 -->
-                    <div class="ranking-rank">
-                        {% if r.rank <= 3 %}
-                        <span class="rank-medal {% if r.rank == 1 %}medal-gold{% elif r.rank == 2 %}medal-silver{% else %}medal-bronze{% endif %}">{{ r.rank }}</span>
-                        {% else %}
-                        <span class="mono text-xs font-semibold" style="color: var(--text-tertiary);">#{{ r.rank }}</span>
-                        {% endif %}
-                    </div>
-
-                    <!-- 中：内容 -->
-                    <div class="ranking-content">
-                        <div class="ranking-header">
-                            {% if r.get('trend') == 'hot' %}<span class="trend-up text-xs font-semibold" title="连续上升">🔥</span>
-                            {% elif r.get('trend') == 'rising' %}<span class="trend-up text-xs font-semibold">↑</span>
-                            {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-semibold">↓</span>
-                            {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
-                            {% else %}<span class="trend-new text-xs font-semibold">★</span>{% endif %}
-                            <span class="ranking-name">{{ r.pain_point }}</span>
-                            {% if r.get('category') %}
-                            <span class="ranking-cat">{{ r.category }}</span>
-                            {% endif %}
-                            {% if r.get('quality_tier') == 'gold' %}<span class="text-xs" title="已验证">🥇</span>
-                            {% elif r.get('quality_tier') == 'silver' %}<span class="text-xs" title="部分验证">🥈</span>{% endif %}
-                        </div>
-                        <div class="ranking-meta">
-                            {% set all_models = r.get('gpu_tags', {}).get('models', []) %}
-                            {% for m in all_models[:4] %}
-                            <span class="gpu-tag">{{ m }}</span>
-                            {% endfor %}
-                            {% if all_models | length > 4 %}
-                            <span class="gpu-tag" style="opacity: 0.5;">+{{ all_models | length - 4 }}</span>
-                            {% endif %}
-                            <span class="ranking-stats">
-                                {% for src in r.get('sources', [])[:3] %}
-                                <span class="source-dot {{ src }}"></span>
-                                {% endfor %}
-                                {{ r.get('mentions', 0) }} 讨论 · {{ r.get('sources', []) | length }} 来源
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- 右：PPHI 分数 -->
-                    <div class="ranking-score">
-                        <span class="mono font-semibold {% if r.rank <= 3 %}pphi-pulse{% endif %}"
-                            style="{% if r.rank <= 3 %}--pulse-color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% else %}var(--accent-bronze){% endif %};{% endif %} color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% elif r.rank == 3 %}var(--accent-bronze){% else %}var(--accent-blue){% endif %};">
-                            {{ r.pphi_score }}
-                        </span>
-                        <span class="material-icons" style="color: var(--text-tertiary); font-size: 18px;">chevron_right</span>
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-
-            {% if rankings | length > 10 %}
-            <button id="expandBtn" onclick="toggleExpand()"
-                    class="expand-btn w-full mt-4 py-3 rounded-lg text-sm font-medium flex items-center cursor-pointer"
-                    style="color: var(--accent-blue); justify-content: center; gap: 8px;">
-                <span class="material-icons text-base" id="expandIcon">expand_more</span>
-                <span id="expandText">查看全部 {{ rankings | length }} 个痛点</span>
-            </button>
-            {% endif %}
-
-            {% else %}
-            <div class="text-center" style="padding: 48px 0;">
-                <span class="material-icons" style="font-size: 36px; color: var(--text-tertiary);">hourglass_empty</span>
-                <p class="mt-2" style="color: var(--text-secondary);">等待首次数据采集...</p>
-            </div>
-            {% endif %}
+        {% else %}
+        <div class="text-center" style="padding: 48px 0;">
+            <span class="material-icons" style="font-size: 36px; color: var(--text-tertiary);">hourglass_empty</span>
+            <p class="mt-2" style="color: var(--text-secondary);">等待首次数据采集...</p>
         </div>
-    </main>
-
-    <footer class="living-footer">
-        <span class="footer-status">
-            <span class="footer-dot"></span>
-            GPU-Insight · AI 持续分析中
-        </span>
-    </footer>
+        {% endif %}
+    </div>
 
     <!-- About Modal -->
     <div id="aboutModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
@@ -359,25 +335,26 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
-    <script>
-    function toggleExpand() {
-        const extras = document.querySelectorAll('.ranking-extra');
-        const icon = document.getElementById('expandIcon');
-        const text = document.getElementById('expandText');
-        const isExpanded = extras[0]?.classList.contains('show');
-        extras.forEach((el, i) => {
-            if (isExpanded) {
-                el.classList.remove('show');
-            } else {
-                el.classList.add('show');
-                el.style.animation = `fadeInUp 0.3s ease forwards`;
-                el.style.animationDelay = `${i * 0.03}s`;
-            }
-        });
-        icon.textContent = isExpanded ? 'expand_more' : 'expand_less';
-        text.textContent = isExpanded ? '查看全部 {{ rankings | length }} 个痛点' : '收起列表';
-    }
-    </script>
-</body>
-</html>
+{% block scripts %}
+<script>
+function toggleExpand() {
+    const extras = document.querySelectorAll('.ranking-extra');
+    const icon = document.getElementById('expandIcon');
+    const text = document.getElementById('expandText');
+    const isExpanded = extras[0]?.classList.contains('show');
+    extras.forEach((el, i) => {
+        if (isExpanded) {
+            el.classList.remove('show');
+        } else {
+            el.classList.add('show');
+            el.style.animation = `fadeInUp 0.3s ease forwards`;
+            el.style.animationDelay = `${i * 0.03}s`;
+        }
+    });
+    icon.textContent = isExpanded ? 'expand_more' : 'expand_less';
+    text.textContent = isExpanded ? '查看全部 {{ rankings | length }} 个痛点' : '收起列表';
+}
+</script>
+{% endblock %}

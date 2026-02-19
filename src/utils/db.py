@@ -132,6 +132,8 @@ def _migrate_tables(conn: sqlite3.Connection):
         ("posts", "relevance_reason", "TEXT"),
         # v9.9: 数据质量分层
         ("pphi_history", "quality_tier", "TEXT DEFAULT 'bronze'"),
+        # v1.2: 证据字段
+        ("pphi_history", "evidence", "TEXT"),
     ]
     for table, column, col_type in migrations:
         try:
@@ -219,8 +221,8 @@ def save_rankings(rankings: list[dict]):
 
         for r in rankings:
             conn.execute(
-                """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes, inferred_need_json, category, affected_users, quality_tier)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes, inferred_need_json, category, affected_users, quality_tier, evidence)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_date,
                     r.get("rank", 0),
@@ -236,6 +238,7 @@ def save_rankings(rankings: list[dict]):
                     r.get("category", ""),
                     r.get("affected_users", ""),
                     r.get("quality_tier", "bronze"),
+                    r.get("evidence", ""),
                 )
             )
 

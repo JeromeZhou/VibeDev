@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>趋势分析 — GPU-Insight</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link href="/static/base.css?v=1.1" rel="stylesheet">
-    <script src="/static/theme.js"></script>
-    <style>
+{% extends "base.html" %}
+{% block title %}GPU-Insight 趋势分析{% endblock %}
+
+{% block head %}
+<style>
         .trend-pill {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600;
@@ -40,22 +33,10 @@
             text-align: center; padding: 16px; border-radius: 8px;
         }
     </style>
-</head>
-<body>
-    <nav class="site-nav">
-        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
-        <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
-        <a href="/gpu-models"><span class="material-icons">memory</span> 型号</a>
-        <a href="/trends" class="active"><span class="material-icons">trending_up</span> 趋势</a>
-        <a href="/history"><span class="material-icons">history</span> 历史</a>
-        <a href="/report"><span class="material-icons">description</span> 报告</a>
-        <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
-        <span class="nav-spacer"></span>
-        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
-    </nav>
+{% endblock %}
 
-    <main class="page-container">
-        <!-- PPHI 趋势图 -->
+{% block content %}
+<!-- PPHI 趋势图 -->
         <div class="card p-6 mb-6 animate-in delay-1">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-base font-semibold flex items-center gap-2">
@@ -141,13 +122,20 @@
                 趋势摘要
             </h2>
             <div class="grid grid-4 gap-4">
-                {% set ns = namespace(rising=0, falling=0, new=0, stable=0) %}
+                {% set ns = namespace(rising=0, falling=0, new=0, stable=0, hot=0) %}
                 {% for r in rankings %}
-                    {% if r.get('trend') == 'rising' %}{% set ns.rising = ns.rising + 1 %}
+                    {% if r.get('trend') == 'hot' %}{% set ns.hot = ns.hot + 1 %}
+                    {% elif r.get('trend') == 'rising' %}{% set ns.rising = ns.rising + 1 %}
                     {% elif r.get('trend') == 'falling' %}{% set ns.falling = ns.falling + 1 %}
                     {% elif r.get('trend') == 'new' %}{% set ns.new = ns.new + 1 %}
                     {% else %}{% set ns.stable = ns.stable + 1 %}{% endif %}
                 {% endfor %}
+                {% if ns.hot > 0 %}
+                <div class="summary-card" style="background: rgba(255,68,68,0.06); border: 1px solid rgba(255,68,68,0.12);">
+                    <p class="text-2xl font-semibold mono" style="color: var(--accent-red);">{{ ns.hot }}</p>
+                    <p class="text-xs mt-1" style="color: var(--text-tertiary);">热门 🔥</p>
+                </div>
+                {% endif %}
                 <div class="summary-card" style="background: rgba(94,196,158,0.06); border: 1px solid rgba(94,196,158,0.12);">
                     <p class="text-2xl font-semibold mono" style="color: var(--accent-green);">{{ ns.rising }}</p>
                     <p class="text-xs mt-1" style="color: var(--text-tertiary);">上升 ↑</p>
@@ -166,16 +154,10 @@
                 </div>
             </div>
         </div>
-    </main>
+{% endblock %}
 
-    <footer class="living-footer">
-        <span class="footer-status">
-            <span class="footer-dot"></span>
-            GPU-Insight · AI 持续分析中
-        </span>
-    </footer>
-
-    <script>
+{% block scripts %}
+<script>
     const trendData = {{ trend_data_json | safe }};
     const sourceData = {{ source_data_json | safe }};
     const evolutionData = {{ evolution_data_json | safe }};
@@ -346,5 +328,4 @@
         bumpCtx.canvas.parentElement.innerHTML = '<div class="flex items-center justify-center" style="height:100%;color:var(--text-tertiary);font-size:14px;"><span class="material-icons" style="margin-right:8px;">hourglass_empty</span>需要至少 2 轮数据才能显示排名演变</div>';
     }
     </script>
-</body>
-</html>
+{% endblock %}

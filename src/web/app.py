@@ -3,11 +3,13 @@
 import json
 import csv
 import io
+import logging
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, StreamingResponse
+from src.utils.db import get_db
 
 app = FastAPI(title="GPU-Insight", description="显卡用户痛点智能分析系统")
 
@@ -29,7 +31,6 @@ def _load_rankings() -> dict:
 def _get_trend_data() -> dict:
     """从 DB 获取 PPHI 趋势数据"""
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             rows = conn.execute(
                 """SELECT run_date, pain_point, pphi_score
@@ -71,7 +72,6 @@ def _get_trend_data() -> dict:
 def _get_source_distribution() -> dict:
     """从 DB 获取来源分布"""
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             rows = conn.execute(
                 "SELECT source, COUNT(*) as cnt FROM posts GROUP BY source"
@@ -88,7 +88,6 @@ def _get_source_distribution() -> dict:
 def _get_cumulative_stats() -> dict:
     """从 DB 获取累计统计"""
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             total_posts = conn.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
             total_runs = conn.execute("SELECT COUNT(DISTINCT run_date) as c FROM pphi_history").fetchone()["c"]
@@ -102,7 +101,6 @@ def _get_cumulative_stats() -> dict:
 def _get_run_delta() -> dict:
     """对比最新两轮 pphi_history，计算新增痛点数和新增 GPU 型号数"""
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             dates = conn.execute(
                 "SELECT DISTINCT run_date FROM pphi_history ORDER BY run_date DESC LIMIT 2"
@@ -187,6 +185,7 @@ async def dashboard(request: Request):
         "updated_at": data.get("timestamp", "尚未运行"),
         "stats": stats,
         "delta": delta,
+        "active_page": "dashboard",
     })
 
 
@@ -199,6 +198,7 @@ async def trends(request: Request):
         "trend_data_json": json.dumps(_get_trend_data(), ensure_ascii=False),
         "source_data_json": json.dumps(_get_source_distribution(), ensure_ascii=False),
         "evolution_data_json": json.dumps(_get_evolution_data(), ensure_ascii=False),
+        "active_page": "trends",
     })
 
 
@@ -210,7 +210,6 @@ def _load_source_posts(pain_point: dict) -> list[dict]:
     if not source_urls:
         return []
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             posts = []
             for url in source_urls[:20]:
@@ -239,6 +238,7 @@ def _load_source_posts(pain_point: dict) -> list[dict]:
                 unique.append(p)
         return unique
     except Exception:
+        logging.exception("DB query failed")
         return []
 
 
@@ -257,6 +257,7 @@ async def pain_point_detail(request: Request, rank: int):
         "pain_point": pain_point,
         "posts": posts,
         "trend_data_json": json.dumps(trend_data, ensure_ascii=False),
+        "active_page": "",
     })
 
 
@@ -316,6 +317,7 @@ async def gpu_models(request: Request):
     return templates.TemplateResponse(request, "gpu_models.html", {
         "models": models,
         "total_models": len(models),
+        "active_page": "gpu_models",
     })
 
 
@@ -334,7 +336,6 @@ async def health():
 @app.get("/admin")
 async def admin(request: Request):
     """后台管理页面 — 数据源健康 + 成本 + 异常告警 + 关键词管理"""
-    from src.utils.db import get_db
     from src.utils.keywords import get_discovered_stats, get_bilibili_keywords, get_reddit_queries, get_pain_signals
 
     # 1. 数据源健康
@@ -374,7 +375,7 @@ async def admin(request: Request):
                     "total": r["total_scraped"],
                 })
     except Exception:
-        pass
+        logging.exception("DB query failed")
 
     # 2. 成本信息
     cost_info = {"monthly": 0, "budget": 80, "pct": 0, "status": "normal"}
@@ -391,7 +392,7 @@ async def admin(request: Request):
             "status": budget["status"],
         }
     except Exception:
-        pass
+        logging.exception("DB query failed")
 
     # 3. 异常告警
     alerts = []
@@ -422,7 +423,7 @@ async def admin(request: Request):
             for r in stale:
                 alerts.append({"level": "warning", "msg": f"数据源 {r['source']} 超过 8 小时未更新"})
     except Exception:
-        pass
+        logging.exception("DB query failed")
 
     if cost_info["pct"] > 90:
         alerts.insert(0, {"level": "error", "msg": f"月度成本已达 {cost_info['pct']}%，接近预算上限"})
@@ -470,7 +471,7 @@ async def admin(request: Request):
                 "recent_drops": [dict(r) for r in recent_drops],
             }
     except Exception:
-        pass
+        logging.exception("DB query failed")
 
     return templates.TemplateResponse(request, "admin.html", {
         "sources": sources,
@@ -479,6 +480,7 @@ async def admin(request: Request):
         "keywords": keywords_info,
         "stats": stats,
         "filter_stats": filter_stats,
+        "active_page": "admin",
     })
 
 
@@ -509,6 +511,7 @@ async def report(request: Request):
         "rankings": data.get("rankings", []),
         "stats": stats,
         "source_dist": source_dist,
+        "active_page": "report",
     })
 
 
@@ -516,7 +519,6 @@ async def report(request: Request):
 async def history(request: Request):
     """历史轮次浏览"""
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             # 获取所有运行轮次
             runs = conn.execute(
@@ -536,10 +538,12 @@ async def history(request: Request):
                 "pain_list": (r["pain_list"] or "")[:100],
             })
     except Exception:
+        logging.exception("DB query failed")
         run_list = []
 
     return templates.TemplateResponse(request, "history.html", {
         "runs": run_list,
+        "active_page": "history",
     })
 
 
@@ -550,7 +554,6 @@ async def history_detail(request: Request, run_date: str = ""):
         from starlette.responses import RedirectResponse
         return RedirectResponse("/history")
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             rows = conn.execute(
                 """SELECT rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, inferred_need_json, category, affected_users
@@ -585,11 +588,13 @@ async def history_detail(request: Request, run_date: str = ""):
                 "trend": "stable",
             })
     except Exception:
+        logging.exception("DB query failed")
         rankings = []
 
     return templates.TemplateResponse(request, "history_detail.html", {
         "run_date": run_date,
         "rankings": rankings,
+        "active_page": "history",
     })
 
 
@@ -620,7 +625,7 @@ async def export_csv():
             r.get("affected_users", ""),
             gpu_models,
             sources,
-            r.get("hidden_need", ""),
+            inferred.get("hidden_need", "") or r.get("hidden_need", ""),
             munger.get("quality_level", ""),
             inferred.get("confidence", ""),
             r.get("evidence", ""),
@@ -653,7 +658,6 @@ async def api_weekly_report():
 def _get_evolution_data() -> dict:
     """获取痛点排名演变数据（Bump Chart 用）"""
     try:
-        from src.utils.db import get_db
         with get_db() as conn:
             rows = conn.execute(
                 """SELECT run_date, pain_point, rank, pphi_score

@@ -206,14 +206,23 @@ def run_pipeline(config: dict):
             if backfill_count > 0:
                 try:
                     from src.utils.db import get_db
+                    import json as _json
                     backfill_names = set(b["pain_point"] for b in backfill)
                     for hn in hidden_needs:
                         orig = hn.get("_original_pain", "") or hn.get("pain_point", "")
                         if orig in backfill_names and hn.get("hidden_need"):
+                            inferred_obj = {
+                                "hidden_need": hn["hidden_need"],
+                                "confidence": hn.get("confidence", 0.5),
+                                "reasoning_chain": hn.get("reasoning_chain", []),
+                                "munger_review": hn.get("munger_review"),
+                            }
                             with get_db() as conn:
                                 conn.execute(
-                                    "UPDATE pphi_history SET hidden_need = ? WHERE pain_point = ? AND (hidden_need IS NULL OR hidden_need = '')",
-                                    (hn["hidden_need"], orig)
+                                    """UPDATE pphi_history SET hidden_need = ?, inferred_need_json = ?
+                                       WHERE pain_point = ? AND (hidden_need IS NULL OR hidden_need = '')
+                                       AND run_date = (SELECT MAX(run_date) FROM pphi_history)""",
+                                    (hn["hidden_need"], _json.dumps(inferred_obj, ensure_ascii=False), orig)
                                 )
                             print(f"    回填: {orig[:25]} → {hn['hidden_need'][:30]}")
                 except Exception as e:
