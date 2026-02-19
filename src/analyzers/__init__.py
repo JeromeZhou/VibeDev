@@ -9,6 +9,8 @@ from src.utils.gpu_tagger import tag_gpu_products
 
 # 12 个分类名（与 system_prompt 中的分类一致）
 _CATEGORY_NAMES = {"性能", "价格", "散热", "噪音", "驱动", "兼容性", "显存", "功耗", "供货", "质量", "生态", "其他"}
+_CATEGORY_NAMES_EN = {"performance", "price", "thermal", "cooling", "noise", "driver", "compatibility",
+                      "vram", "memory", "power", "supply", "quality", "ecosystem", "other", "misc"}
 _VAGUE_PATTERNS = {"问题", "不足", "困难", "不好", "issue", "problem", "issues", "problems"}
 
 
@@ -27,20 +29,29 @@ def _guard_pain_name(parsed: dict) -> dict:
 
     # 去掉 "显卡" 前缀
     clean = name
-    for prefix in ("显卡", "GPU"):
+    for prefix in ("显卡", "GPU ", "gpu "):
         if clean.startswith(prefix):
             clean = clean[len(prefix):]
 
-    # 规则1: 纯分类名
-    is_vague = clean in _CATEGORY_NAMES
+    # 规则1: 纯分类名（中文或英文）
+    is_vague = clean in _CATEGORY_NAMES or clean.lower() in _CATEGORY_NAMES_EN
 
-    # 规则2: "分类+问题/不足" 或 "显卡+分类+问题"
+    # 规则2: "分类+问题/不足" 或 "Category Issue/Problem"
     if not is_vague:
         for suffix in _VAGUE_PATTERNS:
             base = clean.replace(suffix, "").strip()
-            if base in _CATEGORY_NAMES or len(base) <= 2:
+            if base in _CATEGORY_NAMES or base.lower() in _CATEGORY_NAMES_EN or len(base) <= 2:
                 is_vague = True
                 break
+        # 英文模式: "XXX issue(s)" / "XXX problem(s)" 且 XXX 是笼统词
+        if not is_vague:
+            lower = clean.lower().strip()
+            for suffix in ("issue", "issues", "problem", "problems"):
+                if lower.endswith(suffix):
+                    base_en = lower[:-len(suffix)].strip()
+                    if base_en in _CATEGORY_NAMES_EN or len(base_en) <= 3:
+                        is_vague = True
+                        break
 
     if is_vague and evidence:
         # 从 evidence 提取前段作为具体描述

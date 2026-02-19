@@ -231,3 +231,34 @@ class TestPainNameGuard:
         parsed = {"pain_point": "热", "category": "散热", "evidence": "显卡满载温度过高"}
         result = _guard_pain_name(parsed)
         assert len(result["pain_point"]) >= 3
+
+    def test_english_vague_category(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "driver", "category": "驱动", "evidence": "NVIDIA driver crashes after update"}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] != "driver"
+        assert "crash" in result["pain_point"].lower() or "NVIDIA" in result["pain_point"]
+
+    def test_english_vague_with_suffix(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "performance issue", "category": "性能", "evidence": "RTX 5080 drops to 30fps in Cyberpunk"}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] != "performance issue"
+
+    def test_english_gpu_prefix_stripped(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "GPU thermal issues", "category": "散热", "evidence": "GPU hits 95C under load"}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] != "GPU thermal issues"
+
+    def test_english_good_name_unchanged(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "RTX 5080 crashes in Cyberpunk", "category": "性能", "evidence": "some evidence"}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] == "RTX 5080 crashes in Cyberpunk"
+
+    def test_mixed_language_good(self):
+        from src.analyzers import _guard_pain_name
+        parsed = {"pain_point": "RTX 5090散热不足导致降频", "category": "散热", "evidence": ""}
+        result = _guard_pain_name(parsed)
+        assert result["pain_point"] == "RTX 5090散热不足导致降频"

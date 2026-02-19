@@ -4,24 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPU-Insight 痛点分析报告</title>
+    <link href="/static/base.css" rel="stylesheet">
+    <script src="/static/theme.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        /* === 屏幕样式 === */
-        :root {
-            --bg-base:     #0b0d14;
-            --bg-surface:  #111318;
-            --bg-elevated: #161922;
-            --border-subtle:  rgba(255,255,255,0.06);
-            --border-default: rgba(255,255,255,0.09);
-            --text-primary:   #ececf1;
-            --text-secondary: #8b8fa3;
-            --text-tertiary:  #565869;
-            --accent-blue:    #5b8def;
-            --accent-purple:  #9d8abf;
-            --accent-green:   #5ec49e;
-            --accent-red:     #e5534b;
-            --accent-amber:   #d4a04a;
-        }
+        /* === 屏幕样式（使用 base.css 变量） === */
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -307,6 +294,7 @@
     <div class="toolbar">
         <span class="toolbar-title">GPU-Insight · 报告预览</span>
         <div class="toolbar-actions">
+            <button class="btn btn-ghost" onclick="toggleTheme()">🌓 主题</button>
             <a href="/" class="btn btn-ghost">← 返回仪表盘</a>
             <a href="/api/export/csv" class="btn btn-ghost">📊 CSV</a>
             <button onclick="window.print()" class="btn btn-primary">🖨️ 导出 PDF</button>

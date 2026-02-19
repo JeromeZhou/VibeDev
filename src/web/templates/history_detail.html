@@ -78,7 +78,46 @@
                     <!-- Expandable detail -->
                     <div class="detail-panel" style="display: none; border-top: 1px solid var(--border-subtle);">
                         <div class="p-4 space-y-3">
-                            {% if r.get('hidden_need') %}
+                            {% set inferred = r.get('inferred_need') %}
+                            {% if inferred and inferred.get('hidden_need') %}
+                            <div class="flex items-start gap-2">
+                                <span class="material-icons text-sm" style="color: var(--accent-purple); flex-shrink: 0; margin-top: 2px;">psychology</span>
+                                <div class="flex-1">
+                                    <p class="text-xs font-medium mb-1" style="color: var(--text-tertiary);">AI Inferred Need</p>
+                                    <p class="text-sm" style="color: var(--accent-purple);">{{ inferred.hidden_need }}</p>
+                                    {% if inferred.get('reasoning_chain') %}
+                                    <div class="mt-2 p-3 rounded-lg" style="background: var(--bg-surface); border-left: 2px solid var(--accent-purple);">
+                                        <p class="text-xs mb-1" style="color: var(--text-tertiary);">推理链</p>
+                                        <ol style="padding-left: 16px;">
+                                            {% for step in inferred.reasoning_chain %}
+                                            <li class="text-xs mb-1" style="color: var(--text-secondary);">{{ step }}</li>
+                                            {% endfor %}
+                                        </ol>
+                                    </div>
+                                    {% endif %}
+                                    {% set munger = inferred.get('munger_review') %}
+                                    {% if munger %}
+                                    {% set ql = munger.get('quality_level', 'unknown') %}
+                                    <div class="mt-2 flex items-center gap-2">
+                                        <span class="text-xs" style="color: var(--text-tertiary);">Munger:</span>
+                                        {% if ql == 'strong' %}
+                                        <span class="text-xs font-medium" style="color: var(--accent-green);">✓ Strong</span>
+                                        {% elif ql == 'moderate' %}
+                                        <span class="text-xs font-medium" style="color: var(--accent-amber);">◐ Moderate</span>
+                                        {% else %}
+                                        <span class="text-xs font-medium" style="color: var(--accent-red);">✗ Weak</span>
+                                        {% endif %}
+                                        {% if munger.get('comment') %}
+                                        <span class="text-xs" style="color: var(--text-tertiary); font-style: italic;">"{{ munger.comment[:80] }}"</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <div class="mt-1">
+                                        <span class="text-xs mono" style="color: var(--text-tertiary);">置信度: {{ (inferred.get('confidence', 0) * 100) | int }}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% elif r.get('hidden_need') %}
                             <div class="flex items-start gap-2">
                                 <span class="material-icons text-sm" style="color: var(--accent-purple); flex-shrink: 0; margin-top: 2px;">psychology</span>
                                 <div>
@@ -125,7 +164,7 @@
                                 </div>
                             </div>
                             {% endif %}
-                            {% if not r.get('hidden_need') and not r.get('source_urls') and not r.get('gpu_tags', {}).get('models') %}
+                            {% if not r.get('hidden_need') and not r.get('inferred_need') and not r.get('source_urls') and not r.get('gpu_tags', {}).get('models') %}
                             <p class="text-xs" style="color: var(--text-tertiary);">No additional details for this run.</p>
                             {% endif %}
                         </div>

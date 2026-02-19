@@ -385,40 +385,40 @@ def _guard_display_name(name: str, data: dict) -> str:
 
 
 def _detect_trend(pain_point: str, current_score: float) -> str:
-    """检测趋势：对比上一轮 PPHI 历史数据"""
+    """检测趋势：对比最近 3 轮 PPHI 历史数据（规范化名称匹配）"""
     try:
         from src.utils.db import get_db
+        normalized_current, _ = _normalize_pain_point(pain_point)
+
         with get_db() as conn:
-            # 获取最近一次运行的数据（排除当前运行）
+            # 获取最近 4 轮（第 1 轮是当前轮，2-4 是历史）
             rows = conn.execute(
                 """SELECT DISTINCT run_date FROM pphi_history
-                   ORDER BY run_date DESC LIMIT 2"""
+                   ORDER BY run_date DESC LIMIT 4"""
             ).fetchall()
             if len(rows) < 2:
                 return "new"
 
-            prev_date = rows[1]["run_date"]  # 上一轮的日期
+            # 从第 2 轮开始查找匹配（跳过当前轮）
+            prev_dates = [r["run_date"] for r in rows[1:]]
+            placeholders = ",".join("?" * len(prev_dates))
             prev_points = conn.execute(
-                """SELECT pain_point, pphi_score FROM pphi_history
-                   WHERE run_date = ?""",
-                (prev_date,)
+                f"""SELECT pain_point, pphi_score, run_date FROM pphi_history
+                    WHERE run_date IN ({placeholders})
+                    ORDER BY run_date DESC""",
+                prev_dates
             ).fetchall()
 
         if not prev_points:
             return "new"
 
-        # 模糊匹配：找包含相同关键词的痛点
+        # 规范化匹配：找最近一次出现的同名痛点
         best_match_score = None
-        pp_lower = pain_point.lower()
         for row in prev_points:
-            prev_pp = row["pain_point"].lower()
-            # 简单关键词重叠检测
-            pp_chars = set(pp_lower)
-            prev_chars = set(prev_pp)
-            overlap = len(pp_chars & prev_chars) / max(len(pp_chars | prev_chars), 1)
-            if overlap > 0.5:
+            normalized_prev, _ = _normalize_pain_point(row["pain_point"])
+            if normalized_current == normalized_prev:
                 best_match_score = row["pphi_score"]
-                break
+                break  # 取最近一轮的匹配
 
         if best_match_score is None:
             return "new"

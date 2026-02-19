@@ -332,10 +332,11 @@ def run_pipeline(config: dict):
 
     # DB 备份（每轮结束后备份，保留最近 7 份）
     try:
-        from src.utils.db import backup_db
+        from src.utils.db import backup_db, cleanup_old_history
         backup_db()
+        cleanup_old_history(keep_runs=30)
     except Exception as e:
-        print(f"  [!] DB 备份失败: {e}")
+        print(f"  [!] DB 备份/清理失败: {e}")
 
     print()
     print("本轮完成")

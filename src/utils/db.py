@@ -98,6 +98,7 @@ def _init_tables(conn: sqlite3.Connection):
             created_at TEXT DEFAULT (datetime('now'))
         );
         CREATE INDEX IF NOT EXISTS idx_pphi_date ON pphi_history(run_date);
+        CREATE INDEX IF NOT EXISTS idx_pphi_date_pain ON pphi_history(run_date, pain_point);
 
         CREATE TABLE IF NOT EXISTS scrape_checkpoints (
             source TEXT PRIMARY KEY,
@@ -337,3 +338,22 @@ def backup_db(max_backups: int = 7):
     for old in backups[max_backups:]:
         old.unlink()
     print(f"  [DB] 备份: {dest.name}（保留 {min(len(backups), max_backups)} 份）")
+
+
+def cleanup_old_history(keep_runs: int = 30):
+    """清理 pphi_history 旧数据，只保留最近 N 轮"""
+    with get_db() as conn:
+        dates = conn.execute(
+            "SELECT DISTINCT run_date FROM pphi_history ORDER BY run_date DESC"
+        ).fetchall()
+        if len(dates) <= keep_runs:
+            return 0
+
+        cutoff_date = dates[keep_runs - 1]["run_date"]
+        result = conn.execute(
+            "DELETE FROM pphi_history WHERE run_date < ?", (cutoff_date,)
+        )
+        deleted = result.rowcount
+        if deleted > 0:
+            print(f"  [DB] 清理 pphi_history: 删除 {deleted} 行（保留最近 {keep_runs} 轮）")
+        return deleted
