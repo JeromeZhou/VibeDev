@@ -181,8 +181,7 @@ async def dashboard(request: Request):
     # 计算本轮新增统计（对比最新两轮 pphi_history）
     delta = _get_run_delta()
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "data": data,
         "rankings": data.get("rankings", []),
         "updated_at": data.get("timestamp", "尚未运行"),
@@ -195,8 +194,7 @@ async def dashboard(request: Request):
 async def trends(request: Request):
     """趋势分析页"""
     data = _load_rankings()
-    return templates.TemplateResponse("trends.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "trends.html", {
         "rankings": data.get("rankings", []),
         "trend_data_json": json.dumps(_get_trend_data(), ensure_ascii=False),
         "source_data_json": json.dumps(_get_source_distribution(), ensure_ascii=False),
@@ -255,8 +253,7 @@ async def pain_point_detail(request: Request, rank: int):
     # 获取该痛点的 PPHI 历史趋势
     trend_data = _get_pain_trend(pain_point.get("pain_point", ""))
 
-    return templates.TemplateResponse("details.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "details.html", {
         "pain_point": pain_point,
         "posts": posts,
         "trend_data_json": json.dumps(trend_data, ensure_ascii=False),
@@ -316,8 +313,7 @@ def _get_gpu_model_insights() -> list[dict]:
 async def gpu_models(request: Request):
     """GPU 型号维度聚合页"""
     models = _get_gpu_model_insights()
-    return templates.TemplateResponse("gpu_models.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "gpu_models.html", {
         "models": models,
         "total_models": len(models),
     })
@@ -476,8 +472,7 @@ async def admin(request: Request):
     except Exception:
         pass
 
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "admin.html", {
         "sources": sources,
         "cost": cost_info,
         "alerts": alerts,
@@ -508,8 +503,7 @@ async def report(request: Request):
             "color": source_colors.get(name, "#5b8def"),
         })
 
-    return templates.TemplateResponse("report.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "report.html", {
         "timestamp": data.get("timestamp", ""),
         "total_pain_points": data.get("total_pain_points", 0),
         "rankings": data.get("rankings", []),
@@ -544,8 +538,7 @@ async def history(request: Request):
     except Exception:
         run_list = []
 
-    return templates.TemplateResponse("history.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "history.html", {
         "runs": run_list,
     })
 
@@ -594,8 +587,7 @@ async def history_detail(request: Request, run_date: str = ""):
     except Exception:
         rankings = []
 
-    return templates.TemplateResponse("history_detail.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "history_detail.html", {
         "run_date": run_date,
         "rankings": rankings,
     })

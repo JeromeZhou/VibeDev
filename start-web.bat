@@ -42,7 +42,7 @@ if exist "%PROJECT%\data\gpu_insight.db" (
 echo.
 echo [3/4] Starting server on port %PORT%...
 cd /d %PROJECT%
-start "GPU-Insight-Web" /min "%PYTHON%" -m uvicorn src.web.app:app --host 0.0.0.0 --port %PORT%
+start "GPU-Insight-Web" /min "%PYTHON%" -m uvicorn src.web.app:app --host 0.0.0.0 --port %PORT% --reload
 echo   Waiting for server...
 timeout /t 5 /nobreak >nul
 "%PYTHON%" -c "import httpx; r=httpx.get('http://127.0.0.1:%PORT%/api/health',timeout=5); print('  Status:', r.json()['status'])" 2>nul
