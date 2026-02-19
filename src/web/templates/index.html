@@ -6,7 +6,7 @@
     <title>GPU-Insight 痛点仪表盘</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link href="/static/base.css" rel="stylesheet">
+    <link href="/static/base.css?v=1.1" rel="stylesheet">
     <script src="/static/theme.js"></script>
     <style>
         /* 统计卡片左色条 */
@@ -134,7 +134,7 @@
             background: var(--bg-elevated);
             border: 1px solid var(--border-default);
             border-radius: 12px;
-            max-width: 480px; width: 90%;
+            max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto;
         }
     </style>
 </head>
@@ -322,11 +322,38 @@
                 <div class="p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
                     <p class="text-xs mb-1" style="color: var(--text-tertiary);">核心指标</p>
                     <p class="font-medium">PPHI (Pain Point Heat Index) — 痛点热度指数</p>
-                    <p class="text-xs mt-2" style="color: var(--text-tertiary);">综合讨论量、情感强度、传播范围等维度加权计算</p>
+                    <p class="text-xs mt-2" style="color: var(--text-tertiary);">综合 频率(30%) · 源质量(20%) · 互动(15%) · 跨平台(15%) · 新鲜度(20%) 五维加权</p>
                 </div>
+
+                <!-- Agent 团队 -->
+                <div class="p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
+                    <p class="text-xs mb-2" style="color: var(--text-tertiary);">AI Agent 团队 — 14 个专家协作</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;">
+                        <p class="text-xs"><span style="color: var(--accent-blue);">Scraper</span> 数据采集</p>
+                        <p class="text-xs"><span style="color: var(--accent-blue);">Cleaner</span> 数据清洗</p>
+                        <p class="text-xs"><span style="color: var(--accent-purple);">Analyst</span> 痛点提取</p>
+                        <p class="text-xs"><span style="color: var(--accent-purple);">Insight</span> 隐藏需求推导</p>
+                        <p class="text-xs"><span style="color: var(--accent-red);">Munger</span> 魔鬼代言人审查</p>
+                        <p class="text-xs"><span style="color: var(--accent-green);">Council</span> 多视角验证</p>
+                        <p class="text-xs"><span style="color: var(--accent-amber);">Ranker</span> PPHI 排名</p>
+                        <p class="text-xs"><span style="color: var(--accent-amber);">Reporter</span> 报告生成</p>
+                    </div>
+                    <p class="text-xs mt-2" style="color: var(--text-tertiary);">开发团队: Architect · Fullstack · Data Engineer · UI Designer · QA · DevOps</p>
+                </div>
+
+                <!-- 三层验证 -->
+                <div class="p-3 rounded-lg" style="background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
+                    <p class="text-xs mb-2" style="color: var(--text-tertiary);">防幻觉三层验证</p>
+                    <div class="space-y-1">
+                        <p class="text-xs"><span style="color: var(--accent-purple);">1.</span> 推理链强制可视化 — 每步标注推理类型</p>
+                        <p class="text-xs"><span style="color: var(--accent-red);">2.</span> Devil's Advocate (Munger) — 反向论证质疑</p>
+                        <p class="text-xs"><span style="color: var(--accent-green);">3.</span> Chief Analyst 交叉验证 — 历史+跨平台</p>
+                    </div>
+                </div>
+
                 <div class="flex flex-wrap gap-2 text-xs">
-                    <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">Reddit / NGA / Bilibili / V2EX / TechPowerUp / MyDrivers</span>
-                    <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">AI: SiliconFlow GLM</span>
+                    <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">Reddit / NGA / Bilibili / V2EX / TechPowerUp / VideoCardz / MyDrivers</span>
+                    <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">AI: DeepSeek-V3 + GLM-4</span>
                     <span class="p-3 rounded-lg" style="background: var(--bg-elevated); color: var(--text-tertiary); border: 1px solid var(--border-subtle); padding: 4px 8px;">更新: 每 4 小时</span>
                 </div>
             </div>
