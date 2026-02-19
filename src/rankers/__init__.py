@@ -335,7 +335,12 @@ def _aggregate(insights: list[dict]) -> dict:
         if data["timestamps"]:
             try:
                 earliest = min(data["timestamps"])
-                earliest_dt = datetime.fromisoformat(earliest.replace("Z", "+00:00").replace("+00:00", ""))
+                # 去掉时区后缀，统一按本地时间比较
+                clean_ts = earliest.replace("Z", "").replace("+00:00", "").replace("+08:00", "")
+                # 截断微秒部分（如果有）
+                if "." in clean_ts:
+                    clean_ts = clean_ts.split(".")[0]
+                earliest_dt = datetime.fromisoformat(clean_ts)
                 data["days_old"] = max(0, (now - earliest_dt).days)
             except (ValueError, TypeError):
                 data["days_old"] = 0
@@ -385,16 +390,24 @@ def _guard_display_name(name: str, data: dict) -> str:
 
 
 def _detect_trend(pain_point: str, current_score: float) -> str:
-    """检测趋势：对比最近 3 轮 PPHI 历史数据（规范化名称匹配）"""
+    """检测趋势：对比最近 3 轮 PPHI 历史数据（规范化名称匹配）
+
+    返回: "hot" | "rising" | "falling" | "stable" | "new"
+    - hot: 连续 3 轮上升（PPHI 每轮增长 > 2）
+    - rising: 比上一轮上升 > 3
+    - falling: 比上一轮下降 > 3
+    - stable: 变化 <= 3
+    - new: 历史中未找到匹配
+    """
     try:
         from src.utils.db import get_db
         normalized_current, _ = _normalize_pain_point(pain_point)
 
         with get_db() as conn:
-            # 获取最近 4 轮（第 1 轮是当前轮，2-4 是历史）
+            # 获取最近 5 轮（第 1 轮是当前轮，2-5 是历史）
             rows = conn.execute(
                 """SELECT DISTINCT run_date FROM pphi_history
-                   ORDER BY run_date DESC LIMIT 4"""
+                   ORDER BY run_date DESC LIMIT 5"""
             ).fetchall()
             if len(rows) < 2:
                 return "new"
@@ -412,18 +425,28 @@ def _detect_trend(pain_point: str, current_score: float) -> str:
         if not prev_points:
             return "new"
 
-        # 规范化匹配：找最近一次出现的同名痛点
-        best_match_score = None
+        # 收集该痛点在各轮的分数（按时间倒序）
+        scores_by_date = {}
         for row in prev_points:
             normalized_prev, _ = _normalize_pain_point(row["pain_point"])
             if normalized_current == normalized_prev:
-                best_match_score = row["pphi_score"]
-                break  # 取最近一轮的匹配
+                scores_by_date[row["run_date"]] = row["pphi_score"]
 
-        if best_match_score is None:
+        if not scores_by_date:
             return "new"
 
-        diff = current_score - best_match_score
+        # 按时间倒序排列历史分数
+        sorted_dates = sorted(scores_by_date.keys(), reverse=True)
+        prev_score = scores_by_date[sorted_dates[0]]
+
+        # 检测连续上升（hot）：当前 > 上轮 > 上上轮 > 上上上轮，每轮增长 > 2
+        if len(sorted_dates) >= 3:
+            scores = [current_score] + [scores_by_date[d] for d in sorted_dates[:3]]
+            consecutive_rises = all(scores[i] - scores[i + 1] > 2 for i in range(3))
+            if consecutive_rises:
+                return "hot"
+
+        diff = current_score - prev_score
         if diff > 3:
             return "rising"
         elif diff < -3:

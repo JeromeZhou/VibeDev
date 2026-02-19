@@ -301,7 +301,7 @@ def run_pipeline(config: dict):
         print()
 
     # 11. 输出 Top 10
-    trend_icons = {"rising": "↑", "falling": "↓", "stable": "→", "new": "★"}
+    trend_icons = {"hot": "🔥", "rising": "↑", "falling": "↓", "stable": "→", "new": "★"}
     print("=" * 70)
     print("  GPU-Insight Top 10 痛点排名")
     print("=" * 70)

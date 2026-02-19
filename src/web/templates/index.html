@@ -240,7 +240,8 @@
                     <!-- 中：内容 -->
                     <div class="ranking-content">
                         <div class="ranking-header">
-                            {% if r.get('trend') == 'rising' %}<span class="trend-up text-xs font-semibold">↑</span>
+                            {% if r.get('trend') == 'hot' %}<span class="trend-up text-xs font-semibold" title="连续上升">🔥</span>
+                            {% elif r.get('trend') == 'rising' %}<span class="trend-up text-xs font-semibold">↑</span>
                             {% elif r.get('trend') == 'falling' %}<span class="trend-down text-xs font-semibold">↓</span>
                             {% elif r.get('trend') == 'stable' %}<span class="trend-stable text-xs">→</span>
                             {% else %}<span class="trend-new text-xs font-semibold">★</span>{% endif %}

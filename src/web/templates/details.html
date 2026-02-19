@@ -98,11 +98,13 @@
                             {% else %}" style="color: var(--accent-blue);{% endif %}">#{{ pain_point.get('rank', '?') }}</span>
                         <h2 class="text-lg font-semibold" style="color: var(--text-primary);">{{ pain_point.pain_point }}</h2>
                         <span class="trend-pill
-                            {% if pain_point.get('trend') == 'rising' %}trend-rising
+                            {% if pain_point.get('trend') == 'hot' %}trend-rising
+                            {% elif pain_point.get('trend') == 'rising' %}trend-rising
                             {% elif pain_point.get('trend') == 'falling' %}trend-falling
                             {% elif pain_point.get('trend') == 'new' %}trend-new
                             {% else %}trend-stable{% endif %}">
-                            {% if pain_point.get('trend') == 'rising' %}↑ 上升
+                            {% if pain_point.get('trend') == 'hot' %}🔥 热门
+                            {% elif pain_point.get('trend') == 'rising' %}↑ 上升
                             {% elif pain_point.get('trend') == 'falling' %}↓ 下降
                             {% elif pain_point.get('trend') == 'new' %}★ 新增
                             {% else %}→ 稳定{% endif %}

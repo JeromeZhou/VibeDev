@@ -204,7 +204,9 @@ def test_db_migration():
         # 用 db 模块的迁移
         import src.utils.db as db_mod
         original_path = db_mod.DB_PATH
+        original_init = db_mod._initialized
         db_mod.DB_PATH = Path(tmp)
+        db_mod._initialized = False  # 强制重新初始化
         try:
             with db_mod.get_db() as conn:
                 # 迁移应该自动添加 relevance_class 和 relevance_reason
@@ -215,6 +217,7 @@ def test_db_migration():
             print("  OK test_db_migration")
         finally:
             db_mod.DB_PATH = original_path
+            db_mod._initialized = original_init
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)

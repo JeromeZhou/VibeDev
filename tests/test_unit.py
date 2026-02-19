@@ -257,6 +257,86 @@ class TestPainNameGuard:
         result = _guard_pain_name(parsed)
         assert result["pain_point"] == "RTX 5080 crashes in Cyberpunk"
 
+
+class TestNormalizePainPoint:
+    """测试痛点名称规范化（语义合并基础）"""
+
+    def test_strip_parenthetical(self):
+        from src.rankers import _normalize_pain_point
+        norm, orig = _normalize_pain_point("散热温度过高(散热)")
+        assert norm == "散热温度过高"
+        assert orig == "散热温度过高(散热)"
+
+    def test_strip_chinese_parenthetical(self):
+        from src.rankers import _normalize_pain_point
+        norm, _ = _normalize_pain_point("驱动崩溃（驱动）")
+        assert norm == "驱动崩溃"
+
+    def test_strip_gpu_prefix(self):
+        from src.rankers import _normalize_pain_point
+        norm, _ = _normalize_pain_point("显卡散热不足")
+        assert norm == "散热"
+
+    def test_strip_suffix(self):
+        from src.rankers import _normalize_pain_point
+        norm, _ = _normalize_pain_point("散热温度问题")
+        assert norm == "散热温度"
+
+    def test_same_after_normalize(self):
+        """同义痛点规范化后应相同"""
+        from src.rankers import _normalize_pain_point
+        n1, _ = _normalize_pain_point("显卡散热问题")
+        n2, _ = _normalize_pain_point("散热(散热)")
+        assert n1 == n2  # 都应该规范化为 "散热"
+
+    def test_different_stay_different(self):
+        """不同痛点规范化后应不同"""
+        from src.rankers import _normalize_pain_point
+        n1, _ = _normalize_pain_point("显存温度过高")
+        n2, _ = _normalize_pain_point("风扇噪音大")
+        assert n1 != n2
+
+    def test_short_name_preserved(self):
+        """短名称不应被过度裁剪"""
+        from src.rankers import _normalize_pain_point
+        norm, _ = _normalize_pain_point("功耗")
+        assert norm == "功耗"
+
+
+class TestAggregate:
+    """测试痛点聚合逻辑"""
+
+    def test_merge_same_pain_point(self):
+        from src.rankers import _aggregate
+        insights = [
+            {"pain_point": "散热问题", "source_post_ids": ["reddit_abc"], "source_urls": ["https://reddit.com/abc"],
+             "gpu_tags": {"brands": ["NVIDIA"], "models": ["RTX 4090"], "series": [], "manufacturers": []},
+             "inferred_need": None, "total_replies": 5, "total_likes": 10, "earliest_timestamp": ""},
+            {"pain_point": "显卡散热不足", "source_post_ids": ["nga_123"], "source_urls": ["https://nga.cn/123"],
+             "gpu_tags": {"brands": ["NVIDIA"], "models": ["RTX 4080"], "series": [], "manufacturers": []},
+             "inferred_need": None, "total_replies": 3, "total_likes": 7, "earliest_timestamp": ""},
+        ]
+        result = _aggregate(insights)
+        # 两个痛点应合并为一个（规范化后都是 "散热"）
+        assert len(result) == 1
+        key = list(result.keys())[0]
+        assert result[key]["count"] == 2
+        assert "RTX 4090" in result[key]["gpu_tags"]["models"]
+        assert "RTX 4080" in result[key]["gpu_tags"]["models"]
+
+    def test_no_merge_different(self):
+        from src.rankers import _aggregate
+        insights = [
+            {"pain_point": "显存温度过高", "source_post_ids": ["reddit_abc"], "source_urls": [],
+             "gpu_tags": {"brands": [], "models": [], "series": [], "manufacturers": []},
+             "inferred_need": None, "total_replies": 0, "total_likes": 0, "earliest_timestamp": ""},
+            {"pain_point": "风扇噪音大", "source_post_ids": ["nga_123"], "source_urls": [],
+             "gpu_tags": {"brands": [], "models": [], "series": [], "manufacturers": []},
+             "inferred_need": None, "total_replies": 0, "total_likes": 0, "earliest_timestamp": ""},
+        ]
+        result = _aggregate(insights)
+        assert len(result) == 2
+
     def test_mixed_language_good(self):
         from src.analyzers import _guard_pain_name
         parsed = {"pain_point": "RTX 5090散热不足导致降频", "category": "散热", "evidence": ""}
