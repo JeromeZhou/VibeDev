@@ -85,6 +85,7 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
             # Munger 质量加权
             "munger_quality": data.get("munger_quality", "unknown"),
             "needs_verification": data.get("needs_verification", False),
+            "quality_tier": _classify_quality_tier(data),
         })
 
     # 排序：PPHI 降序，相同分数时按 mentions 降序（二级排序）
@@ -387,6 +388,32 @@ def _guard_display_name(name: str, data: dict) -> str:
     # 无 evidence 时，尝试从 source_urls 推断上下文
     # 对于历史数据，保留原名但加标记（下轮新数据进来时会自然替换）
     return name  # 无法改善，保持原样
+
+
+def _classify_quality_tier(data: dict) -> str:
+    """根据推理链 + Munger 审查结果分层：gold / silver / bronze
+
+    - gold: 有推理链 + Munger 审查通过（strong/moderate）
+    - silver: 有隐藏需求但 Munger 弱/缺失
+    - bronze: 无隐藏需求或无推理数据
+    """
+    inferred = data.get("inferred_need_obj")
+    if not inferred or not isinstance(inferred, dict):
+        return "bronze"
+
+    hidden_need = inferred.get("hidden_need", "")
+    reasoning_chain = inferred.get("reasoning_chain", [])
+    munger = inferred.get("munger_review")
+
+    if not hidden_need:
+        return "bronze"
+
+    if reasoning_chain and munger and isinstance(munger, dict):
+        quality = munger.get("quality_level", "")
+        if quality in ("strong", "moderate"):
+            return "gold"
+
+    return "silver"
 
 
 def _detect_trend(pain_point: str, current_score: float) -> str:

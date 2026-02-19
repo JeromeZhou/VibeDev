@@ -146,9 +146,50 @@ def tag_gpu_products(text: str) -> dict:
 
 
 def tag_post(post: dict) -> dict:
-    """给单条帖子打 GPU 产品标签，写入 _gpu_tags 字段"""
-    text = f"{post.get('title', '')} {post.get('content', '')}"
-    post["_gpu_tags"] = tag_gpu_products(text)
+    """给单条帖子打 GPU 产品标签，写入 _gpu_tags 字段
+
+    品牌精确化策略：标题优先。
+    - 标题中识别到的型号 → 确定品牌（高置信）
+    - 正文中识别到的型号 → 仅当品牌与标题一致时才纳入
+    - 如果标题无型号，退回到全文匹配（兼容旧逻辑）
+    """
+    title = post.get("title", "") or ""
+    content = post.get("content", "") or ""
+
+    title_tags = tag_gpu_products(title)
+    title_brands = set(title_tags["brands"])
+    title_models = set(title_tags["models"])
+
+    if title_models:
+        # 标题有明确型号 → 以标题品牌为准，正文只补充同品牌型号
+        content_tags = tag_gpu_products(content)
+        merged_models = set(title_tags["models"])
+        merged_series = set(title_tags["series"])
+        merged_mfrs = set(title_tags["manufacturers"])
+
+        model_pats, _, _ = _get_patterns()
+        model_brand_map = {model: brand for brand, _, model, _ in model_pats}
+
+        for m in content_tags["models"]:
+            brand = model_brand_map.get(m, "")
+            if brand in title_brands:
+                merged_models.add(m)
+        for s in content_tags["series"]:
+            merged_series.add(s)
+        for mfr in content_tags["manufacturers"]:
+            merged_mfrs.add(mfr)
+
+        post["_gpu_tags"] = {
+            "brands": sorted(title_brands),
+            "models": sorted(merged_models),
+            "series": sorted(merged_series),
+            "manufacturers": sorted(merged_mfrs),
+        }
+    else:
+        # 标题无型号 → 全文匹配（兼容旧逻辑）
+        full_text = f"{title} {content}"
+        post["_gpu_tags"] = tag_gpu_products(full_text)
+
     return post
 
 

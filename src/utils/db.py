@@ -130,6 +130,8 @@ def _migrate_tables(conn: sqlite3.Connection):
         # v9: AI 相关性过滤结果
         ("posts", "relevance_class", "INTEGER DEFAULT -1"),
         ("posts", "relevance_reason", "TEXT"),
+        # v9.9: 数据质量分层
+        ("pphi_history", "quality_tier", "TEXT DEFAULT 'bronze'"),
     ]
     for table, column, col_type in migrations:
         try:
@@ -217,8 +219,8 @@ def save_rankings(rankings: list[dict]):
 
         for r in rankings:
             conn.execute(
-                """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes, inferred_need_json, category, affected_users)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO pphi_history (run_date, rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, total_replies, total_likes, inferred_need_json, category, affected_users, quality_tier)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_date,
                     r.get("rank", 0),
@@ -233,6 +235,7 @@ def save_rankings(rankings: list[dict]):
                     json.dumps(r.get("inferred_need"), ensure_ascii=False) if r.get("inferred_need") else None,
                     r.get("category", ""),
                     r.get("affected_users", ""),
+                    r.get("quality_tier", "bronze"),
                 )
             )
 

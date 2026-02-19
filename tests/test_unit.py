@@ -354,3 +354,62 @@ class TestWeeklyReport:
         result = generate_weekly_report(config)
         # 可能返回 None（无数据）或路径（有历史数据）
         assert result is None or str(tmp_path) in result
+
+
+class TestQualityTier:
+    """数据质量分层测试"""
+
+    def test_gold_tier(self):
+        from src.rankers import _classify_quality_tier
+        data = {"inferred_need_obj": {
+            "hidden_need": "需要主动散热系统",
+            "reasoning_chain": ["散热是核心", "用户需要主动散热"],
+            "munger_review": {"quality_level": "strong", "comment": "ok"},
+        }}
+        assert _classify_quality_tier(data) == "gold"
+
+    def test_gold_moderate(self):
+        from src.rankers import _classify_quality_tier
+        data = {"inferred_need_obj": {
+            "hidden_need": "需要更好的驱动",
+            "reasoning_chain": ["驱动问题频发"],
+            "munger_review": {"quality_level": "moderate", "comment": "需更多数据"},
+        }}
+        assert _classify_quality_tier(data) == "gold"
+
+    def test_silver_no_munger(self):
+        from src.rankers import _classify_quality_tier
+        data = {"inferred_need_obj": {
+            "hidden_need": "需要更好的散热",
+            "reasoning_chain": ["温度过高"],
+            "munger_review": None,
+        }}
+        assert _classify_quality_tier(data) == "silver"
+
+    def test_silver_weak_munger(self):
+        from src.rankers import _classify_quality_tier
+        data = {"inferred_need_obj": {
+            "hidden_need": "需要更好的散热",
+            "reasoning_chain": ["温度过高"],
+            "munger_review": {"quality_level": "weak", "comment": "证据不足"},
+        }}
+        assert _classify_quality_tier(data) == "silver"
+
+    def test_bronze_no_hidden_need(self):
+        from src.rankers import _classify_quality_tier
+        data = {"inferred_need_obj": {
+            "hidden_need": "",
+            "reasoning_chain": [],
+            "munger_review": None,
+        }}
+        assert _classify_quality_tier(data) == "bronze"
+
+    def test_bronze_no_inferred(self):
+        from src.rankers import _classify_quality_tier
+        data = {"inferred_need_obj": None}
+        assert _classify_quality_tier(data) == "bronze"
+
+    def test_bronze_missing_key(self):
+        from src.rankers import _classify_quality_tier
+        data = {}
+        assert _classify_quality_tier(data) == "bronze"

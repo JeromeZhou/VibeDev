@@ -250,6 +250,8 @@
                             {% if r.get('category') %}
                             <span class="ranking-cat">{{ r.category }}</span>
                             {% endif %}
+                            {% if r.get('quality_tier') == 'gold' %}<span class="text-xs" title="已验证">🥇</span>
+                            {% elif r.get('quality_tier') == 'silver' %}<span class="text-xs" title="部分验证">🥈</span>{% endif %}
                         </div>
                         <div class="ranking-meta">
                             {% set all_models = r.get('gpu_tags', {}).get('models', []) %}

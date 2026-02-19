@@ -112,6 +112,13 @@
                         </span>
                     </div>
                     <div class="flex flex-wrap gap-2">
+                        {% set qt = pain_point.get('quality_tier', 'bronze') %}
+                        <span class="text-xs px-3 py-1 rounded-md flex items-center gap-1" style="border: 1px solid var(--border-subtle);
+                            {% if qt == 'gold' %}background: rgba(245,158,11,0.12); color: var(--accent-amber);
+                            {% elif qt == 'silver' %}background: rgba(99,102,241,0.12); color: var(--accent-blue);
+                            {% else %}background: var(--bg-elevated); color: var(--text-tertiary);{% endif %}">
+                            {% if qt == 'gold' %}🥇 已验证{% elif qt == 'silver' %}🥈 部分验证{% else %}🥉 待验证{% endif %}
+                        </span>
                         <span class="text-xs px-3 py-1 rounded-md flex items-center gap-1" style="background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border-subtle);">
                             <span class="material-icons text-xs">category</span> {{ pain_point.get('category', '-') }}
                         </span>
