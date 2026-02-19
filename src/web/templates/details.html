@@ -189,7 +189,7 @@
                     {% endfor %}
                 </ol>
             </div>
-            {% elif inferred.get('confidence', 0) == 0 %}
+            {% else %}
             <p class="mt-4 text-xs" style="color: var(--text-tertiary);">
                 <span class="material-icons text-xs">schedule</span> 推理链数据待更新（下轮 pipeline 将自动补全）
             </p>
@@ -230,6 +230,10 @@
                 </p>
                 {% endif %}
             </div>
+            {% else %}
+            <p class="mt-2 text-xs" style="color: var(--text-tertiary);">
+                <span class="material-icons text-xs">schedule</span> Munger 审查数据待更新
+            </p>
             {% endif %}
 
             <div class="mt-3 flex items-center gap-4">
@@ -261,6 +265,16 @@
                         {% else %}" style="background: var(--accent-amber); width: {{ (pain_point.get('confidence', 0) * 100) | int }}%{% endif %}"></div>
                 </div>
             </div>
+        </div>
+        {% else %}
+        <!-- 尚无推理数据 -->
+        <div class="card need-card p-6 mb-4 animate-in" style="animation-delay: 0.1s">
+            <h3 class="font-medium mb-3 flex items-center gap-2" style="color: var(--text-primary);">
+                <span class="material-icons" style="color: var(--accent-purple);">psychology</span> AI 推理需求
+            </h3>
+            <p class="text-sm" style="color: var(--text-tertiary);">
+                <span class="material-icons text-xs">schedule</span> 尚未推导，下轮 pipeline 将自动生成
+            </p>
         </div>
         {% endif %}
 

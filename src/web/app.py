@@ -500,7 +500,7 @@ async def history_detail(request: Request, run_date: str = ""):
         from src.utils.db import get_db
         with get_db() as conn:
             rows = conn.execute(
-                """SELECT rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need
+                """SELECT rank, pain_point, pphi_score, mentions, gpu_tags, source_urls, hidden_need, inferred_need_json, category, affected_users
                    FROM pphi_history
                    WHERE run_date = ?
                    ORDER BY rank ASC""",
@@ -508,6 +508,16 @@ async def history_detail(request: Request, run_date: str = ""):
             ).fetchall()
         rankings = []
         for r in rows:
+            inferred_need = None
+            inferred_json = r["inferred_need_json"] if "inferred_need_json" in r.keys() else None
+            if inferred_json:
+                try:
+                    inferred_need = json.loads(inferred_json)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            if not inferred_need and r["hidden_need"]:
+                inferred_need = {"hidden_need": r["hidden_need"], "confidence": 0, "reasoning_chain": [], "munger_review": None}
+
             rankings.append({
                 "rank": r["rank"],
                 "pain_point": r["pain_point"],
@@ -516,6 +526,9 @@ async def history_detail(request: Request, run_date: str = ""):
                 "gpu_tags": json.loads(r["gpu_tags"]) if r["gpu_tags"] else {},
                 "source_urls": json.loads(r["source_urls"]) if r["source_urls"] else [],
                 "hidden_need": r["hidden_need"] or "",
+                "inferred_need": inferred_need,
+                "category": r["category"] if "category" in r.keys() else "",
+                "affected_users": r["affected_users"] if "affected_users" in r.keys() else "",
                 "trend": "stable",
             })
     except Exception:
