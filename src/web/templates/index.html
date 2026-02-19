@@ -208,7 +208,7 @@
         {% endif %}
 
         <!-- 痛点排名 -->
-        <div class="card p-5">
+        <div class="card p-5 ambient-arc">
             <div class="flex items-center justify-between mb-4">
                 <div class="section-title" style="margin-bottom: 0;">
                     <span class="material-icons" style="color: var(--accent-blue);">leaderboard</span>
@@ -262,6 +262,9 @@
                             <span class="gpu-tag" style="opacity: 0.5;">+{{ all_models | length - 4 }}</span>
                             {% endif %}
                             <span class="ranking-stats">
+                                {% for src in r.get('sources', [])[:3] %}
+                                <span class="source-dot {{ src }}"></span>
+                                {% endfor %}
                                 {{ r.get('mentions', 0) }} 讨论 · {{ r.get('sources', []) | length }} 来源
                             </span>
                         </div>
@@ -269,8 +272,8 @@
 
                     <!-- 右：PPHI 分数 -->
                     <div class="ranking-score">
-                        <span class="mono font-semibold"
-                            style="color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% elif r.rank == 3 %}var(--accent-bronze){% else %}var(--accent-blue){% endif %};">
+                        <span class="mono font-semibold {% if r.rank <= 3 %}pphi-pulse{% endif %}"
+                            style="{% if r.rank <= 3 %}--pulse-color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% else %}var(--accent-bronze){% endif %};{% endif %} color: {% if r.rank == 1 %}var(--accent-amber){% elif r.rank == 2 %}var(--accent-silver){% elif r.rank == 3 %}var(--accent-bronze){% else %}var(--accent-blue){% endif %};">
                             {{ r.pphi_score }}
                         </span>
                         <span class="material-icons" style="color: var(--text-tertiary); font-size: 18px;">chevron_right</span>
@@ -297,7 +300,12 @@
         </div>
     </main>
 
-    <footer class="site-footer">GPU-Insight · 显卡用户痛点智能分析系统</footer>
+    <footer class="living-footer">
+        <span class="footer-status">
+            <span class="footer-dot"></span>
+            GPU-Insight · AI 持续分析中
+        </span>
+    </footer>
 
     <!-- About Modal -->
     <div id="aboutModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
