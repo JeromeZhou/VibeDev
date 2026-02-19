@@ -338,6 +338,16 @@ def run_pipeline(config: dict):
     except Exception as e:
         print(f"  [!] DB 备份/清理失败: {e}")
 
+    # 周报（每周一自动生成）
+    if datetime.now().weekday() == 0:  # Monday
+        try:
+            from src.reporters.weekly import generate_weekly_report
+            weekly_path = generate_weekly_report(config)
+            if weekly_path:
+                print(f"[周报] {weekly_path}")
+        except Exception as e:
+            print(f"  [!] 周报生成失败: {e}")
+
     print()
     print("本轮完成")
 

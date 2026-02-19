@@ -269,6 +269,66 @@ async def api_rankings():
     return JSONResponse(_load_rankings())
 
 
+def _get_gpu_model_insights() -> list[dict]:
+    """按 GPU 型号聚合痛点数据"""
+    data = _load_rankings()
+    rankings = data.get("rankings", [])
+
+    model_map = {}  # model -> {pain_points, total_mentions, brands, sources}
+    for r in rankings:
+        tags = r.get("gpu_tags", {})
+        models = tags.get("models", [])
+        if not models:
+            continue
+        for model in models:
+            if model not in model_map:
+                model_map[model] = {
+                    "model": model,
+                    "brands": set(),
+                    "pain_points": [],
+                    "total_mentions": 0,
+                    "top_pphi": 0,
+                }
+            model_map[model]["pain_points"].append({
+                "rank": r.get("rank"),
+                "pain_point": r.get("pain_point"),
+                "pphi_score": r.get("pphi_score"),
+                "category": r.get("category", ""),
+                "trend": r.get("trend", ""),
+            })
+            model_map[model]["total_mentions"] += r.get("mentions", 0)
+            model_map[model]["top_pphi"] = max(model_map[model]["top_pphi"], r.get("pphi_score", 0))
+            for b in tags.get("brands", []):
+                model_map[model]["brands"].add(b)
+
+    # 转换 set → list，按 top_pphi 降序排列
+    result = []
+    for m in model_map.values():
+        m["brands"] = sorted(m["brands"])
+        m["pain_count"] = len(m["pain_points"])
+        m["pain_points"].sort(key=lambda x: x["pphi_score"], reverse=True)
+        result.append(m)
+    result.sort(key=lambda x: x["top_pphi"], reverse=True)
+    return result
+
+
+@app.get("/gpu-models")
+async def gpu_models(request: Request):
+    """GPU 型号维度聚合页"""
+    models = _get_gpu_model_insights()
+    return templates.TemplateResponse("gpu_models.html", {
+        "request": request,
+        "models": models,
+        "total_models": len(models),
+    })
+
+
+@app.get("/api/gpu-models")
+async def api_gpu_models():
+    """API: GPU 型号聚合数据"""
+    return JSONResponse({"models": _get_gpu_model_insights()})
+
+
 @app.get("/api/health")
 async def health():
     """健康检查"""
@@ -581,6 +641,21 @@ async def export_csv():
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=gpu-insight-{ts}.csv"}
     )
+
+
+@app.get("/api/weekly-report")
+async def api_weekly_report():
+    """手动触发周报生成"""
+    try:
+        from src.reporters.weekly import generate_weekly_report
+        from src.utils.config import load_config
+        config = load_config("config/config.yaml")
+        path = generate_weekly_report(config)
+        if path:
+            return JSONResponse({"status": "ok", "path": path})
+        return JSONResponse({"status": "no_data", "message": "无足够数据生成周报"})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
 def _get_evolution_data() -> dict:

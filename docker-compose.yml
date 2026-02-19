@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    container_name: gpu-insight-web
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./.env:/app/.env:ro
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  pipeline:
+    build: .
+    container_name: gpu-insight-pipeline
+    command: ["python", "main.py", "--loop"]
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./.env:/app/.env:ro
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy

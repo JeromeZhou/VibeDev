@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU 型号分析 — GPU-Insight</title>
+    <link href="/static/base.css" rel="stylesheet">
+    <script src="/static/theme.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="site-nav">
+        <span class="nav-brand"><span class="material-icons">insights</span> GPU-Insight</span>
+        <a href="/"><span class="material-icons">dashboard</span> 仪表盘</a>
+        <a href="/gpu-models" class="active"><span class="material-icons">memory</span> 型号</a>
+        <a href="/trends"><span class="material-icons">trending_up</span> 趋势</a>
+        <a href="/history"><span class="material-icons">history</span> 历史</a>
+        <a href="/report"><span class="material-icons">description</span> 报告</a>
+        <a href="/admin"><span class="material-icons">admin_panel_settings</span> 管理</a>
+        <span class="nav-spacer"></span>
+        <button class="theme-toggle" onclick="toggleTheme()"><span class="material-icons theme-icon">light_mode</span></button>
+    </nav>
+
+    <main class="page-container">
+        <div class="card p-6 mb-4 animate-in">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                    <span class="material-icons" style="color: var(--accent-purple);">memory</span>
+                    GPU 型号痛点分析
+                </h2>
+                <span class="text-xs mono" style="color: var(--text-tertiary);">{{ total_models }} 个型号</span>
+            </div>
+
+            {% if models %}
+            <div class="space-y-3">
+                {% for m in models %}
+                <div class="rounded-lg animate-in" style="background: var(--bg-elevated); border: 1px solid var(--border-subtle); animation-delay: {{ loop.index * 0.03 }}s;">
+                    <div class="flex items-center gap-3 p-4 cursor-pointer" onclick="toggleModel(this)">
+                        <div class="pphi-ring" style="border-color: var(--accent-purple);">
+                            <span class="text-sm font-semibold mono" style="color: var(--accent-purple);">{{ m.pain_count }}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-semibold" style="color: var(--text-primary);">{{ m.model }}</span>
+                                {% for b in m.brands %}
+                                <span class="brand-tag">{{ b }}</span>
+                                {% endfor %}
+                            </div>
+                            <div class="flex gap-3 text-xs" style="color: var(--text-tertiary);">
+                                <span class="mono">Top PPHI: {{ m.top_pphi }}</span>
+                                <span>{{ m.total_mentions }} 讨论</span>
+                                <span>{{ m.pain_count }} 个痛点</span>
+                            </div>
+                        </div>
+                        <span class="material-icons" style="color: var(--text-tertiary); font-size: 20px; transition: transform 0.2s;" id="icon-{{ loop.index }}">expand_more</span>
+                    </div>
+                    <div class="model-detail" style="display: none; border-top: 1px solid var(--border-subtle);">
+                        <div class="p-4 space-y-2">
+                            {% for pp in m.pain_points %}
+                            <a href="/pain-point/{{ pp.rank }}" class="flex items-center gap-3 p-2 rounded-lg" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); text-decoration: none;">
+                                <span class="text-xs font-semibold mono" style="color: var(--text-tertiary); width: 28px;">#{{ pp.rank }}</span>
+                                <span class="text-sm flex-1" style="color: var(--text-primary);">{{ pp.pain_point }}</span>
+                                {% if pp.trend == 'hot' %}<span class="text-xs">🔥</span>
+                                {% elif pp.trend == 'rising' %}<span class="text-xs" style="color: var(--accent-green);">↑</span>
+                                {% elif pp.trend == 'falling' %}<span class="text-xs" style="color: var(--accent-red);">↓</span>
+                                {% endif %}
+                                <span class="text-xs mono" style="color: var(--accent-blue);">{{ pp.pphi_score }}</span>
+                                {% if pp.category %}
+                                <span class="text-xs px-2 py-1 rounded" style="background: var(--bg-elevated); color: var(--text-tertiary);">{{ pp.category }}</span>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center" style="padding: 48px 0;">
+                <span class="material-icons mb-2" style="font-size: 36px; color: var(--text-tertiary);">memory</span>
+                <p style="color: var(--text-secondary);">暂无 GPU 型号数据</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer class="site-footer">GPU-Insight · 显卡用户痛点智能分析系统</footer>
+
+    <script>
+    function toggleModel(header) {
+        var panel = header.nextElementSibling;
+        var icon = header.querySelector('.material-icons:last-child');
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            panel.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+    </script>
+</body>
+</html>

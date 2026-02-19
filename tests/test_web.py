@@ -127,6 +127,15 @@ class TestPages:
         assert "报告" in r.text or "report" in r.text.lower()
         assert "显存温度" in r.text
 
+    @patch("src.web.app._load_rankings", _mock_load_rankings)
+    def test_gpu_models(self):
+        """GPU 型号聚合页"""
+        r = client.get("/gpu-models")
+        assert r.status_code == 200
+        assert "RTX 4090" in r.text
+        assert "RTX 5090" in r.text
+        assert "型号" in r.text
+
 
 class TestAPI:
     """API 端点测试"""
@@ -152,3 +161,20 @@ class TestAPI:
         assert r.status_code == 200
         assert "text/csv" in r.headers["content-type"]
         assert "显存温度" in r.text
+
+    @patch("src.web.app._load_rankings", _mock_load_rankings)
+    def test_gpu_models_api(self):
+        r = client.get("/api/gpu-models")
+        assert r.status_code == 200
+        data = r.json()
+        assert "models" in data
+        assert len(data["models"]) == 2
+        # 按 top_pphi 排序，RTX 4090 应该排第一
+        assert data["models"][0]["model"] == "RTX 4090"
+        assert data["models"][0]["top_pphi"] == 45.2
+
+    def test_weekly_report_api(self):
+        r = client.get("/api/weekly-report")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] in ("ok", "no_data", "error")

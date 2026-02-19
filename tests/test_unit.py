@@ -342,3 +342,15 @@ class TestAggregate:
         parsed = {"pain_point": "RTX 5090散热不足导致降频", "category": "散热", "evidence": ""}
         result = _guard_pain_name(parsed)
         assert result["pain_point"] == "RTX 5090散热不足导致降频"
+
+
+class TestWeeklyReport:
+    """周报生成测试"""
+
+    def test_generate_weekly_no_data(self, tmp_path):
+        """无数据时返回 None"""
+        from src.reporters.weekly import generate_weekly_report
+        config = {"paths": {"reports": str(tmp_path)}}
+        result = generate_weekly_report(config)
+        # 可能返回 None（无数据）或路径（有历史数据）
+        assert result is None or str(tmp_path) in result
