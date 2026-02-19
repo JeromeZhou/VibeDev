@@ -124,7 +124,9 @@ class BaseScraper(ABC):
                 verify = attempt == 0  # 第二次尝试禁用 SSL 验证
             try:
                 self.random_delay(*delay)
-                resp = httpx.get(url, headers=headers, timeout=timeout,
+                # 显式设置 connect/read/write 超时，避免 Windows 下连接挂起
+                to = httpx.Timeout(timeout, connect=min(timeout, 10))
+                resp = httpx.get(url, headers=headers, timeout=to,
                                  follow_redirects=True, verify=verify,
                                  cookies=cookies)
 

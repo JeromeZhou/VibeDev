@@ -2,9 +2,12 @@
 
 import json
 import math
+import re
 from datetime import datetime
 from pathlib import Path
 from src.utils.config import get_pphi_weights
+
+MAX_RANKINGS = 50  # 排名上限
 
 
 def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
@@ -23,8 +26,12 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
     if not all_insights:
         return []
 
-    # 聚合同类痛点
+    # 聚合同类痛点（规则层：同义词组 + 子串匹配）
     aggregated = _aggregate(all_insights)
+
+    # LLM 跨轮语义去重（对聚合后的痛点名称做二次合并）
+    if len(aggregated) > 5:
+        aggregated = _llm_dedup_aggregated(aggregated, config)
 
     # 计算 PPHI（改进版：增强区分度）
     rankings = []
@@ -90,6 +97,12 @@ def calculate_pphi(insights: list[dict], config: dict) -> list[dict]:
 
     # 排序：PPHI 降序，相同分数时按 mentions 降序（二级排序）
     rankings.sort(key=lambda x: (x["pphi_score"], x["mentions"]), reverse=True)
+
+    # 排名上限：只保留 Top N，低分痛点自然淘汰（旧数据在 pain_points 表永久保留）
+    if len(rankings) > MAX_RANKINGS:
+        print(f"  排名上限: {len(rankings)} → {MAX_RANKINGS}（淘汰 {len(rankings) - MAX_RANKINGS} 个低分项）")
+        rankings = rankings[:MAX_RANKINGS]
+
     for i, r in enumerate(rankings):
         r["rank"] = i + 1
 
@@ -248,8 +261,179 @@ def _normalize_pain_point(pain_point: str) -> tuple[str, str]:
     return normalized, pain_point
 
 
+# 同义词组：组内任意两个痛点应合并（跨轮语义去重）
+_SYNONYM_GROUPS = [
+    {"价格昂贵", "价格过高", "价格太贵", "太贵", "过贵"},
+    {"性价比低", "性价比差"},
+    {"噪音大", "风扇噪音大", "风扇高转速噪音大", "噪音过大"},
+    {"核心温度过高", "温度过高", "过热"},
+    {"功耗过高", "功耗太高", "功耗大"},
+    {"性能不足", "性能差", "性能不够"},
+    {"驱动崩溃", "驱动闪退"},
+]
+
+
+def _find_synonym_key(normalized: str, existing_keys: dict) -> str | None:
+    """在已有聚合 key 中查找同义词匹配
+
+    策略（保守优先，宁可不合并也不能错合并）：
+    1. 精确匹配同义词组（手动维护的确定同义词）
+    2. 核心子串匹配（一个是另一个的子串，且短串 >= 5 字符，避免误合并）
+    """
+    # 策略1: 同义词组精确匹配
+    for group in _SYNONYM_GROUPS:
+        if normalized in group:
+            for existing_key in existing_keys:
+                if existing_key in group:
+                    return existing_key
+
+    # 策略2: 核心子串匹配（短串是长串的子串，门槛 >= 5 字符）
+    for existing_key in existing_keys:
+        short, long_s = (normalized, existing_key) if len(normalized) <= len(existing_key) else (existing_key, normalized)
+        if len(short) >= 5 and short in long_s:
+            return existing_key
+
+    return None
+
+
+def _llm_dedup_aggregated(aggregated: dict, config: dict) -> dict:
+    """LLM 跨轮语义去重 — 消费电子分析师 review 痛点名单，判断合并
+
+    输入：聚合后的 {痛点名: 数据} 字典
+    输出：合并后的字典（数据累加）
+    """
+    try:
+        from src.utils.llm_client import LLMClient
+        llm = LLMClient(config)
+    except Exception:
+        return aggregated
+
+    names = list(aggregated.keys())
+    if len(names) <= 5:
+        return aggregated
+
+    # 构建编号列表
+    name_list = "\n".join(f"{i+1}. {n}" for i, n in enumerate(names))
+
+    system_prompt = """你是消费电子行业分析师，专注 GPU/显卡领域。
+你的任务是审查一份显卡用户痛点列表，找出语义重复的痛点并建议合并。
+
+合并规则（保守优先）：
+- 只合并描述同一个具体问题的痛点（如"价格昂贵"和"价格过高"是同一个问题）
+- 不要合并同一大类但不同具体问题的痛点（如"显存温度过高"和"显存容量不足"是不同问题）
+- 不要合并不同硬件部件的问题（如"散热"和"噪音"虽然相关但是不同痛点）
+- 如果不确定，不要合并
+
+输出 JSON 数组，每个元素是一组应合并的编号：
+{"merge_groups": [[1, 5], [3, 8, 12]]}
+
+如果没有需要合并的，输出：{"merge_groups": []}
+只输出 JSON，不要其他内容。"""
+
+    prompt = f"以下是 {len(names)} 个显卡用户痛点，请找出语义重复的组：\n\n{name_list}"
+
+    try:
+        response = llm.call_reasoning(prompt, system_prompt)
+        # 解析 JSON
+        import re as _re
+        text = _re.sub(r'```json\s*', '', response)
+        text = _re.sub(r'```\s*', '', text)
+        parsed = json.loads(text)
+        merge_groups = parsed.get("merge_groups", [])
+
+        if not merge_groups:
+            return aggregated
+
+        # 执行合并
+        merged_count = 0
+        merged_indices = set()
+        for group in merge_groups:
+            if not isinstance(group, list) or len(group) < 2:
+                continue
+            # 验证索引有效
+            valid = [idx - 1 for idx in group if isinstance(idx, int) and 1 <= idx <= len(names)]
+            if len(valid) < 2:
+                continue
+
+            # 选择 PPHI 最高的（count 最大的）作为主条目
+            primary_idx = max(valid, key=lambda i: aggregated[names[i]]["count"])
+            primary_name = names[primary_idx]
+
+            for idx in valid:
+                if idx == primary_idx or idx in merged_indices:
+                    continue
+                merge_name = names[idx]
+                if merge_name not in aggregated:
+                    continue
+                if primary_name not in aggregated:
+                    break
+
+                # 安全网：category 不同的不合并
+                primary_cat = aggregated[primary_name].get("category", "")
+                merge_cat = aggregated[merge_name].get("category", "")
+                if primary_cat and merge_cat and primary_cat != merge_cat:
+                    print(f"    [LLM去重-跳过] category 不同: '{primary_name[:20]}'({primary_cat}) vs '{merge_name[:20]}'({merge_cat})")
+                    continue
+
+                # 安全网2：名称字符重叠率太低的不合并（防止 LLM 误判不相关痛点）
+                n1 = set(primary_name.replace(" ", ""))
+                n2 = set(merge_name.replace(" ", ""))
+                overlap = len(n1 & n2) / max(len(n1), len(n2)) if max(len(n1), len(n2)) > 0 else 0
+                if overlap < 0.2:
+                    print(f"    [LLM去重-跳过] 名称重叠率过低({overlap:.0%}): '{primary_name[:20]}' vs '{merge_name[:20]}'")
+                    continue
+
+                # 合并日志
+                print(f"    [LLM去重-合并] '{merge_name}' → '{primary_name}'")
+
+                # 合并数据到主条目
+                src_data = aggregated[merge_name]
+                dst_data = aggregated[primary_name]
+                dst_data["count"] += src_data["count"]
+                # sources 可能是 set 或 list
+                if isinstance(dst_data["sources"], set):
+                    dst_data["sources"].update(src_data.get("sources", set()))
+                else:
+                    for s in src_data.get("sources", []):
+                        if s not in dst_data["sources"]:
+                            dst_data["sources"].append(s)
+                for url in src_data.get("source_urls", []):
+                    if url and url not in dst_data["source_urls"]:
+                        dst_data["source_urls"].append(url)
+                # gpu_tags 可能是 set 或 list
+                for key in ("brands", "models", "series", "manufacturers"):
+                    dst_tags = dst_data["gpu_tags"].get(key, [])
+                    src_tags = src_data["gpu_tags"].get(key, [])
+                    if isinstance(dst_tags, set):
+                        dst_tags.update(src_tags)
+                    else:
+                        merged = list(dict.fromkeys(list(dst_tags) + list(src_tags)))
+                        dst_data["gpu_tags"][key] = merged
+                dst_data["total_replies"] += src_data.get("total_replies", 0)
+                dst_data["total_likes"] += src_data.get("total_likes", 0)
+                if src_data.get("timestamps"):
+                    dst_data.setdefault("timestamps", []).extend(src_data["timestamps"])
+                # 推理需求：保留有完整推理链的版本
+                if not dst_data.get("inferred_need_obj") and src_data.get("inferred_need_obj"):
+                    dst_data["inferred_need_obj"] = src_data["inferred_need_obj"]
+                    dst_data["hidden_need"] = src_data.get("hidden_need", "")
+
+                del aggregated[merge_name]
+                merged_indices.add(idx)
+                merged_count += 1
+
+        if merged_count > 0:
+            print(f"  [LLM去重] 合并 {merged_count} 个重复痛点（{len(aggregated)} 个剩余）")
+
+        return aggregated
+
+    except Exception as e:
+        print(f"  [!] LLM 去重失败(不影响运行): {e}")
+        return aggregated
+
+
 def _aggregate(insights: list[dict]) -> dict:
-    """聚合同类痛点，合并 GPU 标签和 URL（支持语义去重）"""
+    """聚合同类痛点，合并 GPU 标签和 URL（支持跨轮语义去重）"""
     agg = {}
     name_mapping = {}  # 规范化名称 -> 最佳展示名称
 
@@ -257,11 +441,19 @@ def _aggregate(insights: list[dict]) -> dict:
         pp = item.get("pain_point", "未知")
         normalized_pp, original_pp = _normalize_pain_point(pp)
 
+        # 跨轮语义去重：先查同义词匹配
+        matched_key = None
+        if normalized_pp in agg:
+            matched_key = normalized_pp
+        else:
+            matched_key = _find_synonym_key(normalized_pp, agg)
+
         # 使用规范化名称作为聚合 key
-        if normalized_pp not in agg:
-            # 选择最具描述性的名称作为展示名（优先选择带"显卡"前缀的完整名称）
-            name_mapping[normalized_pp] = original_pp
-            agg[normalized_pp] = {
+        if matched_key is None:
+            # 新痛点，创建新条目
+            matched_key = normalized_pp
+            name_mapping[matched_key] = original_pp
+            agg[matched_key] = {
                 "count": 0,
                 "sources": set(),
                 "source_urls": [],
@@ -277,51 +469,53 @@ def _aggregate(insights: list[dict]) -> dict:
                 "timestamps": [],
             }
         else:
-            # 如果新名称更具描述性（更长或带"显卡"前缀），则更新展示名
-            current_display = name_mapping[normalized_pp]
+            # 匹配到已有条目（精确匹配或同义词匹配），更新展示名
+            current_display = name_mapping[matched_key]
             if len(original_pp) > len(current_display) or (original_pp.startswith("显卡") and not current_display.startswith("显卡")):
-                name_mapping[normalized_pp] = original_pp
+                name_mapping[matched_key] = original_pp
 
         # count: 如果 insight 来自历史累积（已有 mentions），用 mentions；否则 +1
         hist_mentions = item.get("_hist_mentions", 0)
-        agg[normalized_pp]["count"] += hist_mentions if hist_mentions > 0 else 1
+        agg[matched_key]["count"] += hist_mentions if hist_mentions > 0 else 1
 
         # 来源
         for pid in item.get("source_post_ids", []):
             src = pid.split("_")[0] if "_" in pid else "unknown"
-            agg[normalized_pp]["sources"].add(src)
+            agg[matched_key]["sources"].add(src)
 
         # URL
         for url in item.get("source_urls", []):
-            if url and url not in agg[normalized_pp]["source_urls"]:
-                agg[normalized_pp]["source_urls"].append(url)
+            if url and url not in agg[matched_key]["source_urls"]:
+                agg[matched_key]["source_urls"].append(url)
 
         # GPU 标签合并
         tags = item.get("gpu_tags", {})
         for key in ("brands", "models", "series", "manufacturers"):
-            agg[normalized_pp]["gpu_tags"][key].update(tags.get(key, []))
+            agg[matched_key]["gpu_tags"][key].update(tags.get(key, []))
 
         # 互动数据累加
-        agg[normalized_pp]["total_replies"] += item.get("total_replies", 0)
-        agg[normalized_pp]["total_likes"] += item.get("total_likes", 0)
+        agg[matched_key]["total_replies"] += item.get("total_replies", 0)
+        agg[matched_key]["total_likes"] += item.get("total_likes", 0)
 
         # 时间戳收集
         ts = item.get("earliest_timestamp", "")
         if ts:
-            agg[normalized_pp]["timestamps"].append(ts)
+            agg[matched_key]["timestamps"].append(ts)
 
-        # 推理需求
+        # 推理需求（优先保留有完整推理链的版本）
         need = item.get("inferred_need")
         if need and need.get("hidden_need"):
-            agg[normalized_pp]["hidden_need"] = need["hidden_need"]
-            agg[normalized_pp]["confidences"].append(need.get("confidence", 0.5))
-            # 保存完整的推理对象（包含 reasoning_chain 和 munger_review）
-            agg[normalized_pp]["inferred_need_obj"] = need
+            existing_need = agg[matched_key].get("inferred_need_obj")
+            # 优先保留有 reasoning_chain 的版本
+            if not existing_need or not existing_need.get("reasoning_chain"):
+                agg[matched_key]["hidden_need"] = need["hidden_need"]
+                agg[matched_key]["inferred_need_obj"] = need
+            agg[matched_key]["confidences"].append(need.get("confidence", 0.5))
             # 提取 Munger 质量评级
             munger_review = need.get("munger_review", {})
             if munger_review:
-                agg[normalized_pp]["munger_quality"] = munger_review.get("quality_level", "unknown")
-                agg[normalized_pp]["needs_verification"] = need.get("_needs_verification", False)
+                agg[matched_key]["munger_quality"] = munger_review.get("quality_level", "unknown")
+                agg[matched_key]["needs_verification"] = need.get("_needs_verification", False)
 
     # 后处理：用最佳展示名替换规范化名称
     final_agg = {}
@@ -363,20 +557,67 @@ _CATEGORY_NAMES_R = {"性能", "价格", "散热", "噪音", "驱动", "兼容�
 
 
 def _guard_display_name(name: str, data: dict) -> str:
-    """聚合层名称守卫：检测笼统名称，用 evidence 替代
+    """聚合层名称守卫：检测笼统/口语化/非GPU名称，用 evidence 或 hidden_need 摘要替代
 
-    注意：不使用 hidden_need 替代，因为那是"需求"不是"痛点"
+    注意：不直接使用 hidden_need 替代，因为那是"需求"不是"痛点"
     """
     clean = name.strip()
+    is_bad = False
+
     for prefix in ("显卡", "GPU"):
         if clean.startswith(prefix):
             clean = clean[len(prefix):]
-    for suffix in ("问题", "不足", "困难", "不好"):
+    for suffix in ("显卡", "问题", "不足", "困难", "不好"):
         if clean.endswith(suffix):
             clean = clean[:-len(suffix)].strip()
 
-    if clean not in _CATEGORY_NAMES_R and len(clean) >= 3:
-        return name  # 名称足够具体，不需要修正
+    # 检查1: 笼统分类名 或 纯型号名（如 "9070显卡" → clean="9070"）
+    if clean in _CATEGORY_NAMES_R or len(clean) < 3:
+        is_bad = True
+    # 纯数字/型号（去掉显卡后只剩型号号码）
+    if not is_bad and re.match(r'^[\dA-Za-z\s\-\.]+$', clean):
+        is_bad = True
+
+    # 检查2: 口语化语气词（原始帖子标题直接当痛点名）
+    _COLLOQUIAL = {"我建议", "我觉得", "我感觉", "建议大家", "大家觉得", "有没有人",
+                   "求助", "请问", "怎么办", "哈哈", "估计", "竟",
+                   "救命", "崩溃了", "无语", "离谱", "绝了", "真的是", "没希望"}
+    if not is_bad:
+        for marker in _COLLOQUIAL:
+            if marker in name:
+                is_bad = True
+                break
+
+    # 检查3: 叙事性标点（感叹号、省略号 = 原始标题）
+    if not is_bad and re.search(r'[！!…]{1,}', name):
+        is_bad = True
+
+    # 检查4: 非 GPU 范畴
+    _NON_GPU = {"显示器", "键盘", "鼠标", "耳机", "用眼", "护眼", "视力", "颈椎"}
+    if not is_bad:
+        has_non_gpu = any(kw in name for kw in _NON_GPU)
+        has_gpu = any(kw in name.lower() for kw in ("gpu", "显卡", "rtx", "rx ", "gtx", "驱动", "显存", "vram", "帧"))
+        if has_non_gpu and not has_gpu:
+            is_bad = True
+
+    # 检查5: "品类+焦虑/不足" 笼统模式（如 "显存焦虑"）
+    _VAGUE_SUFFIXES = {"焦虑", "恐惧", "担忧"}
+    if not is_bad:
+        for suffix in _VAGUE_SUFFIXES:
+            if clean.endswith(suffix) and len(clean) - len(suffix) <= 4:
+                is_bad = True
+                break
+
+    # 检查6: 非痛点内容（测试/评测/对比）
+    _NOT_PAIN = {"性能测试", "性能对比", "评测", "开箱", "拆解", "跑分"}
+    if not is_bad:
+        for kw in _NOT_PAIN:
+            if kw in name:
+                is_bad = True
+                break
+
+    if not is_bad:
+        return name
 
     # 尝试用 evidence 替代
     evidence = data.get("evidence", "")
@@ -385,8 +626,6 @@ def _guard_display_name(name: str, data: dict) -> str:
         if len(short_ev) >= 4:
             return short_ev
 
-    # 无 evidence 时，尝试从 source_urls 推断上下文
-    # 对于历史数据，保留原名但加标记（下轮新数据进来时会自然替换）
     return name  # 无法改善，保持原样
 
 

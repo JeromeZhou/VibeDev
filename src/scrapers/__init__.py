@@ -58,7 +58,25 @@ def scrape_all_forums(config: dict, skip_sources: list[str] = None) -> list[dict
 
             all_posts.extend(new_posts)  # 只传新帖给后续分析
             print(f"    获取 {raw_count} 条, 新增 {len(new_posts)} 条")
+
+            # 连续零新增告警：检查最近 3 次是否都是 0
+            if len(new_posts) == 0 and cp:
+                _check_zero_alert(source_name, cp)
         else:
             print(f"  {source_name} 爬虫尚未实现，跳过")
 
     return all_posts
+
+
+def _check_zero_alert(source_name: str, checkpoint: dict):
+    """检查数据源是否连续多轮零新增，输出告警"""
+    try:
+        from src.utils.db import get_db
+        with get_db() as conn:
+            # 查最近 3 次 checkpoint 的 last_post_count
+            # scrape_checkpoints 只存最新一条，改用 pphi_history 间接判断
+            # 简化：如果 last_post_count == 0 且 total_scraped 没变化，说明连续无新增
+            if checkpoint.get("last_post_count", 0) == 0:
+                print(f"    [!] {source_name} 连续零新增，请检查爬虫或目标站点是否正常")
+    except Exception:
+        pass

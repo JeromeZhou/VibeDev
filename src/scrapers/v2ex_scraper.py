@@ -67,12 +67,17 @@ class V2EXScraper(BaseScraper):
         for p in posts:
             tag_post(p)
 
-        # 热帖回复抓取（回复>3 的帖子，最多 10 条）
+        # 热帖回复抓取（回复>3 的帖子，最多 10 条，总超时 120 秒）
+        import time
         hot_posts = [p for p in posts if p.get("replies", 0) > 3][:10]
         if hot_posts:
             print(f"    抓取 {len(hot_posts)} 条热帖回复...", end=" ")
             fetched = 0
+            t0 = time.time()
             for p in hot_posts:
+                if time.time() - t0 > 120:
+                    print(f"(超时120s，跳过剩余)", end=" ")
+                    break
                 comments = self._fetch_replies(p)
                 if comments:
                     p["comments"] = comments[:2000]

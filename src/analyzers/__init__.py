@@ -13,6 +13,17 @@ _CATEGORY_NAMES_EN = {"performance", "price", "thermal", "cooling", "noise", "dr
                       "vram", "memory", "power", "supply", "quality", "ecosystem", "other", "misc"}
 _VAGUE_PATTERNS = {"问题", "不足", "困难", "不好", "issue", "problem", "issues", "problems"}
 
+# 口语化语气词（表明是原始帖子标题而非提炼的痛点描述）
+_COLLOQUIAL_MARKERS = {"我建议", "我觉得", "我感觉", "建议大家", "大家觉得", "有没有人",
+                       "求助", "请问", "怎么办", "吧", "啊", "呢", "吗", "哈哈",
+                       "救命", "崩溃了", "无语", "离谱", "绝了", "真的是"}
+# "品类+焦虑/不足" 笼统模式
+_VAGUE_SUFFIX_PATTERNS = {"焦虑", "恐惧", "担忧", "不足", "不行", "不好", "不够",
+                          "anxiety", "fear", "concern", "insufficient"}
+# 非 GPU 范畴关键词
+_NON_GPU_KEYWORDS = {"显示器", "键盘", "鼠标", "耳机", "音箱", "椅子", "桌子",
+                     "用眼", "护眼", "视力", "颈椎", "腰椎", "monitor", "keyboard", "mouse"}
+
 
 def _guard_pain_name(parsed: dict) -> dict:
     """痛点名称质量守卫 — 确保名称具体、可读、长度合理（零 token）
@@ -22,6 +33,9 @@ def _guard_pain_name(parsed: dict) -> dict:
     2. "分类+问题" 笼统模式 → 同上
     3. 过长（>30字）→ 截断到核心描述
     4. 过短（<3字）→ 用 evidence 补充
+    5. 口语化/叙事性文本 → 用 evidence 替代
+    6. "品类+焦虑/不足" 笼统模式 → 用 evidence 替代
+    7. 非 GPU 范畴内容 → 标记排除
     """
     name = parsed.get("pain_point", "").strip()
     category = parsed.get("category", "其他")
@@ -52,6 +66,31 @@ def _guard_pain_name(parsed: dict) -> dict:
                     if base_en in _CATEGORY_NAMES_EN or len(base_en) <= 3:
                         is_vague = True
                         break
+
+    # 规则5: 口语化/叙事性检测（原始帖子标题直接当痛点名）
+    if not is_vague:
+        for marker in _COLLOQUIAL_MARKERS:
+            if marker in name:
+                is_vague = True
+                break
+
+    # 规则6: "品类+焦虑/不足" 笼统模式（如 "显存焦虑"、"笔记本显卡性能不足"）
+    if not is_vague:
+        for suffix in _VAGUE_SUFFIX_PATTERNS:
+            if clean.endswith(suffix):
+                base = clean[:-len(suffix)].strip()
+                # 如果去掉后缀只剩分类名或很短的词，就是笼统的
+                if base in _CATEGORY_NAMES or base.lower() in _CATEGORY_NAMES_EN or len(base) <= 3:
+                    is_vague = True
+                    break
+
+    # 规则7: 非 GPU 范畴检测
+    has_non_gpu = any(kw in name for kw in _NON_GPU_KEYWORDS)
+    has_gpu_signal = any(kw in name.lower() for kw in ("gpu", "显卡", "rtx", "rx ", "gtx", "radeon", "geforce",
+                                                        "驱动", "显存", "vram", "帧", "fps", "光追", "dlss"))
+    if has_non_gpu and not has_gpu_signal:
+        parsed["_non_gpu"] = True
+        is_vague = True
 
     if is_vague and evidence:
         # 从 evidence 提取前段作为具体描述
@@ -488,6 +527,9 @@ def devils_advocate_review(hidden_needs: list[dict], llm: LLMClient) -> list[dic
 
 隐藏需求是合理推测，不是数学证明。你的职责是识别过度推测和逻辑跳跃，而非否决所有推导。
 
+额外审查维度：如果痛点本身不属于 GPU/显卡范畴（如显示器、键盘、用眼健康等），直接判定 weak。
+GPU 范畴包括：显卡硬件（散热/功耗/噪音/显存/接口）、驱动软件、游戏性能（帧率/画质/光追）、价格供货、兼容性。
+
 输出 JSON 格式：
 {
   "quality_level": "strong|moderate|weak",
@@ -502,9 +544,10 @@ def devils_advocate_review(hidden_needs: list[dict], llm: LLMClient) -> list[dic
   例：driver crash after update → rollback needed → need stable driver channel ✅
 - moderate (0.5-0.79)：推理合理但有一步缺乏直接证据
   例：散热差 → 用户抱怨噪音 → 需要静音散热 ⚠️（噪音是否真的被提及？）
-- weak (0.2-0.49)：逻辑跳跃大，或结论与痛点关联弱
+- weak (0.2-0.49)：逻辑跳跃大，或结论与痛点关联弱，或痛点不属于 GPU 范畴
   例：散热差 → 用户可能是矿工 → 需要矿卡检测工具 ❌（无依据推测）
   例：price too high → users need financial planning tool ❌（超出产品范畴）
+  例：显示器用眼疲劳 → 需要护眼模式 ❌（不是 GPU 痛点）
 
 只输出 JSON，不要其他内容。"""
 

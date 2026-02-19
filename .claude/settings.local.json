@@ -137,7 +137,8 @@
       "Bash(\"C:\\\\Users\\\\Jerome\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -c \"import httpx; r=httpx.get\\(''http://127.0.0.1:9000/api/health'',timeout=5\\); print\\(r.json\\(\\)\\)\")",
       "Bash(\"C:\\\\Users\\\\Jerome\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -m uvicorn src.web.app:app --host 0.0.0.0 --port 9000)",
       "Bash(\"C:\\\\Users\\\\Jerome\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -c:*)",
-      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe scripts/backfill_reasoning.py)"
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe scripts/backfill_reasoning.py)",
+      "Bash(C:/Users/Jerome/AppData/Local/Programs/Python/Python312/python.exe:*)"
     ]
   }
 }
